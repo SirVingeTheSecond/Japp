@@ -1,4 +1,4 @@
-package com.example
+package com.japp
 
 import io.ktor.server.application.*
 
@@ -9,8 +9,8 @@ fun main(args: Array<String>) {
 fun Application.module() {
     configureSecurity()
     configureSerialization()
-    configureDatabases()
     configureFrameworks()
+    configureDatabases()
     configureSockets()
     configureRouting()
 }

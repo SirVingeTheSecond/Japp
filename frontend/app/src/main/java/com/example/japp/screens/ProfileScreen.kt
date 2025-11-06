@@ -7,6 +7,6 @@ import androidx.navigation.NavController
 import com.example.japp.AppDestinations
 
 @Composable
-fun ScanScreen(navController: NavController) {
-    Text("Camera?")
+fun ProfileScreen(navController: NavController) {
+    Text("My profile!!!!!!! Not yours!!")
 }

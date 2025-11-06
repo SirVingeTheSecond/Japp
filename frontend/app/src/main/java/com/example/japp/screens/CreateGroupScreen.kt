@@ -7,6 +7,6 @@ import androidx.navigation.NavController
 import com.example.japp.AppDestinations
 
 @Composable
-fun ScanScreen(navController: NavController) {
-    Text("Camera?")
+fun CreateGroupScreen(navController: NavController) {
+    Text("Creating a group should go here!")
 }

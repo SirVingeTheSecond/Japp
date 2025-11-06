@@ -1,47 +1,49 @@
 package com.example.japp
 
 import android.os.Bundle
-import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountBox
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowForward
-import androidx.compose.material.icons.filled.Create
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Camera
+import androidx.compose.material.icons.filled.GroupAdd
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.List
-import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarColors
-import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.PreviewScreenSizes
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.example.japp.screens.ActivityScreen
+import com.example.japp.screens.CreateGroupScreen
 import com.example.japp.screens.HomeScreen
+import com.example.japp.screens.ProfileScreen
 import com.example.japp.screens.ScanScreen
 import com.example.japp.ui.theme.JappTheme
 
@@ -62,75 +64,96 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun JappApp() {
     val navController = rememberNavController()
-    val navBackStackEntry by navController.currentBackStackEntryAsState()
-    val currentRoute = navBackStackEntry?.destination?.route
     var currentDestination by rememberSaveable { mutableStateOf(AppDestinations.HOME) }
+    navController.addOnDestinationChangedListener(
+        listener = { controller, destination, arguments ->
+            // This nullpointr shouldn't fail 🙏
+            currentDestination = AppDestinations.entries.find { it.route == destination.route }!!
+        }
+    )
 
-    NavigationSuiteScaffold(
-        navigationSuiteItems = {
-            AppDestinations.entries.subList(0, 3).forEach {
-                item(
-                    icon = {
-                        Icon(
-                            it.icon,
-                            contentDescription = it.label
-                        )
-                    },
-                    label = { Text(it.label) },
-                    selected = currentRoute == it.label,
-                    onClick = {
-                        currentDestination = it
-                        if (currentRoute != it.label) {
-                            navController.navigate(it.label) {
-                                popUpTo(navController.graph.startDestinationId) { saveState = true }
-                                launchSingleTop = true
-                                restoreState = true
+    fun navigate(route: String) {
+        if (currentDestination.route != route) {
+            navController.navigate(route)
+        }
+    }
+
+    Scaffold(
+        topBar = {
+            CenterAlignedTopAppBar(
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary,
+                    actionIconContentColor = MaterialTheme.colorScheme.onSecondary
+                ),
+                title = {
+                    Text(currentDestination.label)
+                },
+                navigationIcon = {
+                    IconButton(onClick = { navigate(AppDestinations.ACTIVITY.route) }) {
+                        // Lil red dot on top left icon
+                        BadgedBox(
+                            badge = {
+                                Badge()
                             }
+                        ) {
+                            Icon(
+                                imageVector = AppDestinations.ACTIVITY.icon,
+                                contentDescription = "Activities",
+                            )
                         }
                     }
+                },
+                actions = {
+                    IconButton(onClick = { navigate(AppDestinations.CREATEGROUP.route) }) {
+                        Icon(
+                            imageVector = AppDestinations.CREATEGROUP.icon,
+                            contentDescription = "Create Group"
+                        )
+                    }
+                },
+            )
+        },
+        bottomBar = {
+            NavigationBar {
+                NavigationBarItem(
+                    selected = AppDestinations.HOME.route == currentDestination.route,
+                    onClick = { navigate(AppDestinations.HOME.route) },
+                    icon = { Icon(AppDestinations.HOME.icon, "idk")},
+                    label = {
+                        Text(AppDestinations.HOME.label)
+                    },
+                    alwaysShowLabel = false,
+                )
+                val actionButton = NavigationActionButtons.entries.find { it.route == currentDestination.route } ?: NavigationActionButtons.DEFAULT
+                FloatingActionButton (
+                    onClick = { navigate(actionButton.destination.route) },
+                    // Tendency to hit home or profile instead of scan, but moves them far apart. TODO: Better solution
+                    Modifier.padding(24.dp, 0.dp)
+                ) {
+                    Icon(actionButton.icon, actionButton.destination.route)
+                }
+                NavigationBarItem(
+                    selected = AppDestinations.PROFILE.route == currentDestination.route,
+                    onClick = { navigate(AppDestinations.PROFILE.route) },
+                    icon = { Icon(AppDestinations.PROFILE.icon, "idk")},
+                    label = {
+                        Text(AppDestinations.PROFILE.label)
+                    },
+                    alwaysShowLabel = false,
                 )
             }
-        }
-    ) {
-        Scaffold(
-            topBar = {
-                CenterAlignedTopAppBar(
-                    title = { Text(currentDestination.label) },
-                    colors = TopAppBarColors(
-                        containerColor = Color.Blue,
-                        scrolledContainerColor = Color.Transparent,
-                        navigationIconContentColor = Color.Black,
-                        titleContentColor = Color.Red,
-                        actionIconContentColor = Color.Black
-                    ),
-                    navigationIcon = {
-                        IconButton(onClick = { navController.navigate(AppDestinations.ACTIVITY.label) }) {
-                            Icon(
-                                imageVector = Icons.Default.Home,
-                                contentDescription = "Localized description"
-                            )
-                        }
-                    },
-                    actions = {
-                        IconButton(onClick = { navController.navigate(AppDestinations.CREATEGROUP.label) }) {
-                            Icon(
-                                imageVector = Icons.Default.Home,
-                                contentDescription = "Localized description"
-                            )
-                        }
-                    },
-                )
-            },
-            modifier = Modifier.fillMaxSize()
-        ) { innerPadding ->
-            NavHost(
-                navController=navController,
-                startDestination = AppDestinations.HOME.label,
-                modifier = Modifier.padding(innerPadding)
-            ) {
-                for (destination in AppDestinations.entries) {
-                    composable(destination.label) { destination.screen(navController) }
-                }
+        },
+        modifier = Modifier.fillMaxSize()
+    ) { innerPadding ->
+        NavHost(
+            navController=navController,
+            startDestination = AppDestinations.HOME.route,
+            modifier = Modifier.padding(innerPadding)
+        ) {
+            for (destination in AppDestinations.entries) {
+                composable(destination.route) { destination.screen(navController) }
             }
         }
     }
@@ -142,10 +165,26 @@ enum class AppDestinations(
     val screen: @Composable (NavController) -> Unit
 ) {
     HOME("Home", Icons.Default.Home, { navController -> HomeScreen(navController) }),
-    SCAN("Scan", Icons.Default.Search, { navController -> ScanScreen(navController) }),
-    PROFILE("Profile", Icons.Default.AccountBox, { navController -> HomeScreen(navController) }),
-    ACTIVITY("Activity", Icons.Default.List, { navController -> ScanScreen(navController) }),
-    CREATEGROUP("CreateGroup", Icons.Default.Create, { navController -> HomeScreen(navController) })
+    SCAN("Scan", Icons.Default.Camera, { navController -> ScanScreen(navController) }),
+    PROFILE("Profile", Icons.Default.Person, { navController -> ProfileScreen(navController) }),
+    ACTIVITY("Activity", Icons.Default.Notifications, { navController -> ActivityScreen(navController) }),
+    CREATEGROUP("Create Group", Icons.Default.GroupAdd, { navController -> CreateGroupScreen(navController) });
+
+    val route: String
+        get() = label.replace(" ", "") // Remove spaces for route
+}
+
+enum class NavigationActionButtons(
+    val route: String, // Route to match
+    val buttonIcon: ImageVector?,
+    val destination: AppDestinations
+) {
+    DEFAULT("", null, AppDestinations.SCAN),
+    // TODO: Make actual conditional buttons.
+    GROUPADD("Group", Icons.Default.Add, AppDestinations.ACTIVITY);
+
+    val icon: ImageVector
+        get() = buttonIcon ?: destination.icon // If buttonIcon is null defaults to AppDestination icon
 }
 
 @Composable

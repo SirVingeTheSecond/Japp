@@ -8,7 +8,7 @@ import com.example.japp.AppDestinations
 
 @Composable
 fun HomeScreen(navController: NavController) {
-    Button(onClick = { navController.navigate(AppDestinations.SCAN.label) }) {
+    Button(onClick = { navController.navigate(AppDestinations.SCAN.route) }) {
         Text("HELLO (Go to qr?)")
     }
 }

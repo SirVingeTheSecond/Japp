@@ -1,4 +1,4 @@
-package com.example
+package com.japp
 
 import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm

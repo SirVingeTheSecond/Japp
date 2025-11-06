@@ -1,4 +1,4 @@
-package com.example
+package com.japp
 
 import io.ktor.client.request.*
 import io.ktor.http.*

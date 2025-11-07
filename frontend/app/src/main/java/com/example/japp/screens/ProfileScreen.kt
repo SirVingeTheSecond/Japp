@@ -15,6 +15,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.japp.AppDestinations
+import com.example.japp.ui.theme.Dimens
 
 @Composable
 fun ProfileScreen(navController: NavController) {
@@ -50,31 +51,34 @@ fun ProfileScreen(navController: NavController) {
             // TODO: Fetch name from backend
             Text(
                 text = "John Doe",
-                fontSize = 22.sp,
-                fontWeight = FontWeight.Bold
+                style = MaterialTheme.typography.titleLarge
             )
 
-            // TODO: Fetch email from backend
             Text(
                 text = "john.doe@example.com",
-                fontSize = 16.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.secondary
             )
 
-            Spacer(modifier = Modifier.height(32.dp))
 
+            Spacer(modifier = Modifier.height(Dimens.spacingMedium))
             Button(
-                onClick = { /* TODO: Navigate to editing page */ },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(Dimens.spacingSmall),
+                onClick = { "TODO: Implement" }
             ) {
-                Text("Edit profile")
+                Text("Rediger profil")
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+
+            Spacer(modifier = Modifier.height(Dimens.spacingSmall))
 
             OutlinedButton(
                 onClick = { navController.navigate(AppDestinations.HOME.route) },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(Dimens.spacingSmall),
             ) {
                 Text("Log out")
             }

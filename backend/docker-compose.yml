@@ -1,0 +1,56 @@
+#
+# IMPORTANT NOTICE
+#
+# DO NOT MODIFY THIS FILE
+#
+# ALL MODIFICATIONS, SHOULD ONLY BE PERFORMED BY MIKKEL.
+#
+services:
+    backend:
+        build: .
+        container_name: japp-app-backend
+        restart: unless-stopped
+        labels:
+            - "traefik.enable=true"
+            - "traefik.http.routers.japp-app-api.rule=Host(`japp-app-api.itnerd.net`)"
+            - "traefik.http.routers.japp-app-api.entrypoints=web,websecure"
+            - "traefik.http.services.japp-app-api.loadbalancer.server.port=8080"
+            - "traefik.http.routers.japp-app-api.tls=true"
+            - "traefik.http.routers.japp-app-api.tls.certresolver=letsencrypt"
+            - "traefik.http.routers.japp-app-api.tls.domains[0].main=japp-app-api.itnerd.net"
+        depends_on:
+            - database
+        environment:
+            POSTGRES_URL: "jdbc:postgresql://10.23.45.2/japp"
+            POSTGRES_USER: "japp"
+            POSTGRES_PASS: "japper"
+            JWT_DOMAIN: "https://jwt-provider-domain/"
+            JWT_AUDIENCE: "jwt-audience"
+            JWT_REALM: "ktor sample app"
+        networks:
+            japp-app-backend-network:
+                ipv4_address: 10.23.45.3
+            private_network:
+        
+
+    database:
+        image: postgres:17.4
+        container_name: japp-app-database
+        restart: unless-stopped
+        environment:
+            POSTGRES_USER: japp
+            POSTGRES_PASSWORD: japper
+            POSTGRES_DB: japp
+        networks:
+            japp-app-backend-network:
+                ipv4_address: 10.23.45.2
+
+
+networks:
+    japp-app-backend-network:
+        ipam:
+            driver: default
+            config:
+                - subnet: "10.23.45.0/24"
+    private_network:
+        external: true

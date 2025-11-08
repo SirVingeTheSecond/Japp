@@ -4,15 +4,16 @@ import org.jetbrains.exposed.v1.core.Table
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.SchemaUtils
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
-
+import org.jetbrains.exposed.v1.core.ResultRow
+import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.jdbc.deleteWhere
+import org.jetbrains.exposed.v1.jdbc.selectAll
+import org.jetbrains.exposed.v1.jdbc.transactions.experimental.newSuspendedTransaction
+import org.jetbrains.exposed.v1.jdbc.update
 import kotlinx.coroutines.Dispatchers
 import org.jetbrains.exposed.v1.jdbc.insert
 
 import com.japp.models.User
-import org.jetbrains.exposed.v1.core.ResultRow
-import org.jetbrains.exposed.v1.core.eq
-import org.jetbrains.exposed.v1.jdbc.selectAll
-import org.jetbrains.exposed.v1.jdbc.transactions.experimental.newSuspendedTransaction
 
 object Users : Table() {
     val id = integer("id").autoIncrement()
@@ -49,6 +50,26 @@ class UserService(private val database: Database) {
         Users.selectAll().where { Users.id eq id }
             .map { rowToUser(it) }
             .singleOrNull() ?: throw Exception("User not found")
+    }
+
+    suspend fun readAll(): List<User> = dbQuery {
+        Users.selectAll()
+        .map { rowToUser(it) }
+    }
+
+    suspend fun  update(id: Int, user: User) = dbQuery {
+        Users.update({ Users.id eq id }) {
+            it[name] = user.name
+            it[email] = user.email
+            it[password_hash] = user.passwordHash
+            it[created_at] = user.createdAt
+            it[profile_picture] = user.profilePicture
+            it[phone] = user.phone
+        }
+    }
+
+    suspend fun delete(id: Int) = dbQuery {
+        Users.deleteWhere { Users.id eq id }
     }
 
     private fun rowToUser(row: ResultRow) = User(

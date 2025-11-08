@@ -3,6 +3,8 @@ package com.japp
 import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
 import com.fasterxml.jackson.databind.*
+import com.japp.database.UserService
+import com.japp.models.User
 import io.ktor.http.*
 import io.ktor.serialization.jackson.*
 import io.ktor.serialization.kotlinx.json.*
@@ -15,6 +17,7 @@ import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.server.websocket.*
 import io.ktor.websocket.*
+import org.jetbrains.exposed.v1.jdbc.Database
 import java.sql.Connection
 import java.sql.DriverManager
 import java.time.Duration
@@ -24,43 +27,68 @@ import org.koin.ktor.plugin.Koin
 import org.koin.logger.slf4jLogger
 
 fun Application.configureDatabases() {
-    val dbConnection: Connection = connectToPostgres(embedded = false)
-    val cityService = CityService(dbConnection)
+    val database: Database = connectToPostgresExposed(embedded = true)
+    val userService = UserService(database)
 
     routing {
 
-        // Create city
-        post("/cities") {
-            val city = call.receive<City>()
-            val id = cityService.create(city)
+        // Create User
+        post("/users") {
+            val user = call.receive<User>()
+            val id = userService.create(user)
             call.respond(HttpStatusCode.Created, id)
         }
 
-        // Read city
-        get("/cities/{id}") {
+        // Get User
+        get("/users/{id}") {
             val id = call.parameters["id"]?.toInt() ?: throw IllegalArgumentException("Invalid ID")
             try {
-                val city = cityService.read(id)
-                call.respond(HttpStatusCode.OK, city)
+                val user = userService.read(id)
+                call.respond(HttpStatusCode.OK, user)
             } catch (e: Exception) {
                 call.respond(HttpStatusCode.NotFound)
             }
         }
 
-        // Update city
-        put("/cities/{id}") {
+        // Get All Users
+        get("/users") {
+            try {
+                val users = userService.readAll()
+                call.respond(HttpStatusCode.OK, users)
+            } catch (e: Exception) {
+                call.respond(HttpStatusCode.NotFound)
+            }
+        }
+
+        // Update User
+        put("/users/{id}") {
             val id = call.parameters["id"]?.toInt() ?: throw IllegalArgumentException("Invalid ID")
-            val user = call.receive<City>()
-            cityService.update(id, user)
+            val user = call.receive<User>()
+            userService.update(id, user)
             call.respond(HttpStatusCode.OK)
         }
 
-        // Delete city
-        delete("/cities/{id}") {
+        // Delete User
+        delete("/users/{id}") {
             val id = call.parameters["id"]?.toInt() ?: throw IllegalArgumentException("Invalid ID")
-            cityService.delete(id)
+            userService.delete(id)
             call.respond(HttpStatusCode.OK)
         }
+    }
+}
+
+fun Application.connectToPostgresExposed(embedded: Boolean): Database {
+    Class.forName("org.postgresql.Driver")
+    return if (embedded) {
+        log.info("Using embedded H2 database with Exposed")
+        Database.connect("jdbc:h2:mem:test;DB_CLOSE_DELAY=-1", driver = "org.h2.Driver", user = "root", password = "")
+    } else {
+        val url = environment.config.property("postgres.url").getString()
+        log.info("Connecting to postgres with Exposed at $url")
+        val user = environment.config.property("postgres.user").getString()
+        val password = environment.config.property("postgres.password").getString()
+
+        Database.connect(url, driver = "org.postgresql.Driver", user = user, password = password)
     }
 }
 
@@ -85,17 +113,4 @@ fun Application.configureDatabases() {
  * @return [Connection] that represent connection to the database. Please, don't forget to close this connection when
  * your application shuts down by calling [Connection.close]
  * */
-fun Application.connectToPostgres(embedded: Boolean): Connection {
-    Class.forName("org.postgresql.Driver")
-    if (embedded) {
-        log.info("Using embedded H2 database for testing; replace this flag to use postgres")
-        return DriverManager.getConnection("jdbc:h2:mem:test;DB_CLOSE_DELAY=-1", "root", "")
-    } else {
-        val url = environment.config.property("postgres.url").getString()
-        log.info("Connecting to postgres database at $url")
-        val user = environment.config.property("postgres.user").getString()
-        val password = environment.config.property("postgres.password").getString()
 
-        return DriverManager.getConnection(url, user, password)
-    }
-}

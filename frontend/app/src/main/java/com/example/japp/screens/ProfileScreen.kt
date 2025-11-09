@@ -10,16 +10,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.japp.AppDestinations
 import com.example.japp.ui.theme.Dimens
 
 @Composable
 fun ProfileScreen(navController: NavController) {
-    Scaffold()
+    Scaffold(modifier = Modifier
+        .background(MaterialTheme.colorScheme.primary))
     { padding ->
         Column(
             modifier = Modifier
@@ -48,7 +47,7 @@ fun ProfileScreen(navController: NavController) {
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // TODO: Fetch name from backend
+            // TODO: Fetch display values from backend
             Text(
                 text = "John Doe",
                 style = MaterialTheme.typography.titleLarge
@@ -59,7 +58,11 @@ fun ProfileScreen(navController: NavController) {
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.secondary
             )
-
+            Text(
+                text = "+45 12 34 56 78",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.secondary
+            )
 
             Spacer(modifier = Modifier.height(Dimens.spacingMedium))
             Button(
@@ -68,11 +71,21 @@ fun ProfileScreen(navController: NavController) {
                     .padding(Dimens.spacingSmall),
                 onClick = { "TODO: Implement" }
             ) {
-                Text("Rediger profil")
+                Text("Edit profile")
+            }
+
+            Spacer(modifier = Modifier.height(Dimens.spacingSmall))
+            Button(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(Dimens.spacingSmall),
+                onClick = { "TODO: Implement" }
+            ) {
+                Text("Settings")
             }
 
 
-            Spacer(modifier = Modifier.height(Dimens.spacingSmall))
+            Spacer(modifier = Modifier.height(Dimens.spacingLarge))
 
             OutlinedButton(
                 onClick = { navController.navigate(AppDestinations.HOME.route) },

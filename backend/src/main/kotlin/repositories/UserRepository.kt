@@ -22,12 +22,12 @@ object Users : Table("users") {
 }
 
 /**
- * UserRepository - handles all database operations for users
+ * Handles all database operations for users
  */
-class UserRepository(private val database: Database) {
+class UserRepository() {
 
     init {
-        transaction(database) {
+        transaction {
             SchemaUtils.create(Users)
         }
     }
@@ -91,5 +91,5 @@ class UserRepository(private val database: Database) {
     )
 
     private suspend fun <T> dbQuery(block: suspend () -> T): T =
-        newSuspendedTransaction(Dispatchers.IO, database) { block() }
+        newSuspendedTransaction(Dispatchers.IO) { block() }
 }

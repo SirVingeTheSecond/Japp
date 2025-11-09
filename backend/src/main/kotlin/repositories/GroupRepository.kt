@@ -14,7 +14,7 @@ import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import java.util.UUID
 
 object Groups : Table("groups") {
-    val id = integer("id").autoIncrement()
+    val id = integer("id").autoIncrement() // ToDo: Replace with UUID?
     val name = varchar("name", 255)
     val description = text("description").nullable()
     val inviteCode = varchar("invite_code", 20).uniqueIndex()
@@ -35,10 +35,13 @@ object GroupMembers : Table("group_members") {
     override val primaryKey = PrimaryKey(groupId, userId)
 }
 
-class GroupRepository(private val database: Database) {
+/**
+ * Handles all database operations for groups
+ */
+class GroupRepository() {
 
     init {
-        transaction(database) {
+        transaction {
             SchemaUtils.create(Groups, GroupMembers)
         }
     }
@@ -176,5 +179,5 @@ class GroupRepository(private val database: Database) {
     )
 
     private suspend fun <T> dbQuery(block: suspend () -> T): T =
-        newSuspendedTransaction(Dispatchers.IO, database) { block() }
+        newSuspendedTransaction(Dispatchers.IO) { block() }
 }

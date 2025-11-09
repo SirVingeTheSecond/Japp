@@ -1,5 +1,6 @@
 package com.japp
 
+import com.japp.routes.authRoutes
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.plugins.calllogging.*
@@ -143,6 +144,8 @@ fun Application.configureRouting() {
 
         route("/api") {
 
+            authRoutes()
+
             get("/test") {
                 call.respond(
                     mapOf(
@@ -150,18 +153,6 @@ fun Application.configureRouting() {
                         "timestamp" to System.currentTimeMillis()
                     )
                 )
-            }
-
-            route("/auth") {
-                // ToDo
-            }
-
-            route("/users") {
-                // ToDo
-            }
-
-            route("/groups") {
-                // ToDo
             }
         }
     }

@@ -45,10 +45,6 @@ fun Application.configureDatabases() {
         connectionTimeout = 30000      // 30 seconds
         maxLifetime = 1800000          // 30 minutes
 
-        // Transaction
-        isAutoCommit = false
-        transactionIsolation = "TRANSACTION_REPEATABLE_READ"
-
         // A simple health check
         connectionTestQuery = "SELECT 1"
         validationTimeout = 5000 // ms

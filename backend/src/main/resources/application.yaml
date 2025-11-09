@@ -4,11 +4,8 @@ ktor:
       - com.japp.ApplicationKt.module
   deployment:
     port: 8080
-jwt:
-  domain: ${JWT_DOMAIN:"https://jwt-provider-domain/"}
-  audience: ${JWT_AUDIENCE:"jwt-audience"}
-  realm: ${JWT_REALM:"ktor sample app"}
+
 postgres:
-  url: ${POSTGRES_URL:"jdbc:postgresql://localhost/default"}
-  user: ${POSTGRES_USER:user}
-  password: ${POSTGRES_PASS:pass}
+  url: ${POSTGRES_URL:jdbc:postgresql://localhost:5432/japp}
+  user: ${POSTGRES_USER:japp}
+  password: ${POSTGRES_PASS:japper}

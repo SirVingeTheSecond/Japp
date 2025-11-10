@@ -18,7 +18,7 @@ fun Application.configureFrameworks() {
 }
 
 fun appModule(application: Application) = module {
-    single {
+    single(named("jwtSecret")) {
         application.environment.config.propertyOrNull("jwt.secret")?.getString()
             ?: System.getenv("JWT_SECRET")
             ?: "change-this-secret-in-production"
@@ -41,7 +41,7 @@ fun appModule(application: Application) = module {
         AuthService(
             userRepository = get(),
             passwordHasher = get(),
-            jwtSecret = get(),
+            jwtSecret = get(named("jwtSecret")),
             jwtIssuer = get(qualifier = named("jwtIssuer")),
             jwtAudience = get(qualifier = named("jwtAudience"))
         )

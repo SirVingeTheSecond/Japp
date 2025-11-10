@@ -6,10 +6,10 @@ import io.ktor.http.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
-import org.koin.ktor.ext.inject
+import org.koin.ktor.ext.get
 
 fun Route.authRoutes() {
-    val authService by inject<AuthService>()
+    val authService = get<AuthService>()
 
     route("/auth") {
         post("/signup") {

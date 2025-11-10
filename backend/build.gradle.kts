@@ -38,8 +38,8 @@ dependencies {
     implementation("io.ktor:ktor-serialization-kotlinx-json")
 
     // Dependency Injection
-    implementation("io.insert-koin:koin-ktor:$koin_version")
-    implementation("io.insert-koin:koin-logger-slf4j:$koin_version")
+    implementation("io.insert-koin:koin-ktor:${koin_version}")
+    implementation("io.insert-koin:koin-logger-slf4j:${koin_version}")
 
     // Exposed ORM
     implementation("org.jetbrains.exposed:exposed-core:${exposed}")

@@ -1,52 +1,22 @@
 package com.japp.repositories
 
-import com.japp.models.Group
-import org.jetbrains.exposed.v1.core.Table
+import com.japp.database.tables.GroupMembers
+import com.japp.database.tables.Groups
+import com.japp.models.domain.Group
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.*
-import org.jetbrains.exposed.v1.jdbc.transactions.experimental.newSuspendedTransaction
-import kotlinx.coroutines.Dispatchers
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.minus
 import org.jetbrains.exposed.v1.core.plus
-import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import java.util.UUID
-
-object Groups : Table("groups") {
-    val id = integer("id").autoIncrement() // ToDo: Replace with UUID?
-    val name = varchar("name", 255)
-    val description = text("description").nullable()
-    val inviteCode = varchar("invite_code", 20).uniqueIndex()
-    val createdBy = integer("created_by").references(Users.id)
-    val memberCount = integer("member_count").default(0)
-    val totalExpenses = double("total_expenses").default(0.0)
-    val createdAt = varchar("created_at", 255)
-    val updatedAt = varchar("updated_at", 255)
-
-    override val primaryKey = PrimaryKey(id)
-}
-
-object GroupMembers : Table("group_members") {
-    val groupId = integer("group_id").references(Groups.id)
-    val userId = integer("user_id").references(Users.id)
-    val joinedAt = varchar("joined_at", 255)
-
-    override val primaryKey = PrimaryKey(groupId, userId)
-}
 
 /**
  * Handles all database operations for groups
  */
-class GroupRepository() {
+class GroupRepository : IGroupRepository {
 
-    init {
-        transaction {
-            SchemaUtils.create(Groups, GroupMembers)
-        }
-    }
-
-    suspend fun create(name: String, description: String?, createdBy: Int): Group = dbQuery {
+    override fun create(name: String, description: String?, createdBy: Int): Group {
         val inviteCode = generateInviteCode()
         val timestamp = System.currentTimeMillis().toString()
 
@@ -55,7 +25,7 @@ class GroupRepository() {
             it[Groups.description] = description
             it[Groups.inviteCode] = inviteCode
             it[Groups.createdBy] = createdBy
-            it[memberCount] = 1 // Creator is obviously the first member...
+            it[memberCount] = 1
             it[totalExpenses] = 0.0
             it[createdAt] = timestamp
             it[updatedAt] = timestamp
@@ -67,52 +37,51 @@ class GroupRepository() {
             it[joinedAt] = timestamp
         }
 
-        findById(groupId)!!
+        return findById(groupId)!!
     }
 
-    suspend fun findById(id: Int): Group? = dbQuery {
-        Groups.selectAll()
+    override fun findById(id: Int): Group? {
+        return Groups.selectAll()
             .where { Groups.id eq id }
             .map { rowToGroup(it) }
             .singleOrNull()
     }
 
-    suspend fun findByInviteCode(code: String): Group? = dbQuery {
-        Groups.selectAll()
+    override fun findByInviteCode(code: String): Group? {
+        return Groups.selectAll()
             .where { Groups.inviteCode eq code }
             .map { rowToGroup(it) }
             .singleOrNull()
     }
 
-    suspend fun findByUserId(userId: Int): List<Group> = dbQuery {
-        (Groups innerJoin GroupMembers)
+    override fun findByUserId(userId: Int): List<Group> {
+        return (Groups innerJoin GroupMembers)
             .selectAll()
             .where { GroupMembers.userId eq userId }
             .map { rowToGroup(it) }
     }
 
-    suspend fun getMembers(groupId: Int): List<Int> = dbQuery {
-        GroupMembers.selectAll()
+    override fun getMembers(groupId: Int): List<Int> {
+        return GroupMembers.selectAll()
             .where { GroupMembers.groupId eq groupId }
             .map { it[GroupMembers.userId] }
     }
 
-    suspend fun isMember(groupId: Int, userId: Int): Boolean = dbQuery {
-        GroupMembers.selectAll()
+    override fun isMember(groupId: Int, userId: Int): Boolean {
+        return GroupMembers.selectAll()
             .where { (GroupMembers.groupId eq groupId) and (GroupMembers.userId eq userId) }
             .count() > 0
     }
 
-    // I do not know what to currently use this for, but it is here
-    suspend fun isOwner(groupId: Int, userId: Int): Boolean = dbQuery {
-        Groups.selectAll()
+    override fun isOwner(groupId: Int, userId: Int): Boolean {
+        return Groups.selectAll()
             .where { (Groups.id eq groupId) and (Groups.createdBy eq userId) }
             .count() > 0
     }
 
-    suspend fun addMember(groupId: Int, userId: Int): Boolean = dbQuery {
+    override fun addMember(groupId: Int, userId: Int): Boolean {
         if (isMember(groupId, userId)) {
-            return@dbQuery false
+            return false
         }
 
         val timestamp = System.currentTimeMillis().toString()
@@ -128,10 +97,10 @@ class GroupRepository() {
             it[updatedAt] = timestamp
         }
 
-        true
+        return true
     }
 
-    suspend fun removeMember(groupId: Int, userId: Int): Boolean = dbQuery {
+    override fun removeMember(groupId: Int, userId: Int): Boolean {
         val deleted = GroupMembers.deleteWhere {
             (GroupMembers.groupId eq groupId) and (GroupMembers.userId eq userId)
         }
@@ -142,13 +111,12 @@ class GroupRepository() {
                 it[memberCount] = memberCount - 1
                 it[updatedAt] = timestamp
             }
-            true
-        } else {
-            false
+            return true
         }
+        return false
     }
 
-    suspend fun updateTotalExpenses(groupId: Int, amount: Double): Unit = dbQuery {
+    override fun updateTotalExpenses(groupId: Int, amount: Double) {
         val timestamp = System.currentTimeMillis().toString()
         Groups.update({ Groups.id eq groupId }) {
             it[totalExpenses] = totalExpenses + amount
@@ -156,12 +124,11 @@ class GroupRepository() {
         }
     }
 
-    suspend fun delete(groupId: Int): Unit = dbQuery {
+    override fun delete(groupId: Int) {
         GroupMembers.deleteWhere { GroupMembers.groupId eq groupId }
         Groups.deleteWhere { Groups.id eq groupId }
     }
 
-    // ToDo: Might need to be done in a better way
     private fun generateInviteCode(): String {
         return UUID.randomUUID().toString().take(6).uppercase()
     }
@@ -177,7 +144,4 @@ class GroupRepository() {
         createdAt = row[Groups.createdAt],
         updatedAt = row[Groups.updatedAt]
     )
-
-    private suspend fun <T> dbQuery(block: suspend () -> T): T =
-        newSuspendedTransaction(Dispatchers.IO) { block() }
 }

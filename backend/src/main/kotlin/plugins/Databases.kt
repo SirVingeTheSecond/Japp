@@ -1,5 +1,6 @@
-package com.japp
+package com.japp.plugins
 
+import com.japp.database.DatabaseSchema
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import io.ktor.server.application.*
@@ -58,8 +59,10 @@ fun Application.configureDatabases() {
     try {
         val dataSource = HikariDataSource(hikariConfig)
         Database.connect(dataSource)
-
         log.info("Database connection successful")
+
+        DatabaseSchema.createTables()
+        log.info("Database schema initialized")
 
     } catch (e: Exception) {
         log.error("Failed to initialize database", e)

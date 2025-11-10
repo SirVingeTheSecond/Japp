@@ -1,9 +1,9 @@
 package com.japp.validation
 
 import com.japp.models.AuthError
-import com.japp.models.LoginRequest
 import com.japp.models.Result
-import com.japp.models.SignupRequest
+import com.japp.models.dto.LoginRequest
+import com.japp.models.dto.SignupRequest
 
 // ToDo: This might need to be cleaned up a bit through refactoring
 object AuthValidator {

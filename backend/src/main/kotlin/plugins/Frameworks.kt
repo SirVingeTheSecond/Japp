@@ -1,6 +1,8 @@
-package com.japp
+package com.japp.plugins
 
 import com.japp.repositories.GroupRepository
+import com.japp.repositories.IGroupRepository
+import com.japp.repositories.IUserRepository
 import com.japp.repositories.UserRepository
 import com.japp.security.PasswordHasher
 import com.japp.services.AuthService
@@ -32,8 +34,8 @@ fun appModule(application: Application) = module {
             ?: "japp-audience"
     }
 
-    single { UserRepository() }
-    single { GroupRepository() }
+    single<IUserRepository> { UserRepository() }
+    single<IGroupRepository> { GroupRepository() }
 
     single { PasswordHasher() }
 

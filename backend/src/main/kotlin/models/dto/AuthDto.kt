@@ -1,20 +1,6 @@
-package com.japp.models
+package com.japp.models.dto
 
 import kotlinx.serialization.Serializable
-
-data class User(
-    val id: Int,
-    val name: String,
-    val email: String,
-    val passwordHash: String,
-    val phone: String?,
-    val profilePicture: String?,
-    val createdAt: String
-)
-
-/**
- * DTOs for API requests/responses
- */
 
 @Serializable
 data class SignupRequest(
@@ -41,6 +27,6 @@ data class UserDto(
     val id: Int,
     val name: String,
     val email: String,
-    val phone: String? = null,
-    val profilePicture: String? = null
+    val phone: String?,
+    val profilePicture: String?
 )

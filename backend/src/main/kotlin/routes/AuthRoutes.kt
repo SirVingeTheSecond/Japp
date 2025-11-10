@@ -1,10 +1,11 @@
 package com.japp.routes
 
-import com.japp.models.*
+import com.japp.models.dto.LoginRequest
+import com.japp.models.dto.SignupRequest
 import com.japp.services.AuthService
+import com.japp.utils.respondResult
 import io.ktor.http.*
 import io.ktor.server.request.*
-import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import org.koin.ktor.ext.get
 
@@ -14,44 +15,14 @@ fun Route.authRoutes() {
     route("/auth") {
         post("/signup") {
             val request = call.receive<SignupRequest>()
-
-            when (val result = authService.signup(request)) {
-                is Result.Success -> {
-                    call.respond(HttpStatusCode.Created, result.value)
-                }
-                is Result.Failure -> {
-                    val error = result.error
-                    call.respond(
-                        HttpStatusCode.fromValue(error.httpStatus),
-                        mapOf(
-                            "success" to false,
-                            "error" to error.message,
-                            "timestamp" to System.currentTimeMillis()
-                        )
-                    )
-                }
-            }
+            val result = authService.signup(request)
+            call.respondResult(result, HttpStatusCode.Created)
         }
 
         post("/login") {
             val request = call.receive<LoginRequest>()
-
-            when (val result = authService.login(request)) {
-                is Result.Success -> {
-                    call.respond(HttpStatusCode.OK, result.value)
-                }
-                is Result.Failure -> {
-                    val error = result.error
-                    call.respond(
-                        HttpStatusCode.fromValue(error.httpStatus),
-                        mapOf(
-                            "success" to false,
-                            "error" to error.message,
-                            "timestamp" to System.currentTimeMillis()
-                        )
-                    )
-                }
-            }
+            val result = authService.login(request)
+            call.respondResult(result)
         }
     }
 }

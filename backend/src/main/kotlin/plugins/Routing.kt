@@ -1,8 +1,12 @@
-package com.japp
+package com.japp.plugins
 
+import com.japp.models.dto.HealthResponse
+import com.japp.models.dto.MeResponse
 import com.japp.routes.authRoutes
+import com.japp.utils.ResponseFactory
 import io.ktor.http.*
 import io.ktor.server.application.*
+import io.ktor.server.auth.authenticate
 import io.ktor.server.plugins.calllogging.*
 import io.ktor.server.plugins.cors.maxAgeDuration
 import io.ktor.server.plugins.cors.routing.*
@@ -28,12 +32,11 @@ fun Application.configureRouting() {
         allowHeader(HttpHeaders.ContentType)
         allowHeader(HttpHeaders.Accept)
 
-        anyHost() // TODO: Restrict to specific hosts in production
+        anyHost() // ToDo: Restrict to specific hosts in production
         allowCredentials = true
         maxAgeDuration = 1.days
     }
 
-    // Request/Response logging
     install(CallLogging) {
         level = Level.INFO
         format { call ->
@@ -45,18 +48,16 @@ fun Application.configureRouting() {
         }
     }
 
-    // Error handling
     install(StatusPages) {
 
-        // 400 Bad Request - Validation errors (e.g., malformed JSON)
+        // 400 Bad Request - Validation errors
         exception<IllegalArgumentException> { call, cause ->
             call.application.log.warn("Validation error: ${cause.message}")
             call.respond(
                 HttpStatusCode.BadRequest,
-                mapOf(
-                    "error" to "ValidationError",
-                    "message" to (cause.message ?: "Invalid request"),
-                    "timestamp" to System.currentTimeMillis()
+                ResponseFactory.error(
+                    error = "ValidationError",
+                    message = cause.message ?: "Invalid request"
                 )
             )
         }
@@ -66,23 +67,21 @@ fun Application.configureRouting() {
             call.application.log.warn("Resource not found: ${cause.message}")
             call.respond(
                 HttpStatusCode.NotFound,
-                mapOf(
-                    "error" to "NotFound",
-                    "message" to (cause.message ?: "Resource not found"),
-                    "timestamp" to System.currentTimeMillis()
+                ResponseFactory.error(
+                    error = "NotFound",
+                    message = cause.message ?: "Resource not found"
                 )
             )
         }
 
-        // 500 Internal Server Error - Catch-all for unexpected errors
+        // 500 Internal Server Error
         exception<Exception> { call, cause ->
             call.application.log.error("Unhandled exception", cause)
             call.respond(
                 HttpStatusCode.InternalServerError,
-                mapOf(
-                    "error" to "InternalServerError",
-                    "message" to "An unexpected error occurred",
-                    "timestamp" to System.currentTimeMillis()
+                ResponseFactory.error(
+                    error = "InternalServerError",
+                    message = "An unexpected error occurred"
                 )
             )
         }
@@ -91,25 +90,22 @@ fun Application.configureRouting() {
         status(HttpStatusCode.NotFound) { call, status ->
             call.respond(
                 status,
-                mapOf(
-                    "error" to "NotFound",
-                    "message" to "Endpoint not found: ${call.request.uri}",
-                    "timestamp" to System.currentTimeMillis()
+                ResponseFactory.error(
+                    error = "NotFound",
+                    message = "Endpoint not found: ${call.request.uri}"
                 )
             )
         }
     }
 
-    // API Routes
     routing {
 
-        // Health check endpoint (public)
+        // Health check
         get("/health") {
             call.respond(
-                mapOf(
-                    "status" to "healthy",
-                    "timestamp" to System.currentTimeMillis(),
-                    "version" to "1.0.0"
+                HealthResponse(
+                    status = "healthy",
+                    version = "1.0.0"
                 )
             )
         }
@@ -117,32 +113,17 @@ fun Application.configureRouting() {
         route("/api") {
             authRoutes()
 
-            // Test endpoint
-            get("/test") {
-                call.respond(
-                    mapOf(
-                        "message" to "Japp API is running",
-                        "timestamp" to System.currentTimeMillis()
+            authenticate("auth-jwt") {
+                get("/me") {
+                    val userId = call.getUserId()
+                    call.respond(
+                        MeResponse(
+                            userId = userId,
+                            message = "You are authenticated"
+                        )
                     )
-                )
+                }
             }
         }
     }
-
-//    post("/users") {
-//        val user = call.receive<User>()
-//        val id = userService.create(user)
-//        call.respond(HttpStatusCode.Created, id)
-//    }
-//
-//    get("/users/{id}") {
-//        val id = call.parameters["id"]?.toInt() ?: throw IllegalArgumentException("Invalid ID")
-//        try {
-//            val user = userService.read(id)
-//            call.respond(HttpStatusCode.OK, user)
-//        } catch (e: Exception) {
-//            call.respond(HttpStatusCode.NotFound)
-//        }
-//    }
-
 }

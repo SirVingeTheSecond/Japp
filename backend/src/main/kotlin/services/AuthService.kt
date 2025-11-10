@@ -1,15 +1,23 @@
 package com.japp.services
 
 import com.japp.models.*
-import com.japp.repositories.UserRepository
+import com.japp.models.domain.User
+import com.japp.models.dto.UserDto
+import com.japp.models.dto.SignupRequest
+import com.japp.models.dto.LoginRequest
+import com.japp.models.dto.AuthResponse
+import com.japp.repositories.IUserRepository
 import com.japp.security.PasswordHasher
 import com.japp.validation.AuthValidator
 import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import java.util.Date
 
 class AuthService(
-    private val userRepository: UserRepository,
+    private val userRepository: IUserRepository,
     private val passwordHasher: PasswordHasher,
     private val jwtSecret: String,
     private val jwtIssuer: String,
@@ -22,40 +30,55 @@ class AuthService(
      * Register a new user
      */
     suspend fun signup(request: SignupRequest): Result<AuthResponse, AuthError> {
-        val validatedRequest = when (val validation = AuthValidator.validateSignup(request)) {
-            is Result.Failure -> return Result.Failure(validation.error)
-            is Result.Success -> validation.value
-        }
+        // Validate outside transaction
+        return when (val validation = AuthValidator.validateSignup(request)) {
+            is Result.Failure -> validation
+            is Result.Success -> {
+                val validatedRequest = validation.value
 
-        return try {
-            if (userRepository.emailExists(validatedRequest.email)) {
-                return Result.Failure(AuthError.EmailAlreadyExists(validatedRequest.email))
+                withContext(Dispatchers.IO) {
+                    try {
+                        transaction {
+                            // Check if email exists
+                            when {
+                                userRepository.emailExists(validatedRequest.email) -> {
+                                    Result.Failure(AuthError.EmailAlreadyExists(validatedRequest.email))
+                                }
+                                else -> {
+                                    // Create user
+                                    val user = User(
+                                        id = 0,
+                                        name = validatedRequest.name,
+                                        email = validatedRequest.email,
+                                        passwordHash = passwordHasher.hash(validatedRequest.password),
+                                        phone = validatedRequest.phone,
+                                        profilePicture = null,
+                                        createdAt = System.currentTimeMillis().toString()
+                                    )
+
+                                    val userId = userRepository.create(user)
+                                    val savedUser = userRepository.findById(userId)
+
+                                    // Check if user was retrieved
+                                    if (savedUser != null) {
+                                        val token = generateToken(savedUser.id, savedUser.email)
+                                        Result.Success(
+                                            AuthResponse(
+                                                token = token,
+                                                user = savedUser.toDto()
+                                            )
+                                        )
+                                    } else {
+                                        Result.Failure(AuthError.InternalError("Failed to retrieve created user"))
+                                    }
+                                }
+                            }
+                        }
+                    } catch (e: Exception) {
+                        Result.Failure(AuthError.InternalError(e.message ?: "Unknown error"))
+                    }
+                }
             }
-
-            val user = User(
-                id = 0,
-                name = validatedRequest.name,
-                email = validatedRequest.email,
-                passwordHash = passwordHasher.hash(validatedRequest.password),
-                phone = validatedRequest.phone,
-                profilePicture = null,
-                createdAt = System.currentTimeMillis().toString()
-            )
-
-            val userId = userRepository.create(user)
-            val savedUser = userRepository.findById(userId)
-                ?: return Result.Failure(AuthError.InternalError("Failed to retrieve created user"))
-
-            val token = generateToken(savedUser.id, savedUser.email)
-
-            Result.Success(
-                AuthResponse(
-                    token = token,
-                    user = savedUser.toDto()
-                )
-            )
-        } catch (e: Exception) {
-            Result.Failure(AuthError.InternalError(e.message ?: "Unknown error occurred"))
         }
     }
 
@@ -63,44 +86,41 @@ class AuthService(
      * Authenticate existing user
      */
     suspend fun login(request: LoginRequest): Result<AuthResponse, AuthError> {
-        val validatedRequest = when (val validation = AuthValidator.validateLogin(request)) {
-            is Result.Failure -> return Result.Failure(validation.error)
-            is Result.Success -> validation.value
-        }
+        // Validate outside transaction
+        return when (val validation = AuthValidator.validateLogin(request)) {
+            is Result.Failure -> validation
+            is Result.Success -> {
+                val validatedRequest = validation.value
 
-        return try {
-            val user = userRepository.findByEmail(validatedRequest.email)
-                ?: return Result.Failure(AuthError.InvalidCredentials())
+                withContext(Dispatchers.IO) {
+                    try {
+                        transaction {
+                            val user = userRepository.findByEmail(validatedRequest.email)
 
-            if (!passwordHasher.verify(validatedRequest.password, user.passwordHash)) {
-                return Result.Failure(AuthError.InvalidCredentials())
+                            when {
+                                user == null -> {
+                                    Result.Failure(AuthError.InvalidCredentials())
+                                }
+                                !passwordHasher.verify(validatedRequest.password, user.passwordHash) -> {
+                                    Result.Failure(AuthError.InvalidCredentials())
+                                }
+                                else -> {
+                                    val token = generateToken(user.id, user.email)
+                                    Result.Success(
+                                        AuthResponse(
+                                            token = token,
+                                            user = user.toDto()
+                                        )
+                                    )
+                                }
+                            }
+                        }
+                    } catch (e: Exception) {
+                        Result.Failure(AuthError.InternalError(e.message ?: "Unknown error"))
+                    }
+                }
             }
-
-            val token = generateToken(user.id, user.email)
-
-            Result.Success(
-                AuthResponse(
-                    token = token,
-                    user = user.toDto()
-                )
-            )
-        } catch (e: Exception) {
-            Result.Failure(AuthError.InternalError(e.message ?: "Unknown error occurred"))
         }
-    }
-
-    /**
-     * Generate JWT token for authenticated user
-     */
-    private fun generateToken(userId: Int, email: String): String {
-        return JWT.create()
-            .withAudience(jwtAudience)
-            .withIssuer(jwtIssuer)
-            .withClaim("userId", userId)
-            .withClaim("email", email)
-            .withExpiresAt(Date(System.currentTimeMillis() + jwtExpirationMs))
-            .withIssuedAt(Date())
-            .sign(Algorithm.HMAC256(jwtSecret))
     }
 
     // To be used...
@@ -120,6 +140,20 @@ class AuthService(
             // Well, since the exception is never used, we could just omit it using _
             null
         }
+    }
+
+    /**
+     * Generate JWT token for authenticated user
+     */
+    private fun generateToken(userId: Int, email: String): String {
+        return JWT.create()
+            .withAudience(jwtAudience)
+            .withIssuer(jwtIssuer)
+            .withClaim("userId", userId)
+            .withClaim("email", email)
+            .withExpiresAt(Date(System.currentTimeMillis() + jwtExpirationMs))
+            .withIssuedAt(Date())
+            .sign(Algorithm.HMAC256(jwtSecret))
     }
 }
 

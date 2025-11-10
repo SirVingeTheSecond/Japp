@@ -1,43 +1,56 @@
 package com.japp.routes
 
-import com.japp.ConflictException
-import com.japp.models.LoginRequest
-import com.japp.models.SignupRequest
+import com.japp.models.*
 import com.japp.services.AuthService
-import io.ktor.http.HttpStatusCode
-import io.ktor.server.request.receive
-import io.ktor.server.response.respond
-import io.ktor.server.routing.Route
-import io.ktor.server.routing.post
-import io.ktor.server.routing.route
+import io.ktor.http.*
+import io.ktor.server.request.*
+import io.ktor.server.response.*
+import io.ktor.server.routing.*
 import org.koin.ktor.ext.inject
-
 
 fun Route.authRoutes() {
     val authService by inject<AuthService>()
 
-    route("/auth"){
+    route("/auth") {
         post("/signup") {
             val request = call.receive<SignupRequest>()
 
-            try {
-                val response = authService.signup(request)
-                call.respond(HttpStatusCode.Created, response)
-            } catch (e: IllegalArgumentException) {
-                throw e
-            } catch (e: IllegalStateException) {
-                throw ConflictException(e.message ?: "Email already registered")
+            when (val result = authService.signup(request)) {
+                is Result.Success -> {
+                    call.respond(HttpStatusCode.Created, result.value)
+                }
+                is Result.Failure -> {
+                    val error = result.error
+                    call.respond(
+                        HttpStatusCode.fromValue(error.httpStatus),
+                        mapOf(
+                            "success" to false,
+                            "error" to error.message,
+                            "timestamp" to System.currentTimeMillis()
+                        )
+                    )
+                }
             }
         }
 
-        post("/login"){
+        post("/login") {
             val request = call.receive<LoginRequest>()
 
-            try {
-                val response = authService.login(request)
-                call.respond(HttpStatusCode.OK, response)
-            } catch (e: IllegalArgumentException) {
-                throw ConflictException(e.message ?: "Invalid email or password")
+            when (val result = authService.login(request)) {
+                is Result.Success -> {
+                    call.respond(HttpStatusCode.OK, result.value)
+                }
+                is Result.Failure -> {
+                    val error = result.error
+                    call.respond(
+                        HttpStatusCode.fromValue(error.httpStatus),
+                        mapOf(
+                            "success" to false,
+                            "error" to error.message,
+                            "timestamp" to System.currentTimeMillis()
+                        )
+                    )
+                }
             }
         }
     }

@@ -7,9 +7,7 @@ import io.ktor.server.plugins.calllogging.*
 import io.ktor.server.plugins.cors.maxAgeDuration
 import io.ktor.server.plugins.cors.routing.*
 import io.ktor.server.plugins.statuspages.*
-import io.ktor.server.request.httpMethod
-import io.ktor.server.request.receive
-import io.ktor.server.request.uri
+import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import org.slf4j.event.Level
@@ -30,7 +28,7 @@ fun Application.configureRouting() {
         allowHeader(HttpHeaders.ContentType)
         allowHeader(HttpHeaders.Accept)
 
-        anyHost() // ToDo: When this is in production we need to restrict to specific host
+        anyHost() // TODO: Restrict to specific hosts in production
         allowCredentials = true
         maxAgeDuration = 1.days
     }
@@ -50,7 +48,7 @@ fun Application.configureRouting() {
     // Error handling
     install(StatusPages) {
 
-        // 400 Bad Request - Validation errors
+        // 400 Bad Request - Validation errors (e.g., malformed JSON)
         exception<IllegalArgumentException> { call, cause ->
             call.application.log.warn("Validation error: ${cause.message}")
             call.respond(
@@ -76,33 +74,7 @@ fun Application.configureRouting() {
             )
         }
 
-        // 409 Conflict - Duplicate resources
-        exception<ConflictException> { call, cause ->
-            call.application.log.warn("Resource conflict: ${cause.message}")
-            call.respond(
-                HttpStatusCode.Conflict,
-                mapOf(
-                    "error" to "Conflict",
-                    "message" to cause.message,
-                    "timestamp" to System.currentTimeMillis()
-                )
-            )
-        }
-
-        // 401 Unauthorized
-        exception<UnauthorizedException> { call, cause ->
-            call.application.log.warn("Unauthorized: ${cause.message}")
-            call.respond(
-                HttpStatusCode.Unauthorized,
-                mapOf(
-                    "error" to "Unauthorized",
-                    "message" to cause.message,
-                    "timestamp" to System.currentTimeMillis()
-                )
-            )
-        }
-
-        // 500 Internal Server Error
+        // 500 Internal Server Error - Catch-all for unexpected errors
         exception<Exception> { call, cause ->
             call.application.log.error("Unhandled exception", cause)
             call.respond(
@@ -143,9 +115,9 @@ fun Application.configureRouting() {
         }
 
         route("/api") {
-
             authRoutes()
 
+            // Test endpoint
             get("/test") {
                 call.respond(
                     mapOf(
@@ -172,9 +144,5 @@ fun Application.configureRouting() {
 //            call.respond(HttpStatusCode.NotFound)
 //        }
 //    }
-    
-}
 
-// Yeah?
-class ConflictException(message: String) : Exception(message)
-class UnauthorizedException(message: String) : Exception(message)
+}

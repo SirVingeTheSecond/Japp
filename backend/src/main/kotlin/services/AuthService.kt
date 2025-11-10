@@ -1,14 +1,11 @@
 package com.japp.services
 
-import com.auth0.jwt.JWT
-import com.auth0.jwt.algorithms.Algorithm
-import com.japp.models.AuthResponse
-import com.japp.models.LoginRequest
-import com.japp.models.SignupRequest
-import com.japp.models.User
-import com.japp.models.UserDto
+import com.japp.models.*
 import com.japp.repositories.UserRepository
 import com.japp.security.PasswordHasher
+import com.japp.validation.AuthValidator
+import com.auth0.jwt.JWT
+import com.auth0.jwt.algorithms.Algorithm
 import java.util.Date
 
 class AuthService(
@@ -19,59 +16,82 @@ class AuthService(
     private val jwtAudience: String
 ) {
 
-    private val jwtExpirationMs = 7 * 24 * 60 * 60 * 1000L
+    private val jwtExpirationMs = 7 * 24 * 60 * 60 * 1000L // 7 days
 
-    suspend fun signup(request: SignupRequest) : AuthResponse {
-        // Validation
-        require(request.email.contains("@")) { "Email is not valid" }
-        require(request.password.length >= 8) { "Password is not valid" }
-        require(request.name.isNotBlank()) { "Name is not valid" }
-
-        if (userRepository.emailExists(request.email)) {
-            throw IllegalArgumentException("Email already exists")
+    /**
+     * Register a new user
+     */
+    suspend fun signup(request: SignupRequest): Result<AuthResponse, AuthError> {
+        val validatedRequest = when (val validation = AuthValidator.validateSignup(request)) {
+            is Result.Failure -> return Result.Failure(validation.error)
+            is Result.Success -> validation.value
         }
 
-        val user = User(
-            id = 0,
-            name = request.name,
-            email = request.email,
-            passwordHash = passwordHasher.hash(request.password),
-            phone = request.phone,
-            profilePicture = null,
-            createdAt = System.currentTimeMillis().toString()
-        )
+        return try {
+            if (userRepository.emailExists(validatedRequest.email)) {
+                return Result.Failure(AuthError.EmailAlreadyExists(validatedRequest.email))
+            }
 
-        val userId = userRepository.create(user)
-        val savedUser = userRepository.findById(userId)
-            ?: throw IllegalStateException("Failed to retrieve created user")
+            val user = User(
+                id = 0,
+                name = validatedRequest.name,
+                email = validatedRequest.email,
+                passwordHash = passwordHasher.hash(validatedRequest.password),
+                phone = validatedRequest.phone,
+                profilePicture = null,
+                createdAt = System.currentTimeMillis().toString()
+            )
 
-        val token = generateToken(user.id, user.email)
+            val userId = userRepository.create(user)
+            val savedUser = userRepository.findById(userId)
+                ?: return Result.Failure(AuthError.InternalError("Failed to retrieve created user"))
 
-        return AuthResponse(
-            token = token,
-            user = savedUser.toDto()
-        )
+            val token = generateToken(savedUser.id, savedUser.email)
+
+            Result.Success(
+                AuthResponse(
+                    token = token,
+                    user = savedUser.toDto()
+                )
+            )
+        } catch (e: Exception) {
+            Result.Failure(AuthError.InternalError(e.message ?: "Unknown error occurred"))
+        }
     }
 
-    suspend fun login(request: LoginRequest) : AuthResponse {
-        require(request.email.isNotBlank()) { "Email is required " }
-        require(request.password.isNotBlank()) { "Password is required " }
-
-        val user = userRepository.findByEmail(request.email)
-            ?: throw IllegalStateException("Invalid email or password")
-
-        if (!passwordHasher.verify(request.password, user.passwordHash)) {
-            throw IllegalArgumentException("Invalid email or password")
+    /**
+     * Authenticate existing user
+     */
+    suspend fun login(request: LoginRequest): Result<AuthResponse, AuthError> {
+        val validatedRequest = when (val validation = AuthValidator.validateLogin(request)) {
+            is Result.Failure -> return Result.Failure(validation.error)
+            is Result.Success -> validation.value
         }
 
-        val token = generateToken(user.id, user.email)
+        return try {
+            val user = userRepository.findByEmail(validatedRequest.email)
+                ?: return Result.Failure(AuthError.InvalidCredentials())
 
-        return AuthResponse(
-            token = token,
-            user = user.toDto()
-        )
+            if (!passwordHasher.verify(validatedRequest.password, user.passwordHash)) {
+                return Result.Failure(AuthError.InvalidCredentials())
+            }
+
+            val token = generateToken(user.id, user.email)
+
+            Result.Success(
+                AuthResponse(
+                    token = token,
+                    user = user.toDto()
+                )
+            )
+        } catch (e: Exception) {
+            Result.Failure(AuthError.InternalError(e.message ?: "Unknown error occurred"))
+        }
     }
 
+    /**
+     * Generate JWT token for authenticated user
+     */
     private fun generateToken(userId: Int, email: String): String {
         return JWT.create()
             .withAudience(jwtAudience)
@@ -79,12 +99,17 @@ class AuthService(
             .withClaim("userId", userId)
             .withClaim("email", email)
             .withExpiresAt(Date(System.currentTimeMillis() + jwtExpirationMs))
+            .withIssuedAt(Date())
             .sign(Algorithm.HMAC256(jwtSecret))
     }
 
-    private fun verifyToken(token: String): Int? {
+    // To be used...
+    /**
+     * Verify JWT token to determine user ID
+     */
+    fun verifyToken(token: String): Int? {
         return try {
-            val verifier =  JWT.require(Algorithm.HMAC256(jwtSecret))
+            val verifier = JWT.require(Algorithm.HMAC256(jwtSecret))
                 .withAudience(jwtAudience)
                 .withIssuer(jwtIssuer)
                 .build()
@@ -92,11 +117,16 @@ class AuthService(
             val decodedJWT = verifier.verify(token)
             decodedJWT.getClaim("userId").asInt()
         } catch (e: Exception) {
+            // Well, since the exception is never used, we could just omit it using _
             null
         }
     }
 }
 
+// This might not be the cleanest approach...
+/**
+ * Extension function to convert User to DTO
+ */
 private fun User.toDto() = UserDto(
     id = id,
     name = name,

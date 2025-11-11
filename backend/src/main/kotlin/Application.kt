@@ -1,16 +1,23 @@
 package com.japp
 
+import com.japp.plugins.configureDatabases
+import com.japp.plugins.configureFrameworks
+import com.japp.plugins.configureRouting
 import io.ktor.server.application.*
+import io.ktor.server.netty.EngineMain
+import com.japp.plugins.configureSecurity
+import com.japp.plugins.configureSerialization
+import com.japp.plugins.configureSockets
 
 fun main(args: Array<String>) {
-    io.ktor.server.netty.EngineMain.main(args)
+    EngineMain.main(args)
 }
 
 fun Application.module() {
-    configureSecurity()
-    configureSerialization()
     configureFrameworks()
+    configureSerialization()
     configureDatabases()
+    configureSecurity()
     configureSockets()
     configureRouting()
 }

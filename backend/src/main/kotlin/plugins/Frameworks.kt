@@ -1,11 +1,14 @@
 package com.japp.plugins
 
+import com.japp.repositories.ExpenseRepository
 import com.japp.repositories.GroupRepository
+import com.japp.repositories.IExpenseRepository
 import com.japp.repositories.IGroupRepository
 import com.japp.repositories.IUserRepository
 import com.japp.repositories.UserRepository
 import com.japp.security.PasswordHasher
 import com.japp.services.AuthService
+import com.japp.services.ExpenseService
 import io.ktor.server.application.*
 import org.koin.core.qualifier.named
 import org.koin.dsl.module
@@ -36,6 +39,7 @@ fun appModule(application: Application) = module {
 
     single<IUserRepository> { UserRepository() }
     single<IGroupRepository> { GroupRepository() }
+    single<IExpenseRepository> { ExpenseRepository() }
 
     single { PasswordHasher() }
 
@@ -46,6 +50,14 @@ fun appModule(application: Application) = module {
             jwtSecret = get(named("jwtSecret")),
             jwtIssuer = get(qualifier = named("jwtIssuer")),
             jwtAudience = get(qualifier = named("jwtAudience"))
+        )
+    }
+    
+    single {
+        ExpenseService(
+            expenseRepository = get(),
+            groupRepository = get(),
+            userRepository = get()
         )
     }
 }

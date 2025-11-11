@@ -2,7 +2,9 @@ package com.japp.plugins
 
 import com.japp.repositories.GroupRepository
 import com.japp.repositories.IGroupRepository
+import com.japp.repositories.ISettlementRepository
 import com.japp.repositories.IUserRepository
+import com.japp.repositories.SettlementRepository
 import com.japp.repositories.UserRepository
 import com.japp.security.PasswordHasher
 import com.japp.services.AuthService
@@ -36,6 +38,7 @@ fun appModule(application: Application) = module {
 
     single<IUserRepository> { UserRepository() }
     single<IGroupRepository> { GroupRepository() }
+    single<ISettlementRepository> { SettlementRepository() }
 
     single { PasswordHasher() }
 

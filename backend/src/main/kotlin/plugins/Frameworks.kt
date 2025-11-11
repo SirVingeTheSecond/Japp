@@ -8,6 +8,7 @@ import com.japp.repositories.SettlementRepository
 import com.japp.repositories.UserRepository
 import com.japp.security.PasswordHasher
 import com.japp.services.AuthService
+import com.japp.services.SettlementService
 import io.ktor.server.application.*
 import org.koin.core.qualifier.named
 import org.koin.dsl.module
@@ -49,6 +50,15 @@ fun appModule(application: Application) = module {
             jwtSecret = get(named("jwtSecret")),
             jwtIssuer = get(qualifier = named("jwtIssuer")),
             jwtAudience = get(qualifier = named("jwtAudience"))
+        )
+    }
+
+    single {
+        SettlementService(
+            settlementRepository = get(),
+            groupRepository = get(),
+            userRepository = get(),
+            expenseRepository = get()
         )
     }
 }

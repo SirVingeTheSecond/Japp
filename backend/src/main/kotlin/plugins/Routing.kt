@@ -3,6 +3,7 @@ package com.japp.plugins
 import com.japp.models.dto.HealthResponse
 import com.japp.models.dto.MeResponse
 import com.japp.routes.authRoutes
+import com.japp.routes.groupRoutes
 import com.japp.utils.ResponseFactory
 import io.ktor.http.*
 import io.ktor.server.application.*
@@ -123,6 +124,8 @@ fun Application.configureRouting() {
                         )
                     )
                 }
+
+                groupRoutes()
             }
         }
     }

@@ -26,7 +26,7 @@ object GroupValidator {
             return Result.Failure(GroupError.ValidationError("Invite code is required"))
         }
         if (request.inviteCode.length != 6) {
-            return Result.Failure(GroupError.ValidationError("Invalid invite code format"))
+            return Result.Failure(GroupError.ValidationError("Invalid invite code"))
         }
 
         return Result.Success(request)

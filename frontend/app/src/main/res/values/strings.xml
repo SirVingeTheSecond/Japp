@@ -1,3 +1,4 @@
 <resources>
-    <string name="app_name">Japp</string>
+    <string name="app_name" translatable="false">Japp</string>
+    <string name="title_activity_startup">StartActivity</string>
 </resources>

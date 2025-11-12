@@ -71,7 +71,7 @@ class GroupService(
 
                             if (groupRepository.isMember(group.id, userId)) {
                                 return@transaction Result.Failure(
-                                    GroupError.AlreadyMember(group.id)
+                                    GroupError.AlreadyMember()
                                 )
                             }
 

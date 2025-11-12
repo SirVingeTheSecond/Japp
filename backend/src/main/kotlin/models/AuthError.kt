@@ -3,33 +3,32 @@ package com.japp.models
 /**
  * Authentication error providing a message and status code.
  */
-sealed class AuthError {
-    abstract val message: String
-    abstract val httpStatus: Int
+sealed class AuthError(
+    override val message: String,
+    private val type: ErrorType
+) : IAppError {
 
-    data class ValidationError(
-        override val message: String,
-        override val httpStatus: Int = 400
-    ) : AuthError()
+    override val httpStatus: Int get() = type.httpStatus
 
-    data class EmailAlreadyExists(
-        val email: String,
-        override val message: String = "Email already registered",
-        override val httpStatus: Int = 409
-    ) : AuthError()
+    class ValidationError(
+        message: String
+    ) : AuthError(message, ErrorType.VALIDATION)
 
-    data class InvalidCredentials(
-        override val message: String = "Invalid email or password",
-        override val httpStatus: Int = 401
-    ) : AuthError()
+    class EmailAlreadyExists(
+        email: String
+    ) : AuthError("Email $email already registered", ErrorType.CONFLICT)
 
-    data class UserNotFound(
-        override val message: String = "User not found",
-        override val httpStatus: Int = 404
-    ) : AuthError()
+    class InvalidCredentials : AuthError(
+        "Invalid email or password",
+        ErrorType.UNAUTHORIZED
+    )
 
-    data class InternalError(
-        override val message: String = "An unexpected error occurred",
-        override val httpStatus: Int = 500
-    ) : AuthError()
+    class UserNotFound : AuthError(
+        "User not found",
+        ErrorType.NOT_FOUND
+    )
+
+    class InternalError(
+        message: String = "An unexpected error occurred"
+    ) : AuthError(message, ErrorType.INTERNAL)
 }

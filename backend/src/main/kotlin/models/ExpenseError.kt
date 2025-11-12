@@ -1,33 +1,33 @@
 package com.japp.models
 
-sealed class ExpenseError {
-    abstract val message: String
-    abstract val httpStatus: Int
 
-    data class ValidationError(
-        override val message: String,
-        override val httpStatus: Int = 400
-    ) : ExpenseError()
+/**
+ * Expense error providing a message and status code.
+ */
+sealed class ExpenseError(
+    override val message: String,
+    private val type: ErrorType
+) : IAppError {
 
-    data class NotFound(
-        val expenseId: Int,
-        override val message: String = "Expense not found",
-        override val httpStatus: Int = 404
-    ) : ExpenseError()
+    override val httpStatus: Int get() = type.httpStatus
 
-    data class NotMember(
-        val groupId: Int,
-        override val message: String = "Not a member of this group",
-        override val httpStatus: Int = 403
-    ) : ExpenseError()
+    class ValidationError(
+        message: String
+    ) : ExpenseError(message, ErrorType.VALIDATION)
 
-    data class Unauthorized(
-        override val message: String = "You do not have permission to perform this action",
-        override val httpStatus: Int = 403
-    ) : ExpenseError()
+    class NotFound(
+        val expenseId: Int
+    ) : ExpenseError("Expense not found", ErrorType.NOT_FOUND)
 
-    data class InternalError(
-        override val message: String = "An unexpected error occurred",
-        override val httpStatus: Int = 500
-    ) : ExpenseError()
+    class NotMember(
+        val groupId: Int
+    ) : ExpenseError("Not a member of this group", ErrorType.FORBIDDEN)
+
+    class Unauthorized(
+        message: String = "You do not have permission to perform this action"
+    ) : ExpenseError(message, ErrorType.FORBIDDEN)
+
+    class InternalError(
+        message: String = "An unexpected error occurred"
+    ) : ExpenseError(message, ErrorType.INTERNAL)
 }

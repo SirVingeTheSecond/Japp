@@ -1,7 +1,9 @@
 package com.japp.plugins
 
+import com.japp.repositories.ActivityRepository
 import com.japp.repositories.ExpenseRepository
 import com.japp.repositories.GroupRepository
+import com.japp.repositories.IActivityRepository
 import com.japp.repositories.IExpenseRepository
 import com.japp.repositories.IGroupRepository
 import com.japp.repositories.ISettlementRepository
@@ -47,6 +49,7 @@ fun appModule(application: Application) = module {
     single<IGroupRepository> { GroupRepository() }
     single<IExpenseRepository> { ExpenseRepository() }
     single<ISettlementRepository> { SettlementRepository() }
+    single<IActivityRepository> { ActivityRepository() }
 
     single { PasswordHasher() }
 
@@ -63,15 +66,17 @@ fun appModule(application: Application) = module {
     single {
         GroupService(
             groupRepository = get(),
-            userRepository = get()
+            userRepository = get(),
+            activityService = get()
         )
     }
-    
+
     single {
         ExpenseService(
             expenseRepository = get(),
             groupRepository = get(),
-            userRepository = get()
+            userRepository = get(),
+            activityService = get()
         )
     }
 
@@ -80,7 +85,8 @@ fun appModule(application: Application) = module {
             settlementRepository = get(),
             groupRepository = get(),
             userRepository = get(),
-            expenseRepository = get()
+            expenseRepository = get(),
+            activityService = get()
         )
     }
 }

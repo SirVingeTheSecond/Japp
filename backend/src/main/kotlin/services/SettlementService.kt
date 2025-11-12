@@ -18,7 +18,8 @@ class SettlementService(
     private val settlementRepository: ISettlementRepository,
     private val groupRepository: IGroupRepository,
     private val userRepository: IUserRepository,
-    private val expenseRepository: IExpenseRepository
+    private val expenseRepository: IExpenseRepository,
+    private val activityService: ActivityService
 ) {
 
     suspend fun getSettlementSuggestions(
@@ -103,6 +104,14 @@ class SettlementService(
                                 amount = request.amount
                             )
 
+                            activityService.logSettlementCreated(
+                                groupId = request.groupId,
+                                userId = userId,
+                                settlementId = settlement.id,
+                                toUserId = request.toUserId,
+                                amount = request.amount
+                            )
+
                             Result.Success(toSettlementDto(settlement))
                         }
                     } catch (e: Exception) {
@@ -147,6 +156,14 @@ class SettlementService(
                         ?: return@transaction Result.Failure(
                             SettlementError.InternalError("Failed to update settlement")
                         )
+
+                    activityService.logSettlementCompleted(
+                        groupId = settlement.groupId,
+                        userId = userId,
+                        settlementId = settlementId,
+                        fromUserId = settlement.fromUserId,
+                        amount = settlement.amount
+                    )
 
                     Result.Success(toSettlementDto(updatedSettlement))
                 }

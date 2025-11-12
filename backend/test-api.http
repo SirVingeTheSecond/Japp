@@ -437,3 +437,25 @@ Content-Type: application/json
 }
 
 ###
+
+### ============================================
+### ACTIVITY LOG TESTS
+### ============================================
+
+### Get Group Activities (default 50)
+GET http://localhost:8080/api/activities/group/{{group_id}}
+Authorization: Bearer {{auth_token}}
+
+###
+
+### Get Group Activities (limited to 10)
+GET http://localhost:8080/api/activities/group/{{group_id}}?limit=10
+Authorization: Bearer {{auth_token}}
+
+###
+
+### Get Activities - not a member (should fail)
+GET http://localhost:8080/api/activities/group/999
+Authorization: Bearer {{auth_token}}
+
+###

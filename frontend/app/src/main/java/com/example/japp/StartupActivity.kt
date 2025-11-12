@@ -3,6 +3,7 @@ package com.example.japp
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import android.util.Patterns;
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -50,7 +51,15 @@ import androidx.navigation.NavController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.example.japp.api.RetrofitClient
+import com.example.japp.api.responses.AuthResponses
 import com.example.japp.ui.theme.JappTheme
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
 
 class StartupActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -98,13 +107,27 @@ fun LoginScreen(context: Context, navController: NavController) {
     var error by remember { mutableStateOf(false) }
 
     fun login() {
-        if (username == "admin" && password == "admin") {
-            val intent = Intent(context, MainActivity::class.java)
-            intent.putExtra("username", username)
-            context.startActivity(intent)
-        } else {
-            error = true
-        }
+        val call: Call<AuthResponses.AuthResponse?>? = RetrofitClient.authService.login(AuthResponses.LoginRequest(
+            username,
+            password
+        ))
+        call!!.enqueue(object : Callback<AuthResponses.AuthResponse?> {
+            override fun onResponse(call: Call<AuthResponses.AuthResponse?>, response: Response<AuthResponses.AuthResponse?>) {
+
+                // we are getting response from our body
+                // and passing it to our modal class.
+                val response: AuthResponses.AuthResponse? = response.body()
+                Log.d("Tag", response.toString())
+                val intent = Intent(context, MainActivity::class.java)
+                intent.putExtra("username", username)
+                context.startActivity(intent)
+            }
+
+            override fun onFailure(call: Call<AuthResponses.AuthResponse?>, t: Throwable) {
+                Log.d("Tag", t.message!!)
+                error = true
+            }
+        })
     }
 
     Scaffold { innerPadding ->
@@ -186,6 +209,25 @@ fun SignupScreen(context: Context, navController: NavController) {
     fun signup() {
         if (isUsernameValid && isEmailValid && isPhoneValid && isPasswordValid && isRepeatPasswordValid) {
             // Send request to sign up here?
+            val call: Call<AuthResponses.AuthResponse?>? = RetrofitClient.authService.signup(AuthResponses.SignupRequest(
+                username,
+                email,
+                password,
+                phone.toString()
+            ))
+            call!!.enqueue(object : Callback<AuthResponses.AuthResponse?> {
+                override fun onResponse(call: Call<AuthResponses.AuthResponse?>, response: Response<AuthResponses.AuthResponse?>) {
+
+                    // we are getting response from our body
+                    // and passing it to our modal class.
+                    val response: AuthResponses.AuthResponse? = response.body()
+                    navController.navigate(Screens.LOGIN.route)
+                }
+
+                override fun onFailure(call: Call<AuthResponses.AuthResponse?>, t: Throwable) {
+                    Log.d("Tag", t.message!!)
+                }
+            })
         } else {
             // Something went wrong
             // TODO: Show to user?

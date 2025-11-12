@@ -1,45 +1,42 @@
 package com.japp.models
 
-sealed class GroupError {
-    abstract val message: String
-    abstract val httpStatus: Int
+/**
+ * Group error providing a message and status code.
+ */
+sealed class GroupError(
+    override val message: String,
+    private val type: ErrorType
+) : IAppError {
 
-    data class ValidationError(
-        override val message: String,
-        override val httpStatus: Int = 400
-    ) : GroupError()
+    override val httpStatus: Int get() = type.httpStatus
 
-    data class NotFound(
-        val groupId: Int,
-        override val message: String = "Group not found",
-        override val httpStatus: Int = 404
-    ) : GroupError()
+    class ValidationError(
+        message: String
+    ) : GroupError(message, ErrorType.VALIDATION)
 
-    data class InvalidInviteCode(
-        override val message: String = "Invalid or expired invite code",
-        override val httpStatus: Int = 404
-    ) : GroupError()
+    class NotFound(
+        val groupId: Int
+    ) : GroupError("Group not found", ErrorType.NOT_FOUND)
 
-    data class AlreadyMember(
-        val groupId: Int,
-        override val message: String = "Already a member of this group",
-        override val httpStatus: Int = 409
-    ) : GroupError()
+    class NotMember(
+        val groupId: Int
+    ) : GroupError("Not a member of this group", ErrorType.FORBIDDEN)
 
-    data class NotMember(
-        val groupId: Int,
-        override val message: String = "Not a member of this group",
-        override val httpStatus: Int = 403
-    ) : GroupError()
+    class NotOwner(
+        val groupId: Int
+    ) : GroupError("Only the group owner can perform this action", ErrorType.FORBIDDEN)
 
-    data class NotOwner(
-        val groupId: Int,
-        override val message: String = "Only group owner can perform this action",
-        override val httpStatus: Int = 403
-    ) : GroupError()
+    class InvalidInviteCode : GroupError(
+        "Invalid invite code",
+        ErrorType.NOT_FOUND
+    )
 
-    data class InternalError(
-        override val message: String = "An unexpected error occurred",
-        override val httpStatus: Int = 500
-    ) : GroupError()
+    class AlreadyMember : GroupError(
+        "Already a member of this group",
+        ErrorType.CONFLICT
+    )
+
+    class InternalError(
+        message: String = "An unexpected error occurred"
+    ) : GroupError(message, ErrorType.INTERNAL)
 }

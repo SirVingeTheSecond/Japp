@@ -13,8 +13,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -34,7 +32,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
@@ -51,23 +48,33 @@ import androidx.navigation.NavController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.example.japp.api.Credentials
+import com.example.japp.api.CredentialsStorage
+import com.example.japp.api.ErrorUtils
 import com.example.japp.api.RetrofitClient
 import com.example.japp.api.responses.AuthResponses
 import com.example.japp.ui.theme.JappTheme
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
+import java.util.Date
 
 class StartupActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        RetrofitClient.init(applicationContext)
+
         enableEdgeToEdge()
-        setContent {
-            JappTheme {
-                StartupPage(LocalContext.current)
+        val token = CredentialsStorage.load(this)
+        if (token != null) {
+            startActivity(Intent(this, MainActivity::class.java))
+            finish()
+        } else {
+            setContent {
+                JappTheme {
+                    StartupPage(this)
+                }
             }
         }
     }
@@ -104,7 +111,8 @@ fun StartupPage(context: Context) {
 fun LoginScreen(context: Context, navController: NavController) {
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    var error by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<String?>(null) }
+    var isValid by remember { mutableStateOf(false) }
 
     fun login() {
         val call: Call<AuthResponses.AuthResponse?>? = RetrofitClient.authService.login(AuthResponses.LoginRequest(
@@ -112,20 +120,31 @@ fun LoginScreen(context: Context, navController: NavController) {
             password
         ))
         call!!.enqueue(object : Callback<AuthResponses.AuthResponse?> {
-            override fun onResponse(call: Call<AuthResponses.AuthResponse?>, response: Response<AuthResponses.AuthResponse?>) {
+            override fun onResponse(
+                call: Call<AuthResponses.AuthResponse?>,
+                response: Response<AuthResponses.AuthResponse?>
+            ) {
+                val body = response.body()
+                Log.d("Tag", body.toString())
 
-                // we are getting response from our body
-                // and passing it to our modal class.
-                val response: AuthResponses.AuthResponse? = response.body()
-                Log.d("Tag", response.toString())
-                val intent = Intent(context, MainActivity::class.java)
-                intent.putExtra("username", username)
-                context.startActivity(intent)
+                if (body != null && response.isSuccessful) {
+                    val token = body.token ?: return
+                    val expiresAt =
+                        Date(System.currentTimeMillis() + (600 * 1000)) // 600 seconds as none is given with request?
+                    CredentialsStorage.save(context, Credentials(token, expiresAt))
+
+                    val intent = Intent(context, MainActivity::class.java)
+                    context.startActivity(intent)
+                } else {
+                    val errorResponse = ErrorUtils.parseError(response)
+                    error = "Login failed: ${errorResponse!!.message}"
+                    isValid = true
+                }
             }
 
             override fun onFailure(call: Call<AuthResponses.AuthResponse?>, t: Throwable) {
                 Log.d("Tag", t.message!!)
-                error = true
+                isValid = true
             }
         })
     }
@@ -150,17 +169,18 @@ fun LoginScreen(context: Context, navController: NavController) {
                             onValueChange = { newText -> username = newText},
                             singleLine = true,
                             label = { Text("Username") },
-                            isError = error
+                            isError = isValid
                         )
                         OutlinedTextField(
                             password,
                             onValueChange = { newText -> password = newText},
                             singleLine = true,
                             label = { Text("Password") },
-                            isError = error,
+                            isError = isValid,
                             visualTransformation = PasswordVisualTransformation()
                         )
                     }
+                    error?.let { Text(it) }
                     Button(onClick = { login() }) {
                         Text("Login!")
                     }
@@ -204,6 +224,8 @@ fun SignupScreen(context: Context, navController: NavController) {
     var isPasswordValid by remember { mutableStateOf(true) }
     var isRepeatPasswordValid by remember { mutableStateOf(true) }
 
+    var error by remember { mutableStateOf<String?>(null) }
+
     val numberPattern = remember { Regex("^\\d+\$") }
 
     fun signup() {
@@ -220,8 +242,18 @@ fun SignupScreen(context: Context, navController: NavController) {
 
                     // we are getting response from our body
                     // and passing it to our modal class.
-                    val response: AuthResponses.AuthResponse? = response.body()
-                    navController.navigate(Screens.LOGIN.route)
+                    val body = response.body()
+                    if (body != null && response.isSuccessful) {
+                        navController.navigate(Screens.LOGIN.route)
+                    } else {
+                        val errorResponse = ErrorUtils.parseError(response)
+                        error = "Signup failed: ${errorResponse!!.message}"
+                        isUsernameValid = false
+                        isEmailValid = false
+                        isPasswordValid = false
+                        isPhoneValid = false
+                        isRepeatPasswordValid = false
+                    }
                 }
 
                 override fun onFailure(call: Call<AuthResponses.AuthResponse?>, t: Throwable) {
@@ -347,6 +379,7 @@ fun SignupScreen(context: Context, navController: NavController) {
                             }
                         )
                     }
+                    error?.let { Text(it) }
                     Button(onClick = { signup() }) {
                         Text("Sign up!")
                     }

@@ -1,5 +1,6 @@
 package com.example.japp.screens
 
+import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -10,13 +11,27 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.japp.AppDestinations
+import com.example.japp.StartupActivity
+import com.example.japp.api.CredentialsStorage
 import com.example.japp.ui.theme.Dimens
 
 @Composable
 fun ProfileScreen(navController: NavController) {
+
+    val context = LocalContext.current
+
+    fun logout() {
+        CredentialsStorage.clear(context)
+
+        val intent = Intent(context, StartupActivity::class.java)
+        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        context.startActivity(intent)
+    }
+
     Scaffold(modifier = Modifier
         .background(MaterialTheme.colorScheme.primary))
     { padding ->
@@ -88,7 +103,7 @@ fun ProfileScreen(navController: NavController) {
             Spacer(modifier = Modifier.height(Dimens.spacingLarge))
 
             OutlinedButton(
-                onClick = { navController.navigate(AppDestinations.HOME.route) },
+                onClick = { logout() },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(Dimens.spacingSmall),

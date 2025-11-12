@@ -1,0 +1,439 @@
+### Health Check
+GET http://localhost:8080/health
+
+###
+
+### Signup User 1
+# @name signup
+POST http://localhost:8080/api/auth/signup
+Content-Type: application/json
+
+{
+  "email": "user1@example.com",
+  "password": "password123",
+  "name": "User One",
+  "phone": "+45 12345678"
+}
+
+> {%
+    client.global.set("auth_token", response.body.token);
+    client.global.set("user1_id", response.body.user.id);
+    client.log("User 1 token: " + response.body.token);
+%}
+
+###
+
+### Login User 1
+# @name login
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "user1@example.com",
+  "password": "password123"
+}
+
+> {%
+    client.global.set("auth_token", response.body.token);
+    client.log("Login token: " + response.body.token);
+%}
+
+###
+
+### Test protected endpoint - with Token (should work)
+GET http://localhost:8080/api/me
+Authorization: Bearer {{auth_token}}
+
+###
+
+### Test protected endpoint - without Token (should fail)
+GET http://localhost:8080/api/me
+
+###
+
+### Login - wrong password (should fail)
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "user1@example.com",
+  "password": "wrongpassword"
+}
+
+###
+
+### Signup - Duplicate email (should fail)
+POST http://localhost:8080/api/auth/signup
+Content-Type: application/json
+
+{
+  "email": "user1@example.com",
+  "password": "password123",
+  "name": "Another User"
+}
+
+###
+
+### ============================================
+### GROUP MANAGEMENT TESTS
+### ============================================
+
+### Create Group (User 1)
+# @name createGroup
+POST http://localhost:8080/api/groups
+Authorization: Bearer {{auth_token}}
+Content-Type: application/json
+
+{
+  "name": "Weekend Trip to Paris",
+  "description": "Planning our vacation expenses"
+}
+
+> {%
+    client.global.set("group_id", response.body.id);
+    client.global.set("invite_code", response.body.inviteCode);
+    client.log("Group ID: " + response.body.id);
+    client.log("Invite Code: " + response.body.inviteCode);
+%}
+
+###
+
+### Get User's Groups
+GET http://localhost:8080/api/groups
+Authorization: Bearer {{auth_token}}
+
+###
+
+### Get Specific Group Details
+GET http://localhost:8080/api/groups/{{group_id}}
+Authorization: Bearer {{auth_token}}
+
+###
+
+### Get Group Members
+GET http://localhost:8080/api/groups/{{group_id}}/members
+Authorization: Bearer {{auth_token}}
+
+###
+
+### Create Group - without auth (should fail)
+POST http://localhost:8080/api/groups
+Content-Type: application/json
+
+{
+  "name": "Should Fail"
+}
+
+###
+
+### Create Group - invalid name (should fail)
+POST http://localhost:8080/api/groups
+Authorization: Bearer {{auth_token}}
+Content-Type: application/json
+
+{
+  "name": "",
+  "description": "Empty name test"
+}
+
+###
+
+### ============================================
+### MULTI-USER SCENARIOS
+### ============================================
+
+### Signup User 2
+# @name signupUser2
+POST http://localhost:8080/api/auth/signup
+Content-Type: application/json
+
+{
+  "email": "user2@example.com",
+  "password": "password123",
+  "name": "User Two",
+  "phone": "+45 87654321"
+}
+
+> {%
+    client.global.set("user2_token", response.body.token);
+    client.global.set("user2_id", response.body.user.id);
+    client.log("User 2 token: " + response.body.token);
+%}
+
+###
+
+### Join Group (User 2 with invite code)
+# @name joinGroup
+POST http://localhost:8080/api/groups/join
+Authorization: Bearer {{user2_token}}
+Content-Type: application/json
+
+{
+  "inviteCode": "{{invite_code}}"
+}
+
+###
+
+### Join Group - invalid code (should fail)
+POST http://localhost:8080/api/groups/join
+Authorization: Bearer {{user2_token}}
+Content-Type: application/json
+
+{
+  "inviteCode": "INVALID"
+}
+
+###
+
+### Join Group - already member (should fail)
+POST http://localhost:8080/api/groups/join
+Authorization: Bearer {{user2_token}}
+Content-Type: application/json
+
+{
+  "inviteCode": "{{invite_code}}"
+}
+
+###
+
+### Get Group Members (User 2 - should see both members now)
+GET http://localhost:8080/api/groups/{{group_id}}/members
+Authorization: Bearer {{user2_token}}
+
+###
+
+### Get User 2's Groups (should include joined group)
+GET http://localhost:8080/api/groups
+Authorization: Bearer {{user2_token}}
+
+###
+
+### Leave Group (User 2)
+DELETE http://localhost:8080/api/groups/{{group_id}}/leave
+Authorization: Bearer {{user2_token}}
+
+###
+
+### Leave Group - owner cannot leave (should fail)
+DELETE http://localhost:8080/api/groups/{{group_id}}/leave
+Authorization: Bearer {{auth_token}}
+
+###
+
+### Access Group - not a member (should fail after User 2 left)
+GET http://localhost:8080/api/groups/{{group_id}}
+Authorization: Bearer {{user2_token}}
+
+###
+
+### ============================================
+### VALIDATION TESTS
+### ============================================
+
+### Create Group - name too short (should fail)
+POST http://localhost:8080/api/groups
+Authorization: Bearer {{auth_token}}
+Content-Type: application/json
+
+{
+  "name": "A",
+  "description": "Name too short"
+}
+
+###
+
+### Create Group - name too long (should fail)
+POST http://localhost:8080/api/groups
+Authorization: Bearer {{auth_token}}
+Content-Type: application/json
+
+{
+  "name": "This is a very long group name that exceeds one hundred characters and should be rejected by validation",
+  "description": "Name too long"
+}
+
+###
+
+### Get Group - invalid ID (should fail)
+GET http://localhost:8080/api/groups/999999
+Authorization: Bearer {{auth_token}}
+
+###
+
+### ============================================
+### EXPENSE MANAGEMENT TESTS
+### ============================================
+
+### Create Expense - Equal Split
+# @name createExpense
+POST http://localhost:8080/api/expenses
+Authorization: Bearer {{auth_token}}
+Content-Type: application/json
+
+{
+  "groupId": {{group_id}},
+  "amount": 320.0,
+  "description": "Dinner at Marius Mom",
+  "category": "Food",
+  "splitType": "equal"
+}
+
+> {%
+    client.global.set("expense_id", response.body.id);
+    client.log("Expense ID: " + response.body.id);
+%}
+
+###
+
+### Create Expense - Custom Split
+POST http://localhost:8080/api/expenses
+Authorization: Bearer {{auth_token}}
+Content-Type: application/json
+
+{
+  "groupId": {{group_id}},
+  "amount": 500.0,
+  "description": "Hotel booking",
+  "category": "Accommodation",
+  "splitType": "custom",
+  "splits": [
+    {
+      "userId": {{user1_id}},
+      "shareAmount": 300.0
+    },
+    {
+      "userId": {{user2_id}},
+      "shareAmount": 200.0
+    }
+  ]
+}
+
+###
+
+### Get Group Expenses
+GET http://localhost:8080/api/expenses/group/{{group_id}}
+Authorization: Bearer {{auth_token}}
+
+###
+
+### Get Group Balances
+GET http://localhost:8080/api/expenses/group/{{group_id}}/balances
+Authorization: Bearer {{auth_token}}
+
+###
+
+### Delete Expense (only payer can delete)
+DELETE http://localhost:8080/api/expenses/{{expense_id}}
+Authorization: Bearer {{auth_token}}
+
+###
+
+### Create Expense - not a member (should fail)
+POST http://localhost:8080/api/expenses
+Authorization: Bearer {{user2_token}}
+Content-Type: application/json
+
+{
+  "groupId": 999,
+  "amount": 100.0,
+  "description": "Should fail",
+  "splitType": "equal"
+}
+
+###
+
+### Create Expense - negative amount (should fail)
+POST http://localhost:8080/api/expenses
+Authorization: Bearer {{auth_token}}
+Content-Type: application/json
+
+{
+  "groupId": {{group_id}},
+  "amount": -50.0,
+  "description": "Negative amount test",
+  "splitType": "equal"
+}
+
+###
+
+### Create Expense - custom split doesn't sum correctly (should fail)
+POST http://localhost:8080/api/expenses
+Authorization: Bearer {{auth_token}}
+Content-Type: application/json
+
+{
+  "groupId": {{group_id}},
+  "amount": 100.0,
+  "description": "Bad split",
+  "splitType": "custom",
+  "splits": [
+    {
+      "userId": {{user1_id}},
+      "shareAmount": 30.0
+    },
+    {
+      "userId": {{user2_id}},
+      "shareAmount": 50.0
+    }
+  ]
+}
+
+###
+
+### ============================================
+### SETTLEMENT TESTS
+### ============================================
+
+### Get Settlement Suggestions
+GET http://localhost:8080/api/settlements/group/{{group_id}}/suggestions
+Authorization: Bearer {{auth_token}}
+
+###
+
+### Create Settlement (manual payment record)
+POST http://localhost:8080/api/settlements
+Authorization: Bearer {{user2_token}}
+Content-Type: application/json
+
+{
+  "groupId": {{group_id}},
+  "toUserId": {{user1_id}},
+  "amount": 160.0
+}
+
+> {%
+    client.global.set("settlement_id", response.body.id);
+%}
+
+###
+
+### Get All Settlements for Group
+GET http://localhost:8080/api/settlements/group/{{group_id}}
+Authorization: Bearer {{auth_token}}
+
+###
+
+### Get Pending Settlements Only
+GET http://localhost:8080/api/settlements/group/{{group_id}}?pending=true
+Authorization: Bearer {{auth_token}}
+
+###
+
+### Mark Settlement as Completed (only recipient can mark)
+PATCH http://localhost:8080/api/settlements/{{settlement_id}}/complete
+Authorization: Bearer {{auth_token}}
+
+###
+
+### Create Settlement - to yourself (should fail)
+POST http://localhost:8080/api/settlements
+Authorization: Bearer {{auth_token}}
+Content-Type: application/json
+
+{
+  "groupId": {{group_id}},
+  "toUserId": {{user1_id}},
+  "amount": 50.0
+}
+
+###

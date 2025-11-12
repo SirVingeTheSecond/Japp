@@ -1,5 +1,6 @@
 package com.japp.database
 
+import com.japp.database.tables.Expenses
 import com.japp.database.tables.GroupMembers
 import com.japp.database.tables.Groups
 import com.japp.database.tables.Users
@@ -16,7 +17,8 @@ object DatabaseSchema {
             SchemaUtils.create(
                 Users,
                 Groups,
-                GroupMembers
+                GroupMembers,
+                Expenses
             )
         }
     }
@@ -29,7 +31,8 @@ object DatabaseSchema {
             SchemaUtils.drop(
                 Users,
                 Groups,
-                GroupMembers
+                GroupMembers,
+                Expenses
             )
         }
     }

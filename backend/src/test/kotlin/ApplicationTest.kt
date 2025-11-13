@@ -106,4 +106,10 @@ class ApplicationTest : AnnotationSpec() {
         groupService.createGroup(createGroupRequest,0)
         groupService.getGroupById(0,0)
     }
+
+    @Test
+    suspend fun deleteGroup() {
+
+    }
+
 }

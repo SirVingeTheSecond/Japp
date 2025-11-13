@@ -52,7 +52,9 @@ import com.example.japp.api.Credentials
 import com.example.japp.api.CredentialsStorage
 import com.example.japp.api.ErrorUtils
 import com.example.japp.api.RetrofitClient
-import com.example.japp.api.responses.AuthResponses
+import com.example.japp.api.responses.auth.AuthResponse
+import com.example.japp.api.responses.auth.LoginRequest
+import com.example.japp.api.responses.auth.SignupRequest
 import com.example.japp.ui.theme.JappTheme
 import retrofit2.Call
 import retrofit2.Callback
@@ -115,14 +117,16 @@ fun LoginScreen(context: Context, navController: NavController) {
     var isValid by remember { mutableStateOf(false) }
 
     fun login() {
-        val call: Call<AuthResponses.AuthResponse?>? = RetrofitClient.authService.login(AuthResponses.LoginRequest(
-            username,
-            password
-        ))
-        call!!.enqueue(object : Callback<AuthResponses.AuthResponse?> {
+        val call: Call<AuthResponse?>? = RetrofitClient.authService.login(
+            LoginRequest(
+                username,
+                password
+            )
+        )
+        call!!.enqueue(object : Callback<AuthResponse?> {
             override fun onResponse(
-                call: Call<AuthResponses.AuthResponse?>,
-                response: Response<AuthResponses.AuthResponse?>
+                call: Call<AuthResponse?>,
+                response: Response<AuthResponse?>
             ) {
                 val body = response.body()
                 Log.d("Tag", body.toString())
@@ -142,7 +146,7 @@ fun LoginScreen(context: Context, navController: NavController) {
                 }
             }
 
-            override fun onFailure(call: Call<AuthResponses.AuthResponse?>, t: Throwable) {
+            override fun onFailure(call: Call<AuthResponse?>, t: Throwable) {
                 Log.d("Tag", t.message!!)
                 isValid = true
             }
@@ -231,14 +235,15 @@ fun SignupScreen(context: Context, navController: NavController) {
     fun signup() {
         if (isUsernameValid && isEmailValid && isPhoneValid && isPasswordValid && isRepeatPasswordValid) {
             // Send request to sign up here?
-            val call: Call<AuthResponses.AuthResponse?>? = RetrofitClient.authService.signup(AuthResponses.SignupRequest(
-                username,
-                email,
-                password,
-                phone.toString()
-            ))
-            call!!.enqueue(object : Callback<AuthResponses.AuthResponse?> {
-                override fun onResponse(call: Call<AuthResponses.AuthResponse?>, response: Response<AuthResponses.AuthResponse?>) {
+            val call: Call<AuthResponse?>? = RetrofitClient.authService.signup(SignupRequest(
+                    username,
+                    email,
+                    password,
+                    phone.toString()
+                )
+            )
+            call!!.enqueue(object : Callback<AuthResponse?> {
+                override fun onResponse(call: Call<AuthResponse?>, response: Response<AuthResponse?>) {
 
                     // we are getting response from our body
                     // and passing it to our modal class.
@@ -256,7 +261,7 @@ fun SignupScreen(context: Context, navController: NavController) {
                     }
                 }
 
-                override fun onFailure(call: Call<AuthResponses.AuthResponse?>, t: Throwable) {
+                override fun onFailure(call: Call<AuthResponse?>, t: Throwable) {
                     Log.d("Tag", t.message!!)
                 }
             })

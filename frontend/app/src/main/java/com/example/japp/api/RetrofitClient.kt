@@ -1,7 +1,6 @@
 package com.example.japp.api
 
 import android.content.Context
-import com.example.japp.api.responses.AuthResponses
 import com.example.japp.api.responses.HealthResponse
 import okhttp3.Authenticator
 import okhttp3.OkHttpClient
@@ -9,15 +8,14 @@ import okhttp3.Request
 import okhttp3.Response
 import okhttp3.Route
 import okhttp3.logging.HttpLoggingInterceptor
-import retrofit2.Call
 import retrofit2.Retrofit
 import retrofit2.Response as RetrofitResponse
 import retrofit2.converter.gson.GsonConverterFactory
-import retrofit2.http.Body
 import retrofit2.http.GET
-import retrofit2.http.POST
 import java.util.Date
 import androidx.core.content.edit
+import com.example.japp.api.responses.auth.AuthService
+import com.example.japp.api.responses.group.GroupService
 import okhttp3.ResponseBody
 import retrofit2.Converter
 
@@ -80,18 +78,6 @@ object CredentialsStorage {
     }
 }
 
-interface AuthService {
-    companion object {
-        private const val BASE_ROUTE = "auth"
-    }
-
-    @POST("${BASE_ROUTE}/signup")
-    fun signup(@Body request: AuthResponses.SignupRequest): Call<AuthResponses.AuthResponse?>?
-
-    @POST("${BASE_ROUTE}/login")
-    fun login(@Body request: AuthResponses.LoginRequest): Call<AuthResponses.AuthResponse?>?
-}
-
 interface JappService {
     @GET("health")
     suspend fun getHealth(): HealthResponse
@@ -152,4 +138,7 @@ object RetrofitClient {
 
     val jappService: JappService
         get() = retrofit!!.create(JappService::class.java)
+
+    val groupService: GroupService
+        get() = retrofit!!.create(GroupService::class.java)
 }

@@ -241,12 +241,12 @@ fun SignupScreen(context: Context?, navController: NavController) {
         if (isValid.value) {
             // Send request to sign up here?
             val call: Call<AuthResponse?>? = RetrofitClient.authService.signup(SignupRequest(
-                    username.value,
                     email.value,
+                    username.value,
                     firstname.value,
                     lastname.value,
                     password.value,
-                    phone.toString()
+                    phone.intValue.toString()
                 )
             )
             call!!.enqueue(object : Callback<AuthResponse?> {

@@ -1,6 +1,6 @@
 package com.example.japp.screens
 
-import android.content.Intent
+
 import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -23,23 +23,14 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.japp.AppDestinations
-import com.example.japp.MainActivity
-import com.example.japp.api.Credentials
-import com.example.japp.api.CredentialsStorage
-import com.example.japp.api.ErrorUtils
 import com.example.japp.api.RetrofitClient
-import com.example.japp.api.responses.auth.AuthResponse
-import com.example.japp.api.responses.auth.LoginRequest
 import com.example.japp.api.responses.group.GroupCreateRequest
 import com.example.japp.api.responses.group.GroupDto
-import com.example.japp.api.responses.group.GroupService
 import com.example.japp.composables.GroupIcon
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
-import java.util.Date
-import kotlin.Int
-import kotlin.String
+
 
 @Preview(showBackground = true, showSystemUi = true)
 @Composable

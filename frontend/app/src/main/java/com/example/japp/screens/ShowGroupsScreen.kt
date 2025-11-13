@@ -22,6 +22,7 @@ import androidx.compose.material3.SearchBar
 import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -46,6 +47,8 @@ import retrofit2.Response
 @Composable
 fun ShowGroupsScreen(navController: NavController? = null) {
 
+    var groups by remember {mutableStateOf<List<GroupDto>>(emptyList())}
+
     fun get_my_groups() {
         val call = RetrofitClient.groupService.get_my_groups()
 
@@ -58,7 +61,7 @@ fun ShowGroupsScreen(navController: NavController? = null) {
                 Log.d("Tag", body.toString())
 
                 if (body != null && response.isSuccessful) {
-                    // handle list here
+                    groups = body
                 }
             }
             override fun onFailure(call: Call<List<GroupDto>>, t: Throwable) {
@@ -66,6 +69,14 @@ fun ShowGroupsScreen(navController: NavController? = null) {
             }
         })
     }
+    
+
+
+    LaunchedEffect(Unit) {
+        get_my_groups()
+    }
+
+
 
 
 
@@ -87,7 +98,8 @@ fun ShowGroupsScreen(navController: NavController? = null) {
                 textFieldState = textFieldState,
                 onSearch = onSearch,
                 searchResults = searchResults,
-                modifier = Modifier
+                modifier = Modifier,
+                groups = groups
             )
         }
     }
@@ -99,7 +111,8 @@ fun SimpleSearchBar(
     textFieldState: TextFieldState,
     onSearch: (String) -> Unit,
     searchResults: List<String>,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    groups: List<GroupDto>
 ) {
     var expanded by rememberSaveable { mutableStateOf(false) }
 
@@ -153,21 +166,22 @@ fun SimpleSearchBar(
 
             }
         }
-
-            GroupCard()
+            groups.forEach { group ->
+                GroupCard(group)
+            }
     }
     }
 }
 
 @Composable
-fun GroupCard(){
+fun GroupCard(group: GroupDto){
     ElevatedCard(
         elevation = CardDefaults.cardElevation(
             defaultElevation = 6.dp
         ),
         modifier = Modifier.padding(15.dp).fillMaxWidth().height(100.dp)
     ) {
-        Text(text ="this is text",
+        Text(text = group.name,
             modifier = Modifier.padding(15.dp),
             textAlign = TextAlign.Center)
 

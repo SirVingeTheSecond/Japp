@@ -53,7 +53,15 @@ dependencies {
     implementation(libs.androidx.compose.material3.adaptive.navigation.suite)
     implementation("androidx.compose.material:material-icons-extended:1.3.0")
     implementation(libs.androidx.navigation.compose)
+<<<<<<< HEAD
     implementation(libs.androidx.compose.foundation)
+=======
+    implementation (libs.gson)
+    implementation (libs.retrofit)
+    implementation (libs.converter.gson)
+    implementation (libs.logging.interceptor)
+    implementation(libs.androidx.datastore.preferences)
+>>>>>>> origin/main
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

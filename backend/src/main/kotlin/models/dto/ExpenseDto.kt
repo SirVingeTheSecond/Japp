@@ -37,7 +37,7 @@ data class ExpenseDto(
 @Serializable
 data class ExpenseSplitDto(
     val userId: Int,
-    val userName: String,
+    val username: String,
     val shareAmount: Double?,
     val sharePercentage: Double?
 )
@@ -45,7 +45,7 @@ data class ExpenseSplitDto(
 @Serializable
 data class BalanceDto(
     val userId: Int,
-    val userName: String,
+    val username: String,
     val balance: Double
 )
 

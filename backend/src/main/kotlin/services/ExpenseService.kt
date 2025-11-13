@@ -134,7 +134,7 @@ class ExpenseService(
                         val user = userRepository.findById(userId)
                         BalanceDto(
                             userId = userId,
-                            userName = user?.name ?: "Unknown",
+                            username = user?.username ?: "Unknown",
                             balance = balance
                         )
                     }.sortedByDescending { it.balance }
@@ -192,7 +192,7 @@ class ExpenseService(
             val user = userRepository.findById(split.userId)
             ExpenseSplitDto(
                 userId = split.userId,
-                userName = user?.name ?: "Unknown",
+                username = user?.username ?: "Unknown",
                 shareAmount = split.shareAmount,
                 sharePercentage = split.sharePercentage
             )
@@ -202,7 +202,7 @@ class ExpenseService(
             id = expense.id,
             groupId = expense.groupId,
             paidBy = expense.paidBy,
-            paidByName = payer?.name ?: "Unknown",
+            paidByName = payer?.username ?: "Unknown",
             amount = expense.amount,
             currency = expense.currency,
             description = expense.description,

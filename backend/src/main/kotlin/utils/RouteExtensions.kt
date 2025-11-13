@@ -29,3 +29,26 @@ suspend inline fun <reified T : Any> ApplicationCall.respondResult(
         }
     }
 }
+
+/**
+ * Extract and validate integer path parameter
+ * Throws IllegalArgumentException if invalid (caught by StatusPages)
+ */
+fun ApplicationCall.requirePathInt(name: String): Int {
+    return parameters[name]?.toIntOrNull()
+        ?: throw IllegalArgumentException("Invalid $name parameter")
+}
+
+/**
+ * Extract optional query parameter as boolean
+ */
+fun ApplicationCall.getQueryBoolean(name: String, default: Boolean = false): Boolean {
+    return request.queryParameters[name]?.toBoolean() ?: default
+}
+
+/**
+ * Extract optional query parameter as integer
+ */
+fun ApplicationCall.getQueryInt(name: String, default: Int? = null): Int? {
+    return request.queryParameters[name]?.toIntOrNull() ?: default
+}

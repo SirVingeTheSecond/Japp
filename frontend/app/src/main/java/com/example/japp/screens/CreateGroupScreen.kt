@@ -1,5 +1,7 @@
 package com.example.japp.screens
 
+import android.content.Intent
+import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -20,7 +22,24 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.example.japp.AppDestinations
+import com.example.japp.MainActivity
+import com.example.japp.api.Credentials
+import com.example.japp.api.CredentialsStorage
+import com.example.japp.api.ErrorUtils
+import com.example.japp.api.RetrofitClient
+import com.example.japp.api.responses.auth.AuthResponse
+import com.example.japp.api.responses.auth.LoginRequest
+import com.example.japp.api.responses.group.GroupCreateRequest
+import com.example.japp.api.responses.group.GroupDto
+import com.example.japp.api.responses.group.GroupService
 import com.example.japp.composables.GroupIcon
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
+import java.util.Date
+import kotlin.Int
+import kotlin.String
 
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
@@ -29,61 +48,95 @@ fun CreateGroupScreen(navController: NavController? = null) {
     var descript by remember { mutableStateOf("") }
     var nameValid by remember { mutableStateOf(true) }
     var descriptValid by remember { mutableStateOf(true) }
-        Column(
-            modifier = Modifier.fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(20.dp, Alignment.CenterVertically)
-        ) {
-            GroupIcon(name)
-            Box(
-                Modifier.background(MaterialTheme.colorScheme.surfaceContainer).padding(15.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(20.dp)
-                ) {
 
-                    OutlinedTextField(
-                        name,
-                        isError = !nameValid,
-                        onValueChange = {
-                            name = it
-                            if (it.length > 50 || it.isEmpty()) {
-                                nameValid = false
-                            } else nameValid = true
-                        },
-                        label = { Text("Group name") },
-                        supportingText = {
-                            if (!nameValid) {
-                                Text("Name must not be empty and be less than 50 characters.")
-                            }
+    fun createGroup(){
+        if (!nameValid && !descriptValid) return
+        val call = RetrofitClient.groupService.create_group(
+            GroupCreateRequest(
+                name,
+                descript
+            )
+        )
+
+        call!!.enqueue(object : Callback<GroupDto?> {
+            override fun onResponse(
+                call: Call<GroupDto?>,
+                response: Response<GroupDto?>
+            ) {
+                val body = response.body()
+                Log.d("Tag", body.toString())
+
+                if (body != null && response.isSuccessful) {
+                    navController?.navigate(AppDestinations.HOME.route)
+                }
+
+            }
+
+            override fun onFailure(call: Call<GroupDto?>, t: Throwable) {
+                Log.d("Tag", t.message!!)
+            }
+        })
+    }
+
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(20.dp, Alignment.CenterVertically)
+    ) {
+        GroupIcon(name)
+        Box(
+            Modifier
+                .background(MaterialTheme.colorScheme.surfaceContainer)
+                .padding(15.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(20.dp)
+            ) {
+
+                OutlinedTextField(
+                    name,
+                    isError = !nameValid,
+                    onValueChange = {
+                        name = it
+                        if (it.length > 50 || it.isEmpty()) {
+                            nameValid = false
+                        } else nameValid = true
+                    },
+                    label = { Text("Group name") },
+                    supportingText = {
+                        if (!nameValid) {
+                            Text("Name must not be empty and be less than 50 characters.")
                         }
-                    )
-                    OutlinedTextField(
-                        descript,
-                        isError = !descriptValid,
-                        onValueChange = {
-                            descript = it
-                            if (it.length > 500 || it.isEmpty()) {
-                                descriptValid = false
-                            } else descriptValid = true
-                        },
-                        label = { Text("Description") },
-                        supportingText = {
-                            if (!descriptValid) {
-                                Text("Description must not be empty and be less than 500 characters")
-                            }
-                        }
-                    )
-                    Button(onClick = {}) {
-                        Text("Submit")
-                        //TODO add endpoints
                     }
+                )
+                OutlinedTextField(
+                    descript,
+                    isError = !descriptValid,
+                    onValueChange = {
+                        descript = it
+                        if (it.length > 500 || it.isEmpty()) {
+                            descriptValid = false
+                        } else descriptValid = true
+                    },
+                    label = { Text("Description") },
+                    supportingText = {
+                        if (!descriptValid) {
+                            Text("Description must not be empty and be less than 500 characters")
+                        }
+                    }
+                )
+                Button(onClick = {
+                    createGroup()
+                }) {
+                    Text("Submit")
 
                 }
 
             }
+
+        }
 
     }
 }

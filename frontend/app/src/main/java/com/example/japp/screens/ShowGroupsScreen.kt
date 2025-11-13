@@ -1,5 +1,6 @@
 package com.example.japp.screens
 
+import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -8,7 +9,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.input.rememberTextFieldState
@@ -31,16 +31,44 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.isTraversalGroup
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.traversalIndex
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.example.japp.api.RetrofitClient
+import com.example.japp.api.responses.group.GroupDto
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun ShowGroupsScreen(navController: NavController? = null) {
+
+    fun get_my_groups() {
+        val call = RetrofitClient.groupService.get_my_groups()
+
+        call.enqueue(object : Callback<List<GroupDto>> {
+            override fun onResponse(
+                call: Call<List<GroupDto>>,
+                response: Response<List<GroupDto>>
+            ) {
+                val body = response.body()
+                Log.d("Tag", body.toString())
+
+                if (body != null && response.isSuccessful) {
+                    // handle list here
+                }
+            }
+            override fun onFailure(call: Call<List<GroupDto>>, t: Throwable) {
+                Log.d("Tag", t.message ?: "Unknown error")
+            }
+        })
+    }
+
+
+
     Box(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
@@ -80,10 +108,9 @@ fun SimpleSearchBar(
             .fillMaxSize()
             .semantics { isTraversalGroup = true }
     ) {
+        Column {
         SearchBar(
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .semantics { traversalIndex = 0f },
+            modifier = Modifier.fillMaxWidth(),
             inputField = {
                 SearchBarDefaults.InputField(
                     query = textFieldState.text.toString(),
@@ -126,7 +153,7 @@ fun SimpleSearchBar(
 
             }
         }
-        Column {
+
             GroupCard()
     }
     }

@@ -16,7 +16,7 @@ interface GroupService {
     fun create_group(@Body request: GroupCreateRequest): Call<GroupDto?>?
 
     @GET(BASE_ROUTE)
-    fun get_my_groups(): Call<List<GroupDto>?>?
+    fun get_my_groups(): Call<List<GroupDto>>
 
     @POST("$BASE_ROUTE/join")
     fun join_group(@Body request: JoinGroupRequest): Call<GroupDto?>?

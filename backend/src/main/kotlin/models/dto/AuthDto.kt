@@ -5,6 +5,9 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class SignupRequest(
     val email: String,
+    val username: String,
+    val firstname: String,
+    val lastname: String,
     val password: String,
     val name: String,
     val phone: String? = null
@@ -12,7 +15,7 @@ data class SignupRequest(
 
 @Serializable
 data class LoginRequest(
-    val email: String,
+    val emailOrUsername: String,
     val password: String
 )
 
@@ -25,8 +28,10 @@ data class AuthResponse(
 @Serializable
 data class UserDto(
     val id: Int,
-    val name: String,
     val email: String,
+    val username: String,
+    val firstname: String,
+    val lastname: String,
     val phone: String?,
     val profilePicture: String?
 )

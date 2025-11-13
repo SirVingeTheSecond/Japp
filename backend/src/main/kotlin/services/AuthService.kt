@@ -30,7 +30,6 @@ class AuthService(
      * Register a new user
      */
     suspend fun signup(request: SignupRequest): Result<AuthResponse, AuthError> {
-        // Validate outside transaction
         return when (val validation = AuthValidator.validateSignup(request)) {
             is Result.Failure -> validation
             is Result.Success -> {
@@ -39,17 +38,20 @@ class AuthService(
                 withContext(Dispatchers.IO) {
                     try {
                         transaction {
-                            // Check if email exists
                             when {
                                 userRepository.emailExists(validatedRequest.email) -> {
                                     Result.Failure(AuthError.EmailAlreadyExists(validatedRequest.email))
                                 }
+                                userRepository.usernameExists(validatedRequest.username) -> {
+                                    Result.Failure(AuthError.ValidationError("Username already taken"))
+                                }
                                 else -> {
-                                    // Create user
                                     val user = User(
                                         id = 0,
-                                        name = validatedRequest.name,
                                         email = validatedRequest.email,
+                                        username = validatedRequest.username,
+                                        firstname = validatedRequest.firstname,
+                                        lastname = validatedRequest.lastname,
                                         passwordHash = passwordHasher.hash(validatedRequest.password),
                                         phone = validatedRequest.phone,
                                         profilePicture = null,
@@ -59,7 +61,6 @@ class AuthService(
                                     val userId = userRepository.create(user)
                                     val savedUser = userRepository.findById(userId)
 
-                                    // Check if user was retrieved
                                     if (savedUser != null) {
                                         val token = generateToken(savedUser.id, savedUser.email)
                                         Result.Success(
@@ -86,7 +87,6 @@ class AuthService(
      * Authenticate existing user
      */
     suspend fun login(request: LoginRequest): Result<AuthResponse, AuthError> {
-        // Validate outside transaction
         return when (val validation = AuthValidator.validateLogin(request)) {
             is Result.Failure -> validation
             is Result.Success -> {
@@ -95,7 +95,7 @@ class AuthService(
                 withContext(Dispatchers.IO) {
                     try {
                         transaction {
-                            val user = userRepository.findByEmail(validatedRequest.email)
+                            val user = userRepository.findByEmailOrUsername(validatedRequest.emailOrUsername)
 
                             when {
                                 user == null -> {
@@ -163,8 +163,10 @@ class AuthService(
  */
 private fun User.toDto() = UserDto(
     id = id,
-    name = name,
     email = email,
+    username = username,
+    firstname = firstname,
+    lastname = lastname,
     phone = phone,
     profilePicture = profilePicture
 )

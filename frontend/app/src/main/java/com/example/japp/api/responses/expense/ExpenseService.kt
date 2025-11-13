@@ -2,6 +2,7 @@ package com.example.japp.api.responses.expense
 
 import retrofit2.Call
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.Path
@@ -20,6 +21,6 @@ interface ExpenseService {
     @GET("$BASE_ROUTE/group/{groupId}/balances")
     fun get_group_balances(@Path("groupId") groupId: Int): Call<GroupBalanceSummaryDto?>?
 
-    @GET("$BASE_ROUTE/{id}")
+    @DELETE("$BASE_ROUTE/{id}")
     fun delete_expense(@Path("id") id: Int): Call<Unit?>?
 }

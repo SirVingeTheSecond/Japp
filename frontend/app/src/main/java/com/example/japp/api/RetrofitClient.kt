@@ -17,6 +17,7 @@ import androidx.core.content.edit
 import com.example.japp.api.responses.auth.AuthService
 import com.example.japp.api.responses.expense.ExpenseService
 import com.example.japp.api.responses.group.GroupService
+import com.example.japp.api.responses.settlement.SettlementService
 import okhttp3.ResponseBody
 import retrofit2.Converter
 
@@ -145,4 +146,7 @@ object RetrofitClient {
 
     val expenseService: ExpenseService
         get() = retrofit!!.create(ExpenseService::class.java)
+
+    val settlementService: SettlementService
+        get() = retrofit!!.create(SettlementService::class.java)
 }

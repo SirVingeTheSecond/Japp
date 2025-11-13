@@ -167,7 +167,7 @@ enum class AppDestinations(
     HOME("Home", Icons.Default.Home, { navController -> HomeScreen(navController) }),
     SCAN("Scan", Icons.Default.Camera, { navController -> ScanScreen(navController) }),
     PROFILE("Profile", Icons.Default.Person, { navController -> ProfileScreen(navController) }),
-    ACTIVITY("Activity", Icons.Default.Notifications, { navController -> ActivityScreen(navController) }),
+    ACTIVITY("Activity", Icons.Default.Notifications, { navController -> ActivityScreen() }),
     CREATEGROUP("Create Group", Icons.Default.GroupAdd, { navController -> CreateGroupScreen(navController) });
 
     val route: String

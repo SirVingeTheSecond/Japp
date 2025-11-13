@@ -1,14 +1,17 @@
 package com.example.japp.api.responses.auth
 
 data class SignupRequest(
-    val name: String,
     val email: String,
+    val username: String,
+    val firstname: String,
+    val lastname: String,
     val password: String,
+    val name: String,
     val phone: String? = null
 )
 
 data class LoginRequest(
-    val email: String,
+    val emailOrUsername: String,
     val password: String
 )
 

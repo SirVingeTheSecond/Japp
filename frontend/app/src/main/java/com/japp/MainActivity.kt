@@ -185,10 +185,8 @@ enum class AppDestinations(
     HOME("Home", Icons.Default.Home, { navController -> HomeScreen(navController) }),
     SCAN("Scan", Icons.Default.Camera, { navController -> ScanScreen(navController) }),
     PROFILE("Profile", Icons.Default.Person, { navController -> ProfileScreen(navController) }),
-    ACTIVITY("Activity", Icons.Default.Notifications, { navController -> ActivityScreen(navController) }),
-    CREATEGROUP("Create Group", Icons.Default.GroupAdd, { navController -> CreateGroupScreen(navController) }),
-    MYGROUPS("My Groups", Icons.Default.Groups, { navController -> ShowGroupsScreen(navController) }),
-    GROUP("Group", Icons.Default.Group, { navController -> GroupScreen(navController) });
+    ACTIVITY("Activity", Icons.Default.Notifications, { navController -> ActivityScreen() }),
+    CREATEGROUP("Create Group", Icons.Default.GroupAdd, { navController -> CreateGroupScreen(navController) });
 
     val route: String
         get() = label.replace(" ", "") // Remove spaces for route

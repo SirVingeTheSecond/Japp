@@ -1,6 +1,6 @@
 package com.japp.validation
 
-import com.japp.models.ExpenseError
+import com.japp.models.error.ExpenseError
 import com.japp.models.Result
 import com.japp.models.SplitType
 import com.japp.models.dto.CreateExpenseRequest

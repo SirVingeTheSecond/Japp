@@ -104,3 +104,15 @@ enum class ExpenseCategory(val value: String, val displayName: String) {
         fun default(): ExpenseCategory = OTHER
     }
 }
+
+@Serializable
+enum class MessageType(val value: String) {
+    USER("user"),
+    SYSTEM("system");
+
+    companion object {
+        fun fromString(value: String): MessageType? {
+            return entries.find { it.value.equals(value, ignoreCase = true) }
+        }
+    }
+}

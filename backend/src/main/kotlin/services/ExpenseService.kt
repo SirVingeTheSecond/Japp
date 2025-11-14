@@ -3,6 +3,7 @@ package com.japp.services
 import com.japp.models.*
 import com.japp.models.domain.Expense
 import com.japp.models.dto.*
+import com.japp.models.error.ExpenseError
 import com.japp.repositories.IExpenseRepository
 import com.japp.repositories.IGroupRepository
 import com.japp.repositories.IUserRepository

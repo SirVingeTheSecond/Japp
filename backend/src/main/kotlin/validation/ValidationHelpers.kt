@@ -1,6 +1,7 @@
 package com.japp.validation
 
 import com.japp.models.*
+import com.japp.models.error.IAppError
 
 object ValidationHelpers {
 

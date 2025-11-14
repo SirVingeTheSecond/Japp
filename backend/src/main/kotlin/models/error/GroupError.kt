@@ -1,4 +1,4 @@
-package com.japp.models
+package com.japp.models.error
 
 /**
  * Group error providing a message and status code.

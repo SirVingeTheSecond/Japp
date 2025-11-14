@@ -11,6 +11,7 @@ import com.japp.validation.AuthValidator
 import com.japp.utils.toDto
 import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
+import com.japp.models.error.AuthError
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction

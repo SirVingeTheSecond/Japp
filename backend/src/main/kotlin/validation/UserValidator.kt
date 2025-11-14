@@ -1,7 +1,7 @@
 package com.japp.validation
 
 import com.japp.models.Result
-import com.japp.models.UserError
+import com.japp.models.error.UserError
 import com.japp.models.dto.UpdateUserRequest
 
 object UserValidator {

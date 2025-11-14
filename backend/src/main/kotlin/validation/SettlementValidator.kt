@@ -1,7 +1,7 @@
 package com.japp.validation
 
 import com.japp.models.Result
-import com.japp.models.SettlementError
+import com.japp.models.error.SettlementError
 import com.japp.models.dto.CreateSettlementRequest
 
 object SettlementValidator {

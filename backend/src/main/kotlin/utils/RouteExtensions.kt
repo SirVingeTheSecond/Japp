@@ -1,6 +1,6 @@
 package com.japp.utils
 
-import com.japp.models.IAppError
+import com.japp.models.error.IAppError
 import com.japp.models.Result
 import io.ktor.http.*
 import io.ktor.server.application.*

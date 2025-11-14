@@ -42,7 +42,9 @@ class ApplicationTest : AnnotationSpec() {
         transaction {
             userRepository.create(User(
                 id = 0,
-                name = "Niels",
+                username = "Niels69",
+                firstname = "Niels",
+                lastname = "Nielsen",
                 email = "hello@gmail.com",
                 passwordHash = passwordHasher.hash("secret12345"),
                 phone = "1234567890",
@@ -65,7 +67,9 @@ class ApplicationTest : AnnotationSpec() {
         transaction {
             userRepository.create(User(
                 id = 0,
-                name = "Niels",
+                username = "Niels69",
+                firstname = "Niels",
+                lastname = "Nielsen",
                 email = "hello@gmail.com",
                 passwordHash = passwordHasher.hash("secret12345"),
                 phone = "1234567890",
@@ -103,7 +107,9 @@ class ApplicationTest : AnnotationSpec() {
         val userTest = SignupRequest(
             email = "hello@gmail.com",
             password = "secret12345",
-            name = "Niels",
+            username = "Niels69",
+            firstname = "Niels",
+            lastname = "Nielsen",
             phone = "1234567890"
         )
 
@@ -130,7 +136,9 @@ class ApplicationTest : AnnotationSpec() {
         transaction {
             userRepository.create(User(
                 id = 0,
-                name = "Niels",
+                username = "Niels69",
+                firstname = "Niels",
+                lastname = "Nielsen",
                 email = "hello@gmail.com",
                 passwordHash = passwordHasher.hash("secret12345"),
                 phone = "1234567890",
@@ -159,7 +167,9 @@ class ApplicationTest : AnnotationSpec() {
         transaction {
             userRepository.create(User(
                 id = 0,
-                name = "Niels",
+                username = "Niels69",
+                firstname = "Niels",
+                lastname = "Nielsen",
                 email = "hello@gmail.com",
                 passwordHash = passwordHasher.hash("secret12345"),
                 phone = "1234567890",

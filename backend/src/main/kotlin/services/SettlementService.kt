@@ -21,8 +21,73 @@ class SettlementService(
     private val groupRepository: IGroupRepository,
     private val userRepository: IUserRepository,
     private val expenseRepository: IExpenseRepository,
-    private val activityService: ActivityService
+    private val activityService: ActivityService,
+    private val messageService: MessageService
 ) {
+
+    suspend fun createSettlement(
+        request: CreateSettlementRequest,
+        userId: Int
+    ): Result<SettlementDto, SettlementError> {
+        return when (val validation = SettlementValidator.validateCreateSettlement(request)) {
+            is Result.Failure -> validation
+            is Result.Success -> {
+                withContext(Dispatchers.IO) {
+                    try {
+                        transaction {
+                            if (!groupRepository.isMember(request.groupId, userId)) {
+                                return@transaction Result.Failure(
+                                    SettlementError.NotMember(request.groupId)
+                                )
+                            }
+
+                            if (!groupRepository.isMember(request.groupId, request.toUserId)) {
+                                return@transaction Result.Failure(
+                                    SettlementError.ValidationError("Recipient is not a member of this group")
+                                )
+                            }
+
+                            if (userId == request.toUserId) {
+                                return@transaction Result.Failure(
+                                    SettlementError.ValidationError("Cannot create settlement to yourself")
+                                )
+                            }
+
+                            val settlement = settlementRepository.create(
+                                groupId = request.groupId,
+                                fromUserId = userId,
+                                toUserId = request.toUserId,
+                                amount = request.amount
+                            )
+
+                            activityService.logSettlementCreated(
+                                groupId = request.groupId,
+                                userId = userId,
+                                settlementId = settlement.id,
+                                toUserId = request.toUserId,
+                                amount = request.amount
+                            )
+
+                            Result.Success(toSettlementDto(settlement))
+                        }.also { result ->
+                            if (result is Result.Success) {
+                                val fromUser = userRepository.findById(userId)
+                                val toUser = userRepository.findById(request.toUserId)
+                                messageService.createSystemMessage(
+                                    groupId = request.groupId,
+                                    content = "${fromUser?.username ?: "Someone"} recorded payment of ${request.amount} DKK to ${toUser?.username ?: "Someone"}"
+                                )
+                            }
+                        }
+                    } catch (e: Exception) {
+                        Result.Failure(
+                            SettlementError.InternalError(e.message ?: "Failed to create settlement")
+                        )
+                    }
+                }
+            }
+        }
+    }
 
     suspend fun getSettlementSuggestions(
         groupId: Int,
@@ -71,61 +136,6 @@ class SettlementService(
         }
     }
 
-    suspend fun createSettlement(
-        request: CreateSettlementRequest,
-        userId: Int
-    ): Result<SettlementDto, SettlementError> {
-        return when (val validation = SettlementValidator.validateCreateSettlement(request)) {
-            is Result.Failure -> validation
-            is Result.Success -> {
-                withContext(Dispatchers.IO) {
-                    try {
-                        transaction {
-                            if (!groupRepository.isMember(request.groupId, userId)) {
-                                return@transaction Result.Failure(
-                                    SettlementError.NotMember(request.groupId)
-                                )
-                            }
-
-                            if (!groupRepository.isMember(request.groupId, request.toUserId)) {
-                                return@transaction Result.Failure(
-                                    SettlementError.ValidationError("Recipient is not a member of this group")
-                                )
-                            }
-
-                            if (userId == request.toUserId) {
-                                return@transaction Result.Failure(
-                                    SettlementError.ValidationError("Cannot create settlement to yourself")
-                                )
-                            }
-
-                            val settlement = settlementRepository.create(
-                                groupId = request.groupId,
-                                fromUserId = userId,
-                                toUserId = request.toUserId,
-                                amount = request.amount
-                            )
-
-                            activityService.logSettlementCreated(
-                                groupId = request.groupId,
-                                userId = userId,
-                                settlementId = settlement.id,
-                                toUserId = request.toUserId,
-                                amount = request.amount
-                            )
-
-                            Result.Success(toSettlementDto(settlement))
-                        }
-                    } catch (e: Exception) {
-                        Result.Failure(
-                            SettlementError.InternalError(e.message ?: "Failed to create settlement")
-                        )
-                    }
-                }
-            }
-        }
-    }
-
     suspend fun markSettlementCompleted(
         settlementId: Int,
         userId: Int
@@ -168,6 +178,16 @@ class SettlementService(
                     )
 
                     Result.Success(toSettlementDto(updatedSettlement))
+                }.also { result ->
+                    if (result is Result.Success) {
+                        val settlement = result.value
+                        val user = userRepository.findById(userId)
+                        val fromUser = userRepository.findById(settlement.fromUserId)
+                        messageService.createSystemMessage(
+                            groupId = settlement.groupId,
+                            content = "${user?.username ?: "Someone"} confirmed payment from ${fromUser?.username ?: "Someone"} - ${settlement.amount} DKK"
+                        )
+                    }
                 }
             } catch (e: Exception) {
                 Result.Failure(

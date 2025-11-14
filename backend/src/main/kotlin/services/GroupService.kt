@@ -15,7 +15,8 @@ import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 class GroupService(
     private val groupRepository: IGroupRepository,
     private val userRepository: IUserRepository,
-    private val activityService: ActivityService
+    private val activityService: ActivityService,
+    private val messageService: MessageService
 ) {
 
     /**
@@ -90,6 +91,14 @@ class GroupService(
                                 )
 
                             Result.Success(updatedGroup.toDto())
+                        }.also { result ->
+                            if (result is Result.Success) {
+                                val user = userRepository.findById(userId)
+                                messageService.createSystemMessage(
+                                    groupId = result.value.id,
+                                    content = "${user?.username ?: "Someone"} joined the group"
+                                )
+                            }
                         }
                     } catch (e: Exception) {
                         Result.Failure(
@@ -187,6 +196,7 @@ class GroupService(
     /**
      * Leave a group (cannot leave if owner)
      */
+
     suspend fun leaveGroup(
         groupId: Int,
         userId: Int
@@ -209,6 +219,14 @@ class GroupService(
                     activityService.logMemberLeft(groupId, userId)
 
                     Result.Success(Unit)
+                }.also { result ->
+                    if (result is Result.Success) {
+                        val user = userRepository.findById(userId)
+                        messageService.createSystemMessage(
+                            groupId = groupId,
+                            content = "${user?.username ?: "Someone"} left the group"
+                        )
+                    }
                 }
             } catch (e: Exception) {
                 Result.Failure(

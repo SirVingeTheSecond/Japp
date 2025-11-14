@@ -6,6 +6,7 @@ import com.japp.models.dto.GroupActivitiesDto
 import com.japp.repositories.IActivityRepository
 import com.japp.repositories.IGroupRepository
 import com.japp.repositories.IUserRepository
+import com.japp.utils.toDto
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -20,7 +21,7 @@ class ActivityService(
         activityRepository.create(
             groupId = groupId,
             userId = userId,
-            actionType = ActivityType.GROUP_CREATED.name,
+            actionType = ActivityType.GROUP_CREATED,
             description = "created the group",
             metadata = """{"groupName":"$groupName"}"""
         )
@@ -31,9 +32,9 @@ class ActivityService(
         activityRepository.create(
             groupId = groupId,
             userId = userId,
-            actionType = ActivityType.MEMBER_JOINED.name,
+            actionType = ActivityType.MEMBER_JOINED,
             description = "joined the group",
-            metadata = """{"joinedUserId":$joinedUserId,"joinedUserName":"${joinedUser?.name ?: "Unknown"}"}"""
+            metadata = """{"joinedUserId":$joinedUserId,"joinedUserName":"${joinedUser?.username ?: "Unknown"}"}"""
         )
     }
 
@@ -41,7 +42,7 @@ class ActivityService(
         activityRepository.create(
             groupId = groupId,
             userId = userId,
-            actionType = ActivityType.MEMBER_LEFT.name,
+            actionType = ActivityType.MEMBER_LEFT,
             description = "left the group",
             metadata = "{}"
         )
@@ -58,7 +59,7 @@ class ActivityService(
         activityRepository.create(
             groupId = groupId,
             userId = userId,
-            actionType = ActivityType.EXPENSE_CREATED.name,
+            actionType = ActivityType.EXPENSE_CREATED,
             description = "added expense: $description",
             relatedExpenseId = expenseId,
             metadata = """{"amount":$amount,"currency":"$currency","description":"$description"}"""
@@ -75,7 +76,7 @@ class ActivityService(
         activityRepository.create(
             groupId = groupId,
             userId = userId,
-            actionType = ActivityType.EXPENSE_DELETED.name,
+            actionType = ActivityType.EXPENSE_DELETED,
             description = "deleted expense: $description",
             relatedExpenseId = expenseId,
             metadata = """{"amount":$amount,"description":"$description"}"""
@@ -93,10 +94,10 @@ class ActivityService(
         activityRepository.create(
             groupId = groupId,
             userId = userId,
-            actionType = ActivityType.SETTLEMENT_CREATED.name,
-            description = "recorded payment to ${toUser?.name ?: "Unknown"}",
+            actionType = ActivityType.SETTLEMENT_CREATED,
+            description = "recorded payment to ${toUser?.username ?: "Unknown"}",
             relatedSettlementId = settlementId,
-            metadata = """{"amount":$amount,"toUserId":$toUserId,"toUserName":"${toUser?.name ?: "Unknown"}"}"""
+            metadata = """{"amount":$amount,"toUserId":$toUserId,"toUserName":"${toUser?.username ?: "Unknown"}"}"""
         )
     }
 
@@ -111,10 +112,10 @@ class ActivityService(
         activityRepository.create(
             groupId = groupId,
             userId = userId,
-            actionType = ActivityType.SETTLEMENT_COMPLETED.name,
-            description = "confirmed payment from ${fromUser?.name ?: "Unknown"}",
+            actionType = ActivityType.SETTLEMENT_COMPLETED,
+            description = "confirmed payment from ${fromUser?.username ?: "Unknown"}",
             relatedSettlementId = settlementId,
-            metadata = """{"amount":$amount,"fromUserId":$fromUserId,"fromUserName":"${fromUser?.name ?: "Unknown"}"}"""
+            metadata = """{"amount":$amount,"fromUserId":$fromUserId,"fromUserName":"${fromUser?.username ?: "Unknown"}"}"""
         )
     }
 
@@ -127,7 +128,7 @@ class ActivityService(
         activityRepository.create(
             groupId = groupId,
             userId = userId,
-            actionType = ActivityType.RECEIPT_UPLOADED.name,
+            actionType = ActivityType.RECEIPT_UPLOADED,
             description = "added receipt for: $expenseDescription",
             relatedExpenseId = expenseId,
             metadata = """{"expenseDescription":"$expenseDescription"}"""
@@ -142,17 +143,9 @@ class ActivityService(
             val user = userRepository.findById(activity.userId)
             val metadataMap = parseMetadata(activity.metadata)
 
-            ActivityDto(
-                id = activity.id,
-                groupId = activity.groupId,
-                userId = activity.userId,
-                userName = user?.name ?: "Unknown",
-                actionType = activity.actionType,
-                description = activity.description,
-                relatedExpenseId = activity.relatedExpenseId,
-                relatedSettlementId = activity.relatedSettlementId,
-                metadata = metadataMap,
-                createdAt = activity.createdAt
+            activity.toDto(
+                userName = user?.username ?: "Unknown",
+                metadata = metadataMap
             )
         }
 

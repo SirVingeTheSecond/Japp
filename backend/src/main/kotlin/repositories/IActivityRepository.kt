@@ -1,12 +1,13 @@
 package com.japp.repositories
 
+import com.japp.models.ActivityType
 import com.japp.models.domain.ActivityLog
 
 interface IActivityRepository {
     fun create(
         groupId: Int,
         userId: Int,
-        actionType: String,
+        actionType: ActivityType,
         description: String,
         relatedExpenseId: Int? = null,
         relatedSettlementId: Int? = null,

@@ -7,6 +7,7 @@ import com.japp.repositories.ISettlementRepository
 import com.japp.repositories.IGroupRepository
 import com.japp.repositories.IUserRepository
 import com.japp.repositories.IExpenseRepository
+import com.japp.utils.toDto
 import com.japp.validation.SettlementValidator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -34,8 +35,8 @@ class SettlementService(
                     }
 
                     val group = groupRepository.findById(groupId) ?: return@transaction Result.Failure(
-                            SettlementError.InternalError("Group not found")
-                        )
+                        SettlementError.InternalError("Group not found")
+                    )
 
                     val balances = expenseRepository.calculateGroupBalances(groupId)
                     val suggestions = minimizeCashFlow(balances)
@@ -146,7 +147,7 @@ class SettlementService(
                         )
                     }
 
-                    if (settlement.completed) {
+                    if (settlement.status == SettlementStatus.COMPLETED) {
                         return@transaction Result.Failure(
                             SettlementError.ValidationError("Settlement is already completed")
                         )
@@ -204,7 +205,6 @@ class SettlementService(
         }
     }
 
-    // This runs with a time complexity of O(n^2)
     private fun minimizeCashFlow(balances: Map<Int, Double>): List<Triple<Int, Int, Double>> {
         val settlements = mutableListOf<Triple<Int, Int, Double>>()
         val netBalances = balances.toMutableMap()
@@ -233,17 +233,9 @@ class SettlementService(
         val fromUser = userRepository.findById(settlement.fromUserId)
         val toUser = userRepository.findById(settlement.toUserId)
 
-        return SettlementDto(
-            id = settlement.id,
-            groupId = settlement.groupId,
-            fromUserId = settlement.fromUserId,
+        return settlement.toDto(
             fromUserName = fromUser?.username ?: "Unknown",
-            toUserId = settlement.toUserId,
-            toUserName = toUser?.username ?: "Unknown",
-            amount = settlement.amount,
-            completed = settlement.completed,
-            createdAt = settlement.createdAt,
-            completedAt = settlement.completedAt
+            toUserName = toUser?.username ?: "Unknown"
         )
     }
 }

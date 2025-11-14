@@ -1,11 +1,12 @@
 package com.japp.services
 
 import com.japp.models.*
-import com.japp.models.domain.Group
 import com.japp.models.dto.*
 import com.japp.repositories.IGroupRepository
 import com.japp.repositories.IUserRepository
 import com.japp.validation.GroupValidator
+import com.japp.utils.toDto
+import com.japp.utils.createGroupMemberDto
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
@@ -164,11 +165,9 @@ class GroupService(
 
                     val members = memberIds.mapNotNull { memberId ->
                         userRepository.findById(memberId)?.let { user ->
-                            GroupMemberDto(
-                                userId = user.id,
-                                username = user.username,
-                                userEmail = user.email,
-                                joinedAt = "", // I think we need to track this separately
+                            createGroupMemberDto(
+                                user = user,
+                                joinedAt = "", // Track this separately if needed
                                 isOwner = memberId == group.createdBy
                             )
                         }
@@ -218,17 +217,3 @@ class GroupService(
         }
     }
 }
-
-/**
- * Extension function to convert Group to DTO
- */
-private fun Group.toDto() = GroupDto(
-    id = id,
-    name = name,
-    description = description,
-    inviteCode = inviteCode,
-    createdBy = createdBy,
-    memberCount = memberCount,
-    totalExpenses = totalExpenses,
-    createdAt = createdAt
-)

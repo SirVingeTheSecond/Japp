@@ -5,91 +5,109 @@ import com.japp.models.Result
 import com.japp.models.dto.LoginRequest
 import com.japp.models.dto.SignupRequest
 
-// ToDo: This might need to be cleaned up a bit through refactoring
-// ToDo: Make most of these values constant and use them in the messages
 object AuthValidator {
 
-    // Regex do really be lookin' disgusting
-    private val EMAIL_REGEX = "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$".toRegex()
-    private val USERNAME_REGEX = "^[A-Za-z0-9_]+$".toRegex()
-    private val ROLF_REGEX = "^(?!(?i)rolf$)[A-Za-z0-9_]+$".toRegex() // ToDo: Make special feedback for this case
-
-    /**
-     * Returns Success (request) if valid, Failure (error) otherwise
-     */
     fun validateSignup(request: SignupRequest): Result<SignupRequest, AuthError> {
+        val errorFactory: (String) -> AuthError = { AuthError.ValidationError(it) }
+
         // Validate email
-        if (request.email.isBlank()) {
-            return Result.Failure(AuthError.ValidationError("Email is required"))
+        ValidationHelpers.validateNotBlank(request.email, "Email", errorFactory)?.let {
+            return Result.Failure(it.errorOrNull()!!)
         }
-        if (!EMAIL_REGEX.matches(request.email)) {
-            return Result.Failure(AuthError.ValidationError("Invalid email format"))
+        ValidationHelpers.validateEmail(request.email, errorFactory)?.let {
+            return Result.Failure(it.errorOrNull()!!)
         }
 
         // Validate username
-        val u = request.username
-        if (u.isBlank()) {
-            return Result.Failure(AuthError.ValidationError("Username is required"))
+        ValidationHelpers.validateNotBlank(request.username, "Username", errorFactory)?.let {
+            return Result.Failure(it.errorOrNull()!!)
         }
-        if (u.length < 3) {
-            return Result.Failure(AuthError.ValidationError("Username must be at least 3 characters"))
+        ValidationHelpers.validateLength(
+            request.username,
+            "Username",
+            ValidationConstants.Length.USERNAME_MIN,
+            ValidationConstants.Length.USERNAME_MAX,
+            errorFactory
+        )?.let {
+            return Result.Failure(it.errorOrNull()!!)
         }
-        if (u.length > 20) {
-            return Result.Failure(AuthError.ValidationError("Username must not exceed 20 characters"))
-        }
-        if (u.equals("rolf", ignoreCase = true)) {
-            return Result.Failure(AuthError.ValidationError("Yeah Rolf, you are not allowed in here"))
-        }
-        if (!USERNAME_REGEX.matches(u)) {
-            return Result.Failure(AuthError.ValidationError("Username can only contain letters, numbers, and underscores"))
+        ValidationHelpers.validateUsername(request.username, errorFactory)?.let {
+            return Result.Failure(it.errorOrNull()!!)
         }
 
-        // Firstname and lastname
-        if (request.firstname.isBlank()) {
-            return Result.Failure(AuthError.ValidationError("First name is required"))
+        // Validate firstname
+        ValidationHelpers.validateNotBlank(request.firstname, "First name", errorFactory)?.let {
+            return Result.Failure(it.errorOrNull()!!)
         }
-        if (request.firstname.length < 2) {
-            return Result.Failure(AuthError.ValidationError("First name must be at least 2 characters"))
+        ValidationHelpers.validateLength(
+            request.firstname,
+            "First name",
+            ValidationConstants.Length.NAME_MIN,
+            ValidationConstants.Length.NAME_MAX,
+            errorFactory
+        )?.let {
+            return Result.Failure(it.errorOrNull()!!)
         }
-        if (request.lastname.isBlank()) {
-            return Result.Failure(AuthError.ValidationError("Last name is required"))
+
+        // Validate lastname
+        ValidationHelpers.validateNotBlank(request.lastname, "Last name", errorFactory)?.let {
+            return Result.Failure(it.errorOrNull()!!)
         }
-        if (request.lastname.length < 2) {
-            return Result.Failure(AuthError.ValidationError("Last name must be at least 2 characters"))
+        ValidationHelpers.validateLength(
+            request.lastname,
+            "Last name",
+            ValidationConstants.Length.NAME_MIN,
+            ValidationConstants.Length.NAME_MAX,
+            errorFactory
+        )?.let {
+            return Result.Failure(it.errorOrNull()!!)
         }
 
         // Validate password
-        if (request.password.isBlank()) {
-            return Result.Failure(AuthError.ValidationError("Password is required"))
+        ValidationHelpers.validateNotBlank(request.password, "Password", errorFactory)?.let {
+            return Result.Failure(it.errorOrNull()!!)
         }
-        if (request.password.length < 8) {
-            return Result.Failure(AuthError.ValidationError("Password must be at least 8 characters"))
+        ValidationHelpers.validateLength(
+            request.password,
+            "Password",
+            minLength = ValidationConstants.Length.PASSWORD_MIN,
+            errorFactory = errorFactory
+        )?.let {
+            return Result.Failure(it.errorOrNull()!!)
         }
-        if (!request.password.any { it.isDigit() }) {
-            return Result.Failure(AuthError.ValidationError("Password must contain at least one digit"))
-        }
-        if (!request.password.any { it.isLetter() }) {
-            return Result.Failure(AuthError.ValidationError("Password must contain at least one letter"))
+        ValidationHelpers.validatePassword(request.password, errorFactory)?.let {
+            return Result.Failure(it.errorOrNull()!!)
         }
 
-        // Validate phone (optional) | Ambiguous?
-        if (request.phone != null && request.phone.isBlank()) {
-            return Result.Failure(AuthError.ValidationError("Phone cannot be empty if provided"))
+        // Validate phone (optional)
+        ValidationHelpers.validateOptionalField(
+            request.phone,
+            "Phone",
+            errorFactory = errorFactory
+        )?.let {
+            return Result.Failure(it.errorOrNull()!!)
         }
 
         return Result.Success(request)
     }
 
-    /**
-     * Returns Success (request) if valid, Failure (error) otherwise
-     */
     fun validateLogin(request: LoginRequest): Result<LoginRequest, AuthError> {
-        if (request.emailOrUsername.isBlank()) {
-            return Result.Failure(AuthError.ValidationError("Email or username is required"))
+        val errorFactory: (String) -> AuthError = { AuthError.ValidationError(it) }
+
+        ValidationHelpers.validateNotBlank(
+            request.emailOrUsername,
+            "Email or username",
+            errorFactory
+        )?.let {
+            return Result.Failure(it.errorOrNull()!!)
         }
 
-        if (request.password.isBlank()) {
-            return Result.Failure(AuthError.ValidationError("Password is required"))
+        ValidationHelpers.validateNotBlank(
+            request.password,
+            "Password",
+            errorFactory
+        )?.let {
+            return Result.Failure(it.errorOrNull()!!)
         }
 
         return Result.Success(request)

@@ -1,5 +1,8 @@
 package com.japp.repositories
 
+import com.japp.models.Currency
+import com.japp.models.ExpenseCategory
+import com.japp.models.SplitType
 import com.japp.models.domain.Expense
 import com.japp.models.domain.ExpenseSplit
 
@@ -8,10 +11,10 @@ interface IExpenseRepository {
         groupId: Int,
         paidBy: Int,
         amount: Double,
-        currency: String,
+        currency: Currency,
         description: String,
-        category: String?,
-        splitType: String
+        category: ExpenseCategory?,
+        splitType: SplitType
     ): Expense
 
     fun createSplit(

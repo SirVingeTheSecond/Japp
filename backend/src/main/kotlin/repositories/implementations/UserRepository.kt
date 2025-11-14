@@ -1,7 +1,8 @@
-package com.japp.repositories
+package com.japp.repositories.implementation
 
 import com.japp.database.tables.Users
 import com.japp.models.domain.User
+import com.japp.repositories.interfaces.IUserRepository
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.or

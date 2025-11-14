@@ -1,7 +1,7 @@
 package com.japp.routes
 
 import com.japp.plugins.getUserId
-import com.japp.repositories.IGroupRepository
+import com.japp.repositories.interfaces.IGroupRepository
 import com.japp.services.ActivityService
 import com.japp.utils.ResponseFactory
 import io.ktor.http.*

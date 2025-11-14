@@ -4,10 +4,10 @@ import com.japp.models.*
 import com.japp.models.domain.Settlement
 import com.japp.models.dto.*
 import com.japp.models.error.SettlementError
-import com.japp.repositories.ISettlementRepository
-import com.japp.repositories.IGroupRepository
-import com.japp.repositories.IUserRepository
-import com.japp.repositories.IExpenseRepository
+import com.japp.repositories.interfaces.ISettlementRepository
+import com.japp.repositories.interfaces.IGroupRepository
+import com.japp.repositories.interfaces.IUserRepository
+import com.japp.repositories.interfaces.IExpenseRepository
 import com.japp.utils.toDto
 import com.japp.validation.SettlementValidator
 import kotlinx.coroutines.Dispatchers

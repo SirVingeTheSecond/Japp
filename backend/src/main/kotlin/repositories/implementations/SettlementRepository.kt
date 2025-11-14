@@ -1,8 +1,9 @@
-package com.japp.repositories
+package com.japp.repositories.implementation
 
 import com.japp.database.tables.Settlements
 import com.japp.models.SettlementStatus
 import com.japp.models.domain.Settlement
+import com.japp.repositories.interfaces.ISettlementRepository
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.eq

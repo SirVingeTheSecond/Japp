@@ -3,8 +3,8 @@ package com.japp.services
 import com.japp.models.*
 import com.japp.models.dto.*
 import com.japp.models.error.GroupError
-import com.japp.repositories.IGroupRepository
-import com.japp.repositories.IUserRepository
+import com.japp.repositories.interfaces.IGroupRepository
+import com.japp.repositories.interfaces.IUserRepository
 import com.japp.validation.GroupValidator
 import com.japp.utils.toDto
 import com.japp.utils.createGroupMemberDto

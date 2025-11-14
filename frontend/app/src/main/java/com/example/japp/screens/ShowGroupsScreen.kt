@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -38,6 +39,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.japp.api.RetrofitClient
 import com.example.japp.api.responses.group.GroupDto
+import com.example.japp.composables.GroupIcon
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
@@ -181,9 +183,15 @@ fun GroupCard(group: GroupDto){
         ),
         modifier = Modifier.padding(15.dp).fillMaxWidth().height(100.dp)
     ) {
-        Text(text = group.name,
-            modifier = Modifier.padding(15.dp),
-            textAlign = TextAlign.Center)
+        Row {
+            GroupIcon(group.name)
+            Column {
+                Text(text = group.name,
+                    modifier = Modifier.padding(15.dp),
+                    textAlign = TextAlign.Center)
+            }
+        }
+
 
     }
 }

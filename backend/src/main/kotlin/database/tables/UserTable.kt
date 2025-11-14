@@ -4,8 +4,10 @@ import org.jetbrains.exposed.v1.core.Table
 
 object Users : Table("users") {
     val id = integer("id").autoIncrement()
-    val name = varchar("name", 255)
     val email = varchar("email", 255).uniqueIndex()
+    val username = varchar("username", 50).uniqueIndex()
+    val firstName = varchar("first_name", 100)
+    val lastName = varchar("last_name", 100)
     val passwordHash = varchar("password_hash", 255)
     val phone = varchar("phone", 255).nullable()
     val profilePicture = varchar("profile_picture", 700).nullable()

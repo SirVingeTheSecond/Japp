@@ -28,7 +28,7 @@ data class GroupDto(
 @Serializable
 data class GroupMemberDto(
     val userId: Int,
-    val userName: String,
+    val username: String,
     val userEmail: String,
     val joinedAt: String,
     val isOwner: Boolean

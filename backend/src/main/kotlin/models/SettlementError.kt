@@ -1,33 +1,32 @@
 package com.japp.models
 
-sealed class SettlementError {
-    abstract val message: String
-    abstract val httpStatus: Int
+/**
+ * Settlement error providing a message and status code.
+ */
+sealed class SettlementError(
+    override val message: String,
+    private val type: ErrorType
+) : IAppError {
 
-    data class ValidationError(
-        override val message: String,
-        override val httpStatus: Int = 400
-    ) : SettlementError()
+    override val httpStatus: Int get() = type.httpStatus
 
-    data class NotFound(
-        val settlementId: Int,
-        override val message: String = "Settlement not found",
-        override val httpStatus: Int = 404
-    ) : SettlementError()
+    class ValidationError(
+        message: String
+    ) : SettlementError(message, ErrorType.VALIDATION)
 
-    data class NotMember(
-        val groupId: Int,
-        override val message: String = "Not a member of this group",
-        override val httpStatus: Int = 403
-    ) : SettlementError()
+    class NotFound(
+        val settlementId: Int
+    ) : SettlementError("Settlement not found", ErrorType.NOT_FOUND)
 
-    data class Unauthorized(
-        override val message: String = "You do not have permission to perform this action",
-        override val httpStatus: Int = 403
-    ) : SettlementError()
+    class NotMember(
+        val groupId: Int
+    ) : SettlementError("Not a member of this group", ErrorType.FORBIDDEN)
 
-    data class InternalError(
-        override val message: String = "An unexpected error occurred",
-        override val httpStatus: Int = 500
-    ) : SettlementError()
+    class Unauthorized(
+        message: String = "You do not have permission to perform this action"
+    ) : SettlementError(message, ErrorType.FORBIDDEN)
+
+    class InternalError(
+        message: String = "An unexpected error occurred"
+    ) : SettlementError(message, ErrorType.INTERNAL)
 }

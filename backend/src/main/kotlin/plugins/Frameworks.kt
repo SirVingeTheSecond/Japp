@@ -1,11 +1,11 @@
 package com.japp.plugins
 
 import com.japp.config.loadJwtConfig
-import com.japp.repositories.implementation.ActivityRepository
-import com.japp.repositories.implementation.ExpenseRepository
-import com.japp.repositories.implementation.GroupRepository
-import com.japp.repositories.implementation.SettlementRepository
-import com.japp.repositories.implementation.UserRepository
+import com.japp.repositories.implementations.ActivityRepository
+import com.japp.repositories.implementations.ExpenseRepository
+import com.japp.repositories.implementations.SettlementRepository
+import com.japp.repositories.implementations.UserRepository
+import com.japp.repositories.implementations.GroupRepository
 import com.japp.repositories.interfaces.IActivityRepository
 import com.japp.repositories.interfaces.IExpenseRepository
 import com.japp.repositories.interfaces.IGroupRepository

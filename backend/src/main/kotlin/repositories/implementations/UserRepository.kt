@@ -1,4 +1,4 @@
-package com.japp.repositories.implementation
+package com.japp.repositories.implementations
 
 import com.japp.database.tables.Users
 import com.japp.models.domain.User

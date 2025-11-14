@@ -1,4 +1,4 @@
-package com.japp.repositories.implementation
+package com.japp.repositories.implementations
 
 import com.japp.database.tables.ActivityLogs
 import com.japp.models.ActivityType

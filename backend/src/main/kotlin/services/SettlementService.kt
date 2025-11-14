@@ -46,9 +46,9 @@ class SettlementService(
 
                         SettlementSuggestionDto(
                             fromUserId = from,
-                            fromUserName = fromUser?.name ?: "Unknown",
+                            fromUserName = fromUser?.username ?: "Unknown",
                             toUserId = to,
-                            toUserName = toUser?.name ?: "Unknown",
+                            toUserName = toUser?.username ?: "Unknown",
                             amount = amount
                         )
                     }
@@ -237,9 +237,9 @@ class SettlementService(
             id = settlement.id,
             groupId = settlement.groupId,
             fromUserId = settlement.fromUserId,
-            fromUserName = fromUser?.name ?: "Unknown",
+            fromUserName = fromUser?.username ?: "Unknown",
             toUserId = settlement.toUserId,
-            toUserName = toUser?.name ?: "Unknown",
+            toUserName = toUser?.username ?: "Unknown",
             amount = settlement.amount,
             completed = settlement.completed,
             createdAt = settlement.createdAt,

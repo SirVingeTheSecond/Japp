@@ -1,19 +1,5 @@
-package com.japp.models.dto
+package com.example.japp.api.responses.group
 
-import kotlinx.serialization.Serializable
-
-@Serializable
-data class CreateGroupRequest(
-    val name: String,
-    val description: String? = null
-)
-
-@Serializable
-data class JoinGroupRequest(
-    val inviteCode: String
-)
-
-@Serializable
 data class GroupDto(
     val id: Int,
     val name: String,
@@ -25,10 +11,9 @@ data class GroupDto(
     val createdAt: String
 )
 
-@Serializable
 data class GroupMemberDto(
     val userId: Int,
-    val username: String,
+    val userName: String,
     val userEmail: String,
     val joinedAt: String,
     val isOwner: Boolean

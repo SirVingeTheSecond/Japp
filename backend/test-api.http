@@ -1,75 +1,229 @@
+### ============================================
+### HEALTH CHECK
+### ============================================
+
 ### Health Check
 GET http://localhost:8080/health
 
 ###
 
-### Signup User 1
-# @name signup
+### ============================================
+### AUTHENTICATION TESTS
+### ============================================
+
+### Signup User 1 (Marius)
+# @name signupMarius
 POST http://localhost:8080/api/auth/signup
 Content-Type: application/json
 
 {
-  "email": "user1@example.com",
-  "password": "password123",
-  "name": "User One",
+  "email": "marius@japp.com",
+  "username": "mariusbh",
+  "firstname": "Marius",
+  "lastname": "Brandorff-Hansen",
+  "password": "Skibidi123",
   "phone": "+45 12345678"
 }
 
 > {%
-    client.global.set("auth_token", response.body.token);
-    client.global.set("user1_id", response.body.user.id);
-    client.log("User 1 token: " + response.body.token);
+    client.global.set("marius_token", response.body.token);
+    client.global.set("marius_id", response.body.user.id);
+    client.log("Marius token: " + response.body.token);
+    client.log("Marius ID: " + response.body.user.id);
 %}
 
 ###
 
-### Login User 1
-# @name login
-POST http://localhost:8080/api/auth/login
-Content-Type: application/json
-
-{
-  "email": "user1@example.com",
-  "password": "password123"
-}
-
-> {%
-    client.global.set("auth_token", response.body.token);
-    client.log("Login token: " + response.body.token);
-%}
-
-###
-
-### Test protected endpoint - with Token (should work)
-GET http://localhost:8080/api/me
-Authorization: Bearer {{auth_token}}
-
-###
-
-### Test protected endpoint - without Token (should fail)
-GET http://localhost:8080/api/me
-
-###
-
-### Login - wrong password (should fail)
-POST http://localhost:8080/api/auth/login
-Content-Type: application/json
-
-{
-  "email": "user1@example.com",
-  "password": "wrongpassword"
-}
-
-###
-
-### Signup - Duplicate email (should fail)
+### Signup User 2 (Rolf Vandsted)
+# Note: Username is "rolfv" not "rolf" because "rolf" is banned in validation
+# @name signupRolf
 POST http://localhost:8080/api/auth/signup
 Content-Type: application/json
 
 {
-  "email": "user1@example.com",
-  "password": "password123",
-  "name": "Another User"
+  "email": "rolf@japp.com",
+  "username": "rolfv",
+  "firstname": "Rolf",
+  "lastname": "Vandsted",
+  "password": "Toilet123",
+  "phone": "+45 87654321"
+}
+
+> {%
+    client.global.set("rolf_token", response.body.token);
+    client.global.set("rolf_id", response.body.user.id);
+    client.log("Rolf token: " + response.body.token);
+    client.log("Rolf ID: " + response.body.user.id);
+%}
+
+###
+
+### Login User 1 (Marius) - by email
+# @name loginMariusEmail
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "emailOrUsername": "marius@japp.com",
+  "password": "Skibidi123"
+}
+
+> {%
+    client.global.set("marius_token", response.body.token);
+    client.log("Marius login token: " + response.body.token);
+%}
+
+###
+
+### Login User 1 (Marius) - by username
+# @name loginMariusUsername
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "emailOrUsername": "mariusbh",
+  "password": "Skibidi123"
+}
+
+###
+
+### Login User 2 (Rolf) - by email
+# @name loginRolfEmail
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "emailOrUsername": "rolf@japp.com",
+  "password": "Toilet123"
+}
+
+> {%
+    client.global.set("rolf_token", response.body.token);
+    client.log("Rolf login token: " + response.body.token);
+%}
+
+###
+
+### Test Protected Endpoint (with token - should succeed)
+GET http://localhost:8080/api/me
+Authorization: Bearer {{marius_token}}
+
+###
+
+### Test Protected Endpoint (without token - should fail with 401)
+GET http://localhost:8080/api/me
+
+###
+
+### ============================================
+### AUTHENTICATION VALIDATION TESTS
+### ============================================
+
+### Login - Wrong Password (should fail with 401)
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "emailOrUsername": "marius@japp.com",
+  "password": "Skibidi123"
+}
+
+###
+
+### Signup - Duplicate Email (should fail with 409)
+POST http://localhost:8080/api/auth/signup
+Content-Type: application/json
+
+{
+  "email": "marius@japp.com",
+  "username": "anothermarius",
+  "firstname": "Another",
+  "lastname": "Marius",
+  "password": "Skibidi123"
+}
+
+###
+
+### Signup - Duplicate Username (should fail with 400)
+POST http://localhost:8080/api/auth/signup
+Content-Type: application/json
+
+{
+  "email": "different@japp.com",
+  "username": "mariusbh",
+  "firstname": "Different",
+  "lastname": "User",
+  "password": "Skibidi123"
+}
+
+###
+
+### Signup - Banned Username "rolf" (should fail with 400)
+POST http://localhost:8080/api/auth/signup
+Content-Type: application/json
+
+{
+  "email": "test@japp.com",
+  "username": "rolf",
+  "firstname": "Test",
+  "lastname": "User",
+  "password": "Skibidi123"
+}
+
+###
+
+### Signup - Invalid Email Format (should fail with 400)
+POST http://localhost:8080/api/auth/signup
+Content-Type: application/json
+
+{
+  "email": "invalid-email",
+  "username": "testuser",
+  "firstname": "Test",
+  "lastname": "User",
+  "password": "Skibidi123"
+}
+
+###
+
+### Signup - Password Too Short (should fail with 400)
+POST http://localhost:8080/api/auth/signup
+Content-Type: application/json
+
+{
+  "email": "test@japp.com",
+  "username": "testuser",
+  "firstname": "Test",
+  "lastname": "User",
+  "password": "deez"
+}
+
+###
+
+### Signup - Password No Digit (should fail with 400)
+POST http://localhost:8080/api/auth/signup
+Content-Type: application/json
+
+{
+  "email": "test@japp.com",
+  "username": "testuser",
+  "firstname": "Test",
+  "lastname": "User",
+  "password": "Skibidi"
+}
+
+###
+
+### Signup - Username Too Short (should fail with 400)
+POST http://localhost:8080/api/auth/signup
+Content-Type: application/json
+
+{
+  "email": "test@japp.com",
+  "username": "ab",
+  "firstname": "Test",
+  "lastname": "User",
+  "password": "Skibidi123"
 }
 
 ###
@@ -78,15 +232,15 @@ Content-Type: application/json
 ### GROUP MANAGEMENT TESTS
 ### ============================================
 
-### Create Group (User 1)
+### Create Group (Marius)
 # @name createGroup
 POST http://localhost:8080/api/groups
-Authorization: Bearer {{auth_token}}
+Authorization: Bearer {{marius_token}}
 Content-Type: application/json
 
 {
   "name": "Weekend Trip to Paris",
-  "description": "Planning our vacation expenses"
+  "description": "Planning our expenses for the weekend trip"
 }
 
 > {%
@@ -98,37 +252,65 @@ Content-Type: application/json
 
 ###
 
-### Get User's Groups
+### Get Marius's Groups
 GET http://localhost:8080/api/groups
-Authorization: Bearer {{auth_token}}
+Authorization: Bearer {{marius_token}}
 
 ###
 
 ### Get Specific Group Details
 GET http://localhost:8080/api/groups/{{group_id}}
-Authorization: Bearer {{auth_token}}
+Authorization: Bearer {{marius_token}}
 
 ###
 
-### Get Group Members
+### Get Group Members (should show only Marius initially)
 GET http://localhost:8080/api/groups/{{group_id}}/members
-Authorization: Bearer {{auth_token}}
+Authorization: Bearer {{marius_token}}
 
 ###
 
-### Create Group - without auth (should fail)
-POST http://localhost:8080/api/groups
+### Join Group (Rolf joins using invite code)
+# @name rolfJoinsGroup
+POST http://localhost:8080/api/groups/join
+Authorization: Bearer {{rolf_token}}
 Content-Type: application/json
 
 {
-  "name": "Should Fail"
+  "inviteCode": "{{invite_code}}"
 }
 
 ###
 
-### Create Group - invalid name (should fail)
+### Get Group Members (should show both Marius and Rolf now)
+GET http://localhost:8080/api/groups/{{group_id}}/members
+Authorization: Bearer {{marius_token}}
+
+###
+
+### Get Rolf's Groups (should include the joined group)
+GET http://localhost:8080/api/groups
+Authorization: Bearer {{rolf_token}}
+
+###
+
+### ============================================
+### GROUP VALIDATION TESTS
+### ============================================
+
+### Create Group - Without Auth (should fail with 401)
 POST http://localhost:8080/api/groups
-Authorization: Bearer {{auth_token}}
+Content-Type: application/json
+
+{
+  "name": "Should Fail Without Auth"
+}
+
+###
+
+### Create Group - Empty Name (should fail with 400)
+POST http://localhost:8080/api/groups
+Authorization: Bearer {{marius_token}}
 Content-Type: application/json
 
 {
@@ -138,101 +320,9 @@ Content-Type: application/json
 
 ###
 
-### ============================================
-### MULTI-USER SCENARIOS
-### ============================================
-
-### Signup User 2
-# @name signupUser2
-POST http://localhost:8080/api/auth/signup
-Content-Type: application/json
-
-{
-  "email": "user2@example.com",
-  "password": "password123",
-  "name": "User Two",
-  "phone": "+45 87654321"
-}
-
-> {%
-    client.global.set("user2_token", response.body.token);
-    client.global.set("user2_id", response.body.user.id);
-    client.log("User 2 token: " + response.body.token);
-%}
-
-###
-
-### Join Group (User 2 with invite code)
-# @name joinGroup
-POST http://localhost:8080/api/groups/join
-Authorization: Bearer {{user2_token}}
-Content-Type: application/json
-
-{
-  "inviteCode": "{{invite_code}}"
-}
-
-###
-
-### Join Group - invalid code (should fail)
-POST http://localhost:8080/api/groups/join
-Authorization: Bearer {{user2_token}}
-Content-Type: application/json
-
-{
-  "inviteCode": "INVALID"
-}
-
-###
-
-### Join Group - already member (should fail)
-POST http://localhost:8080/api/groups/join
-Authorization: Bearer {{user2_token}}
-Content-Type: application/json
-
-{
-  "inviteCode": "{{invite_code}}"
-}
-
-###
-
-### Get Group Members (User 2 - should see both members now)
-GET http://localhost:8080/api/groups/{{group_id}}/members
-Authorization: Bearer {{user2_token}}
-
-###
-
-### Get User 2's Groups (should include joined group)
-GET http://localhost:8080/api/groups
-Authorization: Bearer {{user2_token}}
-
-###
-
-### Leave Group (User 2)
-DELETE http://localhost:8080/api/groups/{{group_id}}/leave
-Authorization: Bearer {{user2_token}}
-
-###
-
-### Leave Group - owner cannot leave (should fail)
-DELETE http://localhost:8080/api/groups/{{group_id}}/leave
-Authorization: Bearer {{auth_token}}
-
-###
-
-### Access Group - not a member (should fail after User 2 left)
-GET http://localhost:8080/api/groups/{{group_id}}
-Authorization: Bearer {{user2_token}}
-
-###
-
-### ============================================
-### VALIDATION TESTS
-### ============================================
-
-### Create Group - name too short (should fail)
+### Create Group - Name Too Short (should fail with 400)
 POST http://localhost:8080/api/groups
-Authorization: Bearer {{auth_token}}
+Authorization: Bearer {{marius_token}}
 Content-Type: application/json
 
 {
@@ -242,21 +332,72 @@ Content-Type: application/json
 
 ###
 
-### Create Group - name too long (should fail)
+### Create Group - Name Too Long (should fail with 400)
 POST http://localhost:8080/api/groups
-Authorization: Bearer {{auth_token}}
+Authorization: Bearer {{marius_token}}
 Content-Type: application/json
 
 {
-  "name": "This is a very long group name that exceeds one hundred characters and should be rejected by validation",
+  "name": "This is a very long group name that exceeds one hundred characters and should be rejected by validation rules",
   "description": "Name too long"
 }
 
 ###
 
-### Get Group - invalid ID (should fail)
+### Join Group - Invalid Invite Code (should fail with 404)
+POST http://localhost:8080/api/groups/join
+Authorization: Bearer {{rolf_token}}
+Content-Type: application/json
+
+{
+  "inviteCode": "INVALID"
+}
+
+###
+
+### Join Group - Already Member (should fail with 409)
+POST http://localhost:8080/api/groups/join
+Authorization: Bearer {{rolf_token}}
+Content-Type: application/json
+
+{
+  "inviteCode": "{{invite_code}}"
+}
+
+###
+
+### Get Group - Invalid ID (should fail with 404)
 GET http://localhost:8080/api/groups/999999
-Authorization: Bearer {{auth_token}}
+Authorization: Bearer {{marius_token}}
+
+###
+
+### Leave Group - Owner Cannot Leave (should fail with 400)
+DELETE http://localhost:8080/api/groups/{{group_id}}/leave
+Authorization: Bearer {{marius_token}}
+
+###
+
+### Leave Group (Rolf leaves the group)
+DELETE http://localhost:8080/api/groups/{{group_id}}/leave
+Authorization: Bearer {{rolf_token}}
+
+###
+
+### Access Group - Not a Member (should fail with 403 after Rolf left)
+GET http://localhost:8080/api/groups/{{group_id}}
+Authorization: Bearer {{rolf_token}}
+
+###
+
+### Re-join Group (Rolf joins again for expense tests)
+POST http://localhost:8080/api/groups/join
+Authorization: Bearer {{rolf_token}}
+Content-Type: application/json
+
+{
+  "inviteCode": "{{invite_code}}"
+}
 
 ###
 
@@ -264,16 +405,16 @@ Authorization: Bearer {{auth_token}}
 ### EXPENSE MANAGEMENT TESTS
 ### ============================================
 
-### Create Expense - Equal Split
-# @name createExpense
+### Create Expense - Equal Split (Marius pays for dinner)
+# @name createExpenseEqual
 POST http://localhost:8080/api/expenses
-Authorization: Bearer {{auth_token}}
+Authorization: Bearer {{marius_token}}
 Content-Type: application/json
 
 {
   "groupId": {{group_id}},
   "amount": 320.0,
-  "description": "Dinner at Marius Mom",
+  "description": "Dinner at restaurant",
   "category": "Food",
   "splitType": "equal"
 }
@@ -285,9 +426,10 @@ Content-Type: application/json
 
 ###
 
-### Create Expense - Custom Split
+### Create Expense - Custom Split (Rolf pays for hotel)
+# @name createExpenseCustom
 POST http://localhost:8080/api/expenses
-Authorization: Bearer {{auth_token}}
+Authorization: Bearer {{rolf_token}}
 Content-Type: application/json
 
 {
@@ -298,11 +440,11 @@ Content-Type: application/json
   "splitType": "custom",
   "splits": [
     {
-      "userId": {{user1_id}},
+      "userId": {{marius_id}},
       "shareAmount": 300.0
     },
     {
-      "userId": {{user2_id}},
+      "userId": {{rolf_id}},
       "shareAmount": 200.0
     }
   ]
@@ -312,39 +454,43 @@ Content-Type: application/json
 
 ### Get Group Expenses
 GET http://localhost:8080/api/expenses/group/{{group_id}}
-Authorization: Bearer {{auth_token}}
+Authorization: Bearer {{marius_token}}
 
 ###
 
 ### Get Group Balances
 GET http://localhost:8080/api/expenses/group/{{group_id}}/balances
-Authorization: Bearer {{auth_token}}
+Authorization: Bearer {{marius_token}}
 
 ###
 
 ### Delete Expense (only payer can delete)
 DELETE http://localhost:8080/api/expenses/{{expense_id}}
-Authorization: Bearer {{auth_token}}
+Authorization: Bearer {{marius_token}}
 
 ###
 
-### Create Expense - not a member (should fail)
+### ============================================
+### EXPENSE VALIDATION TESTS
+### ============================================
+
+### Create Expense - Not a Member (should fail with 403)
 POST http://localhost:8080/api/expenses
-Authorization: Bearer {{user2_token}}
+Authorization: Bearer {{marius_token}}
 Content-Type: application/json
 
 {
   "groupId": 999,
   "amount": 100.0,
-  "description": "Should fail",
+  "description": "Should fail - not a member",
   "splitType": "equal"
 }
 
 ###
 
-### Create Expense - negative amount (should fail)
+### Create Expense - Negative Amount (should fail with 400)
 POST http://localhost:8080/api/expenses
-Authorization: Bearer {{auth_token}}
+Authorization: Bearer {{marius_token}}
 Content-Type: application/json
 
 {
@@ -356,9 +502,37 @@ Content-Type: application/json
 
 ###
 
-### Create Expense - custom split doesn't sum correctly (should fail)
+### Create Expense - Zero Amount (should fail with 400)
 POST http://localhost:8080/api/expenses
-Authorization: Bearer {{auth_token}}
+Authorization: Bearer {{marius_token}}
+Content-Type: application/json
+
+{
+  "groupId": {{group_id}},
+  "amount": 0.0,
+  "description": "Zero amount test",
+  "splitType": "equal"
+}
+
+###
+
+### Create Expense - Empty Description (should fail with 400)
+POST http://localhost:8080/api/expenses
+Authorization: Bearer {{marius_token}}
+Content-Type: application/json
+
+{
+  "groupId": {{group_id}},
+  "amount": 100.0,
+  "description": "",
+  "splitType": "equal"
+}
+
+###
+
+### Create Expense - Custom Split Sum Mismatch (should fail with 400)
+POST http://localhost:8080/api/expenses
+Authorization: Bearer {{marius_token}}
 Content-Type: application/json
 
 {
@@ -368,14 +542,28 @@ Content-Type: application/json
   "splitType": "custom",
   "splits": [
     {
-      "userId": {{user1_id}},
+      "userId": {{marius_id}},
       "shareAmount": 30.0
     },
     {
-      "userId": {{user2_id}},
+      "userId": {{rolf_id}},
       "shareAmount": 50.0
     }
   ]
+}
+
+###
+
+### Create Expense - Custom Split Missing Splits (should fail with 400)
+POST http://localhost:8080/api/expenses
+Authorization: Bearer {{marius_token}}
+Content-Type: application/json
+
+{
+  "groupId": {{group_id}},
+  "amount": 100.0,
+  "description": "Custom without splits",
+  "splitType": "custom"
 }
 
 ###
@@ -386,76 +574,105 @@ Content-Type: application/json
 
 ### Get Settlement Suggestions
 GET http://localhost:8080/api/settlements/group/{{group_id}}/suggestions
-Authorization: Bearer {{auth_token}}
+Authorization: Bearer {{marius_token}}
 
 ###
 
-### Create Settlement (manual payment record)
+### Create Settlement (Rolf pays Marius manually)
+# @name createSettlement
 POST http://localhost:8080/api/settlements
-Authorization: Bearer {{user2_token}}
+Authorization: Bearer {{rolf_token}}
 Content-Type: application/json
 
 {
   "groupId": {{group_id}},
-  "toUserId": {{user1_id}},
+  "toUserId": {{marius_id}},
   "amount": 160.0
 }
 
 > {%
     client.global.set("settlement_id", response.body.id);
+    client.log("Settlement ID: " + response.body.id);
 %}
 
 ###
 
 ### Get All Settlements for Group
 GET http://localhost:8080/api/settlements/group/{{group_id}}
-Authorization: Bearer {{auth_token}}
+Authorization: Bearer {{marius_token}}
 
 ###
 
 ### Get Pending Settlements Only
 GET http://localhost:8080/api/settlements/group/{{group_id}}?pending=true
-Authorization: Bearer {{auth_token}}
+Authorization: Bearer {{marius_token}}
 
 ###
 
-### Mark Settlement as Completed (only recipient can mark)
+### Mark Settlement as Completed (only recipient Marius can mark)
 PATCH http://localhost:8080/api/settlements/{{settlement_id}}/complete
-Authorization: Bearer {{auth_token}}
+Authorization: Bearer {{marius_token}}
 
 ###
 
-### Create Settlement - to yourself (should fail)
+### ============================================
+### SETTLEMENT VALIDATION TESTS
+### ============================================
+
+### Create Settlement - To Yourself (should fail with 400)
 POST http://localhost:8080/api/settlements
-Authorization: Bearer {{auth_token}}
+Authorization: Bearer {{marius_token}}
 Content-Type: application/json
 
 {
   "groupId": {{group_id}},
-  "toUserId": {{user1_id}},
+  "toUserId": {{marius_id}},
   "amount": 50.0
 }
 
 ###
 
-### ============================================
-### ACTIVITY LOG TESTS
-### ============================================
+### Create Settlement - Negative Amount (should fail with 400)
+POST http://localhost:8080/api/settlements
+Authorization: Bearer {{rolf_token}}
+Content-Type: application/json
 
-### Get Group Activities (default 50)
-GET http://localhost:8080/api/activities/group/{{group_id}}
-Authorization: Bearer {{auth_token}}
-
-###
-
-### Get Group Activities (limited to 10)
-GET http://localhost:8080/api/activities/group/{{group_id}}?limit=10
-Authorization: Bearer {{auth_token}}
+{
+  "groupId": {{group_id}},
+  "toUserId": {{marius_id}},
+  "amount": -50.0
+}
 
 ###
 
-### Get Activities - not a member (should fail)
-GET http://localhost:8080/api/activities/group/999
-Authorization: Bearer {{auth_token}}
+### Create Settlement - Zero Amount (should fail with 400)
+POST http://localhost:8080/api/settlements
+Authorization: Bearer {{rolf_token}}
+Content-Type: application/json
+
+{
+  "groupId": {{group_id}},
+  "toUserId": {{marius_id}},
+  "amount": 0.0
+}
+
+###
+
+### Create Settlement - Invalid Group (should fail with 403)
+POST http://localhost:8080/api/settlements
+Authorization: Bearer {{rolf_token}}
+Content-Type: application/json
+
+{
+  "groupId": 999,
+  "toUserId": {{marius_id}},
+  "amount": 50.0
+}
+
+###
+
+### Mark Settlement as Completed - Not Recipient (should fail with 403)
+PATCH http://localhost:8080/api/settlements/{{settlement_id}}/complete
+Authorization: Bearer {{rolf_token}}
 
 ###

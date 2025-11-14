@@ -1,20 +1,9 @@
 package com.japp.plugins
 
-import com.japp.repositories.ActivityRepository
-import com.japp.repositories.ExpenseRepository
-import com.japp.repositories.GroupRepository
-import com.japp.repositories.IActivityRepository
-import com.japp.repositories.IExpenseRepository
-import com.japp.repositories.IGroupRepository
-import com.japp.repositories.ISettlementRepository
-import com.japp.repositories.IUserRepository
-import com.japp.repositories.SettlementRepository
-import com.japp.repositories.UserRepository
+import com.japp.config.loadJwtConfig
+import com.japp.repositories.*
 import com.japp.security.PasswordHasher
-import com.japp.services.AuthService
-import com.japp.services.GroupService
-import com.japp.services.ExpenseService
-import com.japp.services.SettlementService
+import com.japp.services.*
 import io.ktor.server.application.*
 import org.koin.core.qualifier.named
 import org.koin.dsl.module
@@ -29,21 +18,12 @@ fun Application.configureFrameworks() {
 }
 
 fun appModule(application: Application) = module {
+    val jwtConfig = application.loadJwtConfig()
 
-    // ToDo: Restructure this to use a config file. Either application.yaml or .env
-    single(named("jwtSecret")) {
-        application.environment.config.propertyOrNull("jwt.secret")?.getString()
-            ?: System.getenv("JWT_SECRET")
-            ?: "change-this-secret-in-production"
-    }
-    single(qualifier = named("jwtIssuer")) {
-        application.environment.config.propertyOrNull("jwt.issuer")?.getString()
-            ?: "japp-issuer"
-    }
-    single(qualifier = named("jwtAudience")) {
-        application.environment.config.propertyOrNull("jwt.audience")?.getString()
-            ?: "japp-audience"
-    }
+    single { jwtConfig }
+    single(named("jwtSecret")) { jwtConfig.secret }
+    single(named("jwtIssuer")) { jwtConfig.issuer }
+    single(named("jwtAudience")) { jwtConfig.audience }
 
     single<IUserRepository> { UserRepository() }
     single<IGroupRepository> { GroupRepository() }
@@ -58,8 +38,8 @@ fun appModule(application: Application) = module {
             userRepository = get(),
             passwordHasher = get(),
             jwtSecret = get(named("jwtSecret")),
-            jwtIssuer = get(qualifier = named("jwtIssuer")),
-            jwtAudience = get(qualifier = named("jwtAudience"))
+            jwtIssuer = get(named("jwtIssuer")),
+            jwtAudience = get(named("jwtAudience"))
         )
     }
 

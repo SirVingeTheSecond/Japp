@@ -1,5 +1,6 @@
 package com.japp.plugins
 
+import com.japp.config.loadDatabaseConfig
 import com.japp.database.DatabaseSchema
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
@@ -16,41 +17,27 @@ import org.jetbrains.exposed.v1.jdbc.Database
  * 4. Creates tables automatically
  */
 fun Application.configureDatabases() {
-    val config = environment.config
-
-    // Get database configuration (the idea is: env vars > config file)
-    val dbUrl = System.getenv("POSTGRES_URL")
-        ?: config.propertyOrNull("postgres.url")?.getString()
-
-    val dbUser = System.getenv("POSTGRES_USER")
-        ?: config.propertyOrNull("postgres.user")?.getString()
-
-    val dbPassword = System.getenv("POSTGRES_PASS")
-        ?: config.propertyOrNull("postgres.password")?.getString()
+    val dbConfig = loadDatabaseConfig()
 
     log.info("Configuring database connection...")
-    log.info("Database URL: $dbUrl")
-    log.info("Database User: $dbUser")
+    log.info("Database URL: ${dbConfig.url}")
+    log.info("Database User: ${dbConfig.user}")
 
-    // Configure HikariCP
     val hikariConfig = HikariConfig().apply {
-        jdbcUrl = dbUrl
-        driverClassName = "org.postgresql.Driver"
-        username = dbUser
-        password = dbPassword
+        jdbcUrl = dbConfig.url
+        driverClassName = dbConfig.driver
+        username = dbConfig.user
+        password = dbConfig.password
 
-        // Connection pool
-        maximumPoolSize = 10           // Max connections in pool
-        minimumIdle = 2                // Minimum idle connections
-        idleTimeout = 600000           // 10 minutes
-        connectionTimeout = 30000      // 30 seconds
-        maxLifetime = 1800000          // 30 minutes
+        maximumPoolSize = dbConfig.maximumPoolSize
+        minimumIdle = dbConfig.minimumIdle
+        idleTimeout = dbConfig.idleTimeout
+        connectionTimeout = dbConfig.connectionTimeout
+        maxLifetime = dbConfig.maxLifetime
 
-        // A simple health check
         connectionTestQuery = "SELECT 1"
-        validationTimeout = 5000 // ms
+        validationTimeout = 5000
 
-        // Some performance optimizations
         addDataSourceProperty("cachePrepStmts", "true")
         addDataSourceProperty("prepStmtCacheSize", "250")
         addDataSourceProperty("prepStmtCacheSqlLimit", "2048")

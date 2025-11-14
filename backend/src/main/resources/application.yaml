@@ -5,7 +5,24 @@ ktor:
   deployment:
     port: 8080
 
-postgres:
+jwt:
+  secret: ${JWT_SECRET:CHANGE-IN-PROD-BOZO}
+  issuer: ${JWT_ISSUER:japp-issuer}
+  audience: ${JWT_AUDIENCE:japp-audience}
+  realm: "Japp API"
+  expirationDays: 7
+
+database:
   url: ${POSTGRES_URL:jdbc:postgresql://localhost:5432/japp}
+  driver: org.postgresql.Driver
   user: ${POSTGRES_USER:japp}
-  password: ${POSTGRES_PASS:japper}
+  password: ${POSTGRES_PASSWORD:japper}
+  pool:
+    maximumPoolSize: 10
+    minimumIdle: 2
+    connectionTimeout: 30000
+    idleTimeout: 600000
+    maxLifetime: 1800000
+
+app:
+  version: 1.0.0

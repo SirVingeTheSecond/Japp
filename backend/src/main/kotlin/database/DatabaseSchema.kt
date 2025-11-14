@@ -1,5 +1,6 @@
 package com.japp.database
 
+import com.japp.database.tables.ActivityLogs
 import com.japp.database.tables.Expenses
 import com.japp.database.tables.GroupMembers
 import com.japp.database.tables.Groups
@@ -18,7 +19,8 @@ object DatabaseSchema {
                 Users,
                 Groups,
                 GroupMembers,
-                Expenses
+                Expenses,
+                ActivityLogs
             )
         }
     }
@@ -32,7 +34,8 @@ object DatabaseSchema {
                 Users,
                 Groups,
                 GroupMembers,
-                Expenses
+                Expenses,
+                ActivityLogs
             )
         }
     }

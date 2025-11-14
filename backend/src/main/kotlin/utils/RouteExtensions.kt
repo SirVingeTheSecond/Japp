@@ -46,9 +46,18 @@ fun ApplicationCall.getQueryBoolean(name: String, default: Boolean = false): Boo
     return request.queryParameters[name]?.toBoolean() ?: default
 }
 
+
+/**
+ * Extract query parameter as integer
+ */
+fun ApplicationCall.requireQueryInt(name: String): Int {
+    return request.queryParameters[name]?.toIntOrNull()
+        ?: throw IllegalArgumentException("Query parameter '$name' must be a valid integer")
+}
+
 /**
  * Extract optional query parameter as integer
  */
-fun ApplicationCall.getQueryInt(name: String, default: Int? = null): Int? {
+fun ApplicationCall.getOptionalQueryInt(name: String, default: Int? = null): Int? {
     return request.queryParameters[name]?.toIntOrNull() ?: default
 }

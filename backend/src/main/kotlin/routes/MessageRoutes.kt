@@ -5,13 +5,13 @@ import com.japp.models.dto.MarkMessageReadRequest
 import com.japp.models.dto.WebSocketMessage
 import com.japp.plugins.getUserId
 import com.japp.services.MessageService
+import com.japp.utils.getOptionalQueryInt
 import com.japp.utils.requirePathInt
+import com.japp.utils.requireQueryInt
 import com.japp.utils.respondResult
-import com.japp.utils.ResponseFactory
 import com.japp.websocket.WebSocketManager
 import io.ktor.http.*
 import io.ktor.server.request.*
-import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.server.websocket.*
 import io.ktor.websocket.*
@@ -42,16 +42,7 @@ fun Route.messageRoutes() {
         post("/read") {
             val request = call.receive<MarkMessageReadRequest>()
             val userId = call.getUserId()
-
-            val groupId = call.request.queryParameters["groupId"]?.toIntOrNull()
-                ?: return@post call.respond(
-                    HttpStatusCode.BadRequest,
-                    ResponseFactory.error(
-                        error = "ValidationError",
-                        message = "groupId query parameter is required"
-                    )
-                )
-
+            val groupId = call.requireQueryInt("groupId")
             val result = messageService.markMessagesAsRead(request.messageIds, userId, groupId)
             call.respondResult(result)
         }

@@ -44,6 +44,12 @@ fun appModule(application: Application) = module {
     }
 
     single {
+        UserService(
+            userRepository = get()
+        )
+    }
+
+    single {
         GroupService(
             groupRepository = get(),
             userRepository = get(),

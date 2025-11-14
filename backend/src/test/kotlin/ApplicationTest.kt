@@ -1,13 +1,9 @@
 import com.japp.database.DatabaseSchema
 import com.japp.models.domain.User
-import com.japp.models.dto.AuthResponse
 import com.japp.models.dto.CreateGroupRequest
-import com.japp.models.dto.GroupDto
 import com.japp.models.dto.LoginRequest
 import com.japp.models.dto.SignupRequest
-import com.japp.models.dto.UserDto
 import com.japp.repositories.GroupRepository
-import com.japp.repositories.IUserRepository
 import com.japp.repositories.UserRepository
 import com.japp.security.PasswordHasher
 import com.japp.services.AuthService
@@ -15,10 +11,7 @@ import com.japp.services.GroupService
 import io.kotest.core.spec.style.AnnotationSpec
 import io.kotest.matchers.shouldBe
 import org.jetbrains.exposed.v1.jdbc.Database
-import io.mockk.*
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
-import org.koin.core.component.getScopeId
-import javax.crypto.SecretKey
 
 class ApplicationTest : AnnotationSpec() {
     @BeforeClass
@@ -41,7 +34,55 @@ class ApplicationTest : AnnotationSpec() {
     }
 
     @Test
-    suspend fun createUserAndLogin() {
+    suspend fun createUser() {
+        val userRepository = UserRepository()
+        val passwordHasher = PasswordHasher()
+
+        // creating the mock user
+        transaction {
+            userRepository.create(User(
+                id = 0,
+                name = "Niels",
+                email = "hello@gmail.com",
+                passwordHash = passwordHasher.hash("secret12345"),
+                phone = "1234567890",
+                profilePicture = null,
+                createdAt = System.currentTimeMillis().toString()
+            ))
+        }
+
+        // check if user is created
+        val findUser = transaction { userRepository.findByEmail("hello@gmail.com") }
+        findUser?.id shouldBe 1
+    }
+
+    @Test
+    suspend fun deleteUser() {
+        val userRepository = UserRepository()
+        val passwordHasher = PasswordHasher()
+
+        // creating the mock user
+        transaction {
+            userRepository.create(User(
+                id = 0,
+                name = "Niels",
+                email = "hello@gmail.com",
+                passwordHash = passwordHasher.hash("secret12345"),
+                phone = "1234567890",
+                profilePicture = null,
+                createdAt = System.currentTimeMillis().toString()
+            ))
+        }
+
+        // now that user is created delete that boi
+
+        transaction { userRepository.delete(1) }
+        val findUser = transaction { userRepository.findById(1) }
+        findUser.shouldBe(null)
+    }
+
+    @Test
+    suspend fun signupAndLogin() {
         // using non-mocked for full logic
         val userRepository = UserRepository()
         val passwordHasher = PasswordHasher()
@@ -110,6 +151,32 @@ class ApplicationTest : AnnotationSpec() {
     @Test
     suspend fun deleteGroup() {
 
-    }
+        val userRepository = UserRepository()
+        val groupRepository = GroupRepository()
+        val passwordHasher = PasswordHasher()
 
+        // creating mock user
+        transaction {
+            userRepository.create(User(
+                id = 0,
+                name = "Niels",
+                email = "hello@gmail.com",
+                passwordHash = passwordHasher.hash("secret12345"),
+                phone = "1234567890",
+                profilePicture = null,
+                createdAt = System.currentTimeMillis().toString()
+            ))
+        }
+
+        // create group
+        val createGroupRequest = CreateGroupRequest("group name", "group description")
+        val groupService = GroupService(groupRepository, userRepository)
+        groupService.createGroup(createGroupRequest,0)
+
+        // leave group and assert user has left group
+        groupService.leaveGroup(0,0)
+
+        // assert that the user is not part of group anymore TODO should be rewritten
+        groupService.getUserGroups(0).toString().contains("[]")
+    }
 }

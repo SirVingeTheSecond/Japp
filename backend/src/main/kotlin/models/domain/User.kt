@@ -2,7 +2,9 @@ package com.japp.models.domain
 
 data class User(
     val id: Int,
-    val name: String,
+    val username: String,
+    val firstname: String,
+    val lastname: String,
     val email: String,
     val passwordHash: String,
     val phone: String?,

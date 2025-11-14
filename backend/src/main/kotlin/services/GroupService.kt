@@ -71,7 +71,7 @@ class GroupService(
 
                             if (groupRepository.isMember(group.id, userId)) {
                                 return@transaction Result.Failure(
-                                    GroupError.AlreadyMember(group.id)
+                                    GroupError.AlreadyMember()
                                 )
                             }
 
@@ -161,7 +161,7 @@ class GroupService(
                         userRepository.findById(memberId)?.let { user ->
                             GroupMemberDto(
                                 userId = user.id,
-                                userName = user.name,
+                                username = user.username,
                                 userEmail = user.email,
                                 joinedAt = "", // I think we need to track this separately
                                 isOwner = memberId == group.createdBy

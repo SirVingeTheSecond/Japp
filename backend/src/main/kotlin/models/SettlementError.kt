@@ -1,10 +1,9 @@
 package com.japp.models
 
-
 /**
- * Expense error providing a message and status code.
+ * Settlement error providing a message and status code.
  */
-sealed class ExpenseError(
+sealed class SettlementError(
     override val message: String,
     private val type: ErrorType
 ) : IAppError {
@@ -13,21 +12,21 @@ sealed class ExpenseError(
 
     class ValidationError(
         message: String
-    ) : ExpenseError(message, ErrorType.VALIDATION)
+    ) : SettlementError(message, ErrorType.VALIDATION)
 
     class NotFound(
-        val expenseId: Int
-    ) : ExpenseError("Expense not found", ErrorType.NOT_FOUND)
+        val settlementId: Int
+    ) : SettlementError("Settlement not found", ErrorType.NOT_FOUND)
 
     class NotMember(
         val groupId: Int
-    ) : ExpenseError("Not a member of this group", ErrorType.FORBIDDEN)
+    ) : SettlementError("Not a member of this group", ErrorType.FORBIDDEN)
 
     class Unauthorized(
         message: String = "You do not have permission to perform this action"
-    ) : ExpenseError(message, ErrorType.FORBIDDEN)
+    ) : SettlementError(message, ErrorType.FORBIDDEN)
 
     class InternalError(
         message: String = "An unexpected error occurred"
-    ) : ExpenseError(message, ErrorType.INTERNAL)
+    ) : SettlementError(message, ErrorType.INTERNAL)
 }

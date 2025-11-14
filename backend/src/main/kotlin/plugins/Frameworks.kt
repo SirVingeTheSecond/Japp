@@ -29,7 +29,8 @@ fun appModule(application: Application) = module {
     single<IGroupRepository> { GroupRepository() }
     single<IExpenseRepository> { ExpenseRepository() }
     single<ISettlementRepository> { SettlementRepository() }
-    
+    single<IActivityRepository> { ActivityRepository() }
+
     single { PasswordHasher() }
 
     single {
@@ -46,6 +47,7 @@ fun appModule(application: Application) = module {
         GroupService(
             groupRepository = get(),
             userRepository = get(),
+            activityService = get()
         )
     }
 
@@ -54,6 +56,7 @@ fun appModule(application: Application) = module {
             expenseRepository = get(),
             groupRepository = get(),
             userRepository = get(),
+            activityService = get()
         )
     }
 
@@ -63,6 +66,7 @@ fun appModule(application: Application) = module {
             groupRepository = get(),
             userRepository = get(),
             expenseRepository = get(),
+            activityService = get()
         )
     }
 }

@@ -14,7 +14,8 @@ import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 class ExpenseService(
     private val expenseRepository: IExpenseRepository,
     private val groupRepository: IGroupRepository,
-    private val userRepository: IUserRepository
+    private val userRepository: IUserRepository,
+    private val activityService: ActivityService
 ) {
 
     suspend fun createExpense(
@@ -73,6 +74,16 @@ class ExpenseService(
                             }
 
                             groupRepository.updateTotalExpenses(request.groupId, request.amount)
+
+
+                            activityService.logExpenseCreated(
+                                groupId = request.groupId,
+                                userId = userId,
+                                expenseId = expense.id,
+                                amount = request.amount,
+                                currency = "DKK",
+                                description = request.description
+                            )
 
                             Result.Success(toExpenseDto(expense, userId))
                         }
@@ -173,6 +184,14 @@ class ExpenseService(
 
                     expenseRepository.delete(expenseId)
                     groupRepository.updateTotalExpenses(expense.groupId, -expense.amount)
+
+                    activityService.logExpenseDeleted(
+                        groupId = expense.groupId,
+                        userId = userId,
+                        expenseId = expenseId,
+                        amount = expense.amount,
+                        description = expense.description
+                    )
 
                     Result.Success(Unit)
                 }

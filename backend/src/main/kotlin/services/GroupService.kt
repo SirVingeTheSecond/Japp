@@ -12,7 +12,8 @@ import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 
 class GroupService(
     private val groupRepository: IGroupRepository,
-    private val userRepository: IUserRepository
+    private val userRepository: IUserRepository,
+    private val activityService: ActivityService
 ) {
 
     /**
@@ -38,6 +39,8 @@ class GroupService(
                                 description = request.description,
                                 createdBy = userId
                             )
+
+                            activityService.logGroupCreated(group.id, userId, group.name)
 
                             Result.Success(group.toDto())
                         }
@@ -76,6 +79,8 @@ class GroupService(
                             }
 
                             groupRepository.addMember(group.id, userId)
+
+                            activityService.logMemberJoined(group.id, userId, userId)
 
                             val updatedGroup = groupRepository.findById(group.id)
                                 ?: return@transaction Result.Failure(
@@ -200,6 +205,9 @@ class GroupService(
                     }
 
                     groupRepository.removeMember(groupId, userId)
+
+                    activityService.logMemberLeft(groupId, userId)
+
                     Result.Success(Unit)
                 }
             } catch (e: Exception) {

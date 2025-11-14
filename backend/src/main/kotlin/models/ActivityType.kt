@@ -1,0 +1,12 @@
+package com.japp.models
+
+enum class ActivityType {
+    GROUP_CREATED,
+    MEMBER_JOINED,
+    MEMBER_LEFT,
+    EXPENSE_CREATED,
+    EXPENSE_DELETED,
+    SETTLEMENT_CREATED,
+    SETTLEMENT_COMPLETED,
+    RECEIPT_UPLOADED
+}

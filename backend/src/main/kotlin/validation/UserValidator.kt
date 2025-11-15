@@ -7,44 +7,46 @@ import com.japp.models.dto.UpdateUserRequest
 object UserValidator {
 
     fun validateUpdateProfile(request: UpdateUserRequest): Result<UpdateUserRequest, UserError> {
+        val errorFactory: (String) -> UserError = { UserError.ValidationError(it) }
+
         // Validate firstname if provided
-        request.firstname?.let { firstname ->
-            if (firstname.isBlank()) {
-                return Result.Failure(UserError.ValidationError("First name cannot be blank"))
-            }
-            if (firstname.length < 2) {
-                return Result.Failure(UserError.ValidationError("First name must be at least 2 characters"))
-            }
-            if (firstname.length > 100) {
-                return Result.Failure(UserError.ValidationError("First name must not exceed 100 characters"))
-            }
+        ValidationHelpers.validateOptionalField(
+            request.firstname,
+            "First name",
+            ValidationConstants.Length.NAME_MIN,
+            ValidationConstants.Length.NAME_MAX,
+            errorFactory
+        )?.let {
+            return Result.Failure(it.errorOrNull()!!)
         }
 
         // Validate lastname if provided
-        request.lastname?.let { lastname ->
-            if (lastname.isBlank()) {
-                return Result.Failure(UserError.ValidationError("Last name cannot be blank"))
-            }
-            if (lastname.length < 2) {
-                return Result.Failure(UserError.ValidationError("Last name must be at least 2 characters"))
-            }
-            if (lastname.length > 100) {
-                return Result.Failure(UserError.ValidationError("Last name must not exceed 100 characters"))
-            }
+        ValidationHelpers.validateOptionalField(
+            request.lastname,
+            "Last name",
+            ValidationConstants.Length.NAME_MIN,
+            ValidationConstants.Length.NAME_MAX,
+            errorFactory
+        )?.let {
+            return Result.Failure(it.errorOrNull()!!)
         }
 
         // Validate phone if provided
-        request.phone?.let { phone ->
-            if (phone.isBlank()) {
-                return Result.Failure(UserError.ValidationError("Phone cannot be blank if provided"))
-            }
+        ValidationHelpers.validateOptionalField(
+            request.phone,
+            "Phone",
+            errorFactory = errorFactory
+        )?.let {
+            return Result.Failure(it.errorOrNull()!!)
         }
 
         // Validate profilePicture if provided
-        request.profilePicture?.let { picture ->
-            if (picture.isBlank()) {
-                return Result.Failure(UserError.ValidationError("Profile picture URL cannot be blank if provided"))
-            }
+        ValidationHelpers.validateOptionalField(
+            request.profilePicture,
+            "Profile picture URL",
+            errorFactory = errorFactory
+        )?.let {
+            return Result.Failure(it.errorOrNull()!!)
         }
 
         // At least one field must be provided
@@ -52,7 +54,9 @@ object UserValidator {
             request.lastname == null &&
             request.phone == null &&
             request.profilePicture == null) {
-            return Result.Failure(UserError.ValidationError("At least one field must be provided for update"))
+            return Result.Failure(
+                UserError.ValidationError(ValidationConstants.Messages.AT_LEAST_ONE_FIELD)
+            )
         }
 
         return Result.Success(request)

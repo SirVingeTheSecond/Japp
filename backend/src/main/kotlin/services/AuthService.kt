@@ -2,13 +2,13 @@ package com.japp.services
 
 import com.japp.models.*
 import com.japp.models.domain.User
-import com.japp.models.dto.UserDto
 import com.japp.models.dto.SignupRequest
 import com.japp.models.dto.LoginRequest
 import com.japp.models.dto.AuthResponse
 import com.japp.repositories.IUserRepository
 import com.japp.security.PasswordHasher
 import com.japp.validation.AuthValidator
+import com.japp.utils.toDto
 import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
 import com.japp.models.dto.UpdateUserRequest
@@ -125,7 +125,6 @@ class AuthService(
         }
     }
 
-    // To be used...
     /**
      * Verify JWT token to determine user ID
      */
@@ -158,18 +157,3 @@ class AuthService(
             .sign(Algorithm.HMAC256(jwtSecret))
     }
 }
-
-// This might not be the cleanest approach but it works...
-// DUPLICATE CODE IN AUTHSERVICE AND USERSERVICE
-/**
- * Extension function to convert User to DTO
- */
-private fun User.toDto() = UserDto(
-    id = id,
-    email = email,
-    username = username,
-    firstname = firstname,
-    lastname = lastname,
-    phone = phone,
-    profilePicture = profilePicture
-)

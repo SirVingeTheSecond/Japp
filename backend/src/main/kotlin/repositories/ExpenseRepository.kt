@@ -2,6 +2,7 @@ package com.japp.repositories
 
 import com.japp.database.tables.Expenses
 import com.japp.database.tables.ExpenseSplits
+import com.japp.models.*
 import com.japp.models.domain.Expense
 import com.japp.models.domain.ExpenseSplit
 import org.jetbrains.exposed.v1.core.ResultRow
@@ -22,10 +23,10 @@ class ExpenseRepository : IExpenseRepository {
         groupId: Int,
         paidBy: Int,
         amount: Double,
-        currency: String,
+        currency: Currency,
         description: String,
-        category: String?,
-        splitType: String
+        category: ExpenseCategory?,
+        splitType: SplitType
     ): Expense {
         val timestamp = System.currentTimeMillis().toString()
 
@@ -33,10 +34,10 @@ class ExpenseRepository : IExpenseRepository {
             it[Expenses.groupId] = groupId
             it[Expenses.paidBy] = paidBy
             it[Expenses.amount] = amount
-            it[Expenses.currency] = currency
+            it[Expenses.currency] = currency.code
             it[Expenses.description] = description
-            it[Expenses.category] = category
-            it[Expenses.splitType] = splitType
+            it[Expenses.category] = category?.value
+            it[Expenses.splitType] = splitType.value
             it[createdAt] = timestamp
             it[updatedAt] = timestamp
         }[Expenses.id]
@@ -115,10 +116,10 @@ class ExpenseRepository : IExpenseRepository {
         groupId = row[Expenses.groupId],
         paidBy = row[Expenses.paidBy],
         amount = row[Expenses.amount],
-        currency = row[Expenses.currency],
+        currency = Currency.fromCode(row[Expenses.currency]) ?: Currency.DKK,
         description = row[Expenses.description],
-        category = row[Expenses.category],
-        splitType = row[Expenses.splitType],
+        category = row[Expenses.category]?.let { ExpenseCategory.fromString(it) },
+        splitType = SplitType.fromString(row[Expenses.splitType]) ?: SplitType.EQUAL,
         createdAt = row[Expenses.createdAt],
         updatedAt = row[Expenses.updatedAt]
     )

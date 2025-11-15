@@ -7,6 +7,7 @@ import com.japp.models.dto.UpdateUserRequest
 import com.japp.models.dto.UserDto
 import com.japp.repositories.IUserRepository
 import com.japp.validation.UserValidator
+import com.japp.utils.toDto
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
@@ -80,18 +81,3 @@ class UserService(
         }
     }
 }
-
-// This might not be the cleanest approach but it works...
-// DUPLICATE CODE IN AUTHSERVICE AND USERSERVICE
-/**
- * Extension function to convert User to DTO
- */
-private fun User.toDto() = UserDto(
-    id = id,
-    email = email,
-    username = username,
-    firstname = firstname,
-    lastname = lastname,
-    phone = phone,
-    profilePicture = profilePicture
-)

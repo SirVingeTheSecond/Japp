@@ -1,5 +1,6 @@
 package com.japp.models.dto
 
+import com.japp.models.ActivityType
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -8,7 +9,7 @@ data class ActivityDto(
     val groupId: Int,
     val userId: Int,
     val userName: String,
-    val actionType: String,
+    val actionType: ActivityType,
     val description: String,
     val relatedExpenseId: Int?,
     val relatedSettlementId: Int?,

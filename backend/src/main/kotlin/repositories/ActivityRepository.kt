@@ -1,6 +1,7 @@
 package com.japp.repositories
 
 import com.japp.database.tables.ActivityLogs
+import com.japp.models.ActivityType
 import com.japp.models.domain.ActivityLog
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.SortOrder
@@ -19,7 +20,7 @@ class ActivityRepository : IActivityRepository {
     override fun create(
         groupId: Int,
         userId: Int,
-        actionType: String,
+        actionType: ActivityType,
         description: String,
         relatedExpenseId: Int?,
         relatedSettlementId: Int?,
@@ -30,7 +31,7 @@ class ActivityRepository : IActivityRepository {
         val activityId = ActivityLogs.insert {
             it[ActivityLogs.groupId] = groupId
             it[ActivityLogs.userId] = userId
-            it[ActivityLogs.actionType] = actionType
+            it[ActivityLogs.actionType] = actionType.value
             it[ActivityLogs.description] = description
             it[ActivityLogs.relatedExpenseId] = relatedExpenseId
             it[ActivityLogs.relatedSettlementId] = relatedSettlementId
@@ -60,7 +61,7 @@ class ActivityRepository : IActivityRepository {
         id = row[ActivityLogs.id],
         groupId = row[ActivityLogs.groupId],
         userId = row[ActivityLogs.userId],
-        actionType = row[ActivityLogs.actionType],
+        actionType = ActivityType.fromString(row[ActivityLogs.actionType]) ?: ActivityType.GROUP_CREATED,
         description = row[ActivityLogs.description],
         relatedExpenseId = row[ActivityLogs.relatedExpenseId],
         relatedSettlementId = row[ActivityLogs.relatedSettlementId],

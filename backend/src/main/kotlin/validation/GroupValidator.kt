@@ -8,25 +8,39 @@ import com.japp.models.dto.JoinGroupRequest
 object GroupValidator {
 
     fun validateCreateGroup(request: CreateGroupRequest): Result<CreateGroupRequest, GroupError> {
-        if (request.name.isBlank()) {
-            return Result.Failure(GroupError.ValidationError("Group name is required"))
+        val errorFactory: (String) -> GroupError = { GroupError.ValidationError(it) }
+
+        ValidationHelpers.validateNotBlank(request.name, "Group name", errorFactory)?.let {
+            return Result.Failure(it.errorOrNull()!!)
         }
-        if (request.name.length < 2) {
-            return Result.Failure(GroupError.ValidationError("Group name must be at least 2 characters"))
-        }
-        if (request.name.length > 100) {
-            return Result.Failure(GroupError.ValidationError("Group name must not exceed 100 characters"))
+        ValidationHelpers.validateLength(
+            request.name,
+            "Group name",
+            ValidationConstants.Length.GROUP_NAME_MIN,
+            ValidationConstants.Length.GROUP_NAME_MAX,
+            errorFactory
+        )?.let {
+            return Result.Failure(it.errorOrNull()!!)
         }
 
         return Result.Success(request)
     }
 
     fun validateJoinGroup(request: JoinGroupRequest): Result<JoinGroupRequest, GroupError> {
-        if (request.inviteCode.isBlank()) {
-            return Result.Failure(GroupError.ValidationError("Invite code is required"))
+        val errorFactory: (String) -> GroupError = { GroupError.ValidationError(it) }
+
+        ValidationHelpers.validateNotBlank(
+            request.inviteCode,
+            "Invite code",
+            errorFactory
+        )?.let {
+            return Result.Failure(it.errorOrNull()!!)
         }
-        if (request.inviteCode.length != 6) {
-            return Result.Failure(GroupError.ValidationError("Invalid invite code"))
+
+        if (request.inviteCode.length != ValidationConstants.Length.INVITE_CODE_LENGTH) {
+            return Result.Failure(
+                GroupError.ValidationError(ValidationConstants.Messages.INVALID_INVITE_CODE)
+            )
         }
 
         return Result.Success(request)

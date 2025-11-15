@@ -121,6 +121,7 @@ fun Application.configureRouting() {
             authRoutes()
 
             authenticate("auth-jwt") {
+
                 userRoutes()
 
                 groupRoutes()

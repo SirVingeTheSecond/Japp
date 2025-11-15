@@ -11,6 +11,8 @@ import com.japp.security.PasswordHasher
 import com.japp.validation.AuthValidator
 import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
+import com.japp.models.dto.UpdateUserRequest
+import com.japp.validation.UserValidator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
@@ -136,7 +138,7 @@ class AuthService(
 
             val decodedJWT = verifier.verify(token)
             decodedJWT.getClaim("userId").asInt()
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             // Well, since the exception is never used, we could just omit it using _
             null
         }
@@ -157,7 +159,8 @@ class AuthService(
     }
 }
 
-// This might not be the cleanest approach...
+// This might not be the cleanest approach but it works...
+// DUPLICATE CODE IN AUTHSERVICE AND USERSERVICE
 /**
  * Extension function to convert User to DTO
  */

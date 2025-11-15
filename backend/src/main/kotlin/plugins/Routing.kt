@@ -7,6 +7,7 @@ import com.japp.routes.authRoutes
 import com.japp.routes.groupRoutes
 import com.japp.routes.expenseRoutes
 import com.japp.routes.settlementRoutes
+import com.japp.routes.userRoutes
 import com.japp.utils.ResponseFactory
 import io.ktor.http.*
 import io.ktor.server.application.*
@@ -118,15 +119,8 @@ fun Application.configureRouting() {
             authRoutes()
 
             authenticate("auth-jwt") {
-                get("/me") {
-                    val userId = call.getUserId()
-                    call.respond(
-                        MeResponse(
-                            userId = userId,
-                            message = "You are authenticated"
-                        )
-                    )
-                }
+
+                userRoutes()
 
                 groupRoutes()
 

@@ -11,6 +11,8 @@ import com.japp.validation.AuthValidator
 import com.japp.utils.toDto
 import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
+import com.japp.models.dto.UpdateUserRequest
+import com.japp.validation.UserValidator
 import com.japp.models.error.AuthError
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -137,6 +139,7 @@ class AuthService(
             val decodedJWT = verifier.verify(token)
             decodedJWT.getClaim("userId").asInt()
         } catch (_: Exception) {
+            // Well, since the exception is never used, we could just omit it using _
             null
         }
     }

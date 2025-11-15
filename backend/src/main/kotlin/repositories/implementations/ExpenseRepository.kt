@@ -1,10 +1,11 @@
-package com.japp.repositories
+package com.japp.repositories.implementations
 
 import com.japp.database.tables.Expenses
 import com.japp.database.tables.ExpenseSplits
 import com.japp.models.*
 import com.japp.models.domain.Expense
 import com.japp.models.domain.ExpenseSplit
+import com.japp.repositories.interfaces.IExpenseRepository
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.eq

@@ -1,6 +1,6 @@
 package com.japp.validation
 
-import com.japp.models.GroupError
+import com.japp.models.error.GroupError
 import com.japp.models.Result
 import com.japp.models.dto.CreateGroupRequest
 import com.japp.models.dto.JoinGroupRequest
@@ -44,5 +44,15 @@ object GroupValidator {
         }
 
         return Result.Success(request)
+    }
+
+    fun validateAddMember(userId: Int): Result<Int, GroupError> {
+        if (userId <= 0) {
+            return Result.Failure(
+                GroupError.ValidationError("Invalid user ID")
+            )
+        }
+
+        return Result.Success(userId)
     }
 }

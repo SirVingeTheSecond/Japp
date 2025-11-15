@@ -1,4 +1,4 @@
-package com.japp.repositories
+package com.japp.repositories.interfaces
 
 import com.japp.models.domain.Group
 

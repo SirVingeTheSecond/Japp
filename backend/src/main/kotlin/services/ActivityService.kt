@@ -1,11 +1,10 @@
 package com.japp.services
 
 import com.japp.models.ActivityType
-import com.japp.models.dto.ActivityDto
 import com.japp.models.dto.GroupActivitiesDto
-import com.japp.repositories.IActivityRepository
-import com.japp.repositories.IGroupRepository
-import com.japp.repositories.IUserRepository
+import com.japp.repositories.interfaces.IActivityRepository
+import com.japp.repositories.interfaces.IGroupRepository
+import com.japp.repositories.interfaces.IUserRepository
 import com.japp.utils.toDto
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
@@ -35,6 +34,17 @@ class ActivityService(
             actionType = ActivityType.MEMBER_JOINED,
             description = "joined the group",
             metadata = """{"joinedUserId":$joinedUserId,"joinedUserName":"${joinedUser?.username ?: "Unknown"}"}"""
+        )
+    }
+
+    fun logMemberAdded(groupId: Int, addedBy: Int, addedUserId: Int) {
+        val addedUser = userRepository.findById(addedUserId)
+        activityRepository.create(
+            groupId = groupId,
+            userId = addedBy,
+            actionType = ActivityType.MEMBER_JOINED,
+            description = "added ${addedUser?.username ?: "Unknown"} to the group",
+            metadata = """{"addedUserId":$addedUserId,"addedUserName":"${addedUser?.username ?: "Unknown"}"}"""
         )
     }
 

@@ -1,6 +1,6 @@
 package com.japp.validation
 
-import com.japp.models.AuthError
+import com.japp.models.error.AuthError
 import com.japp.models.Result
 import com.japp.models.dto.LoginRequest
 import com.japp.models.dto.SignupRequest

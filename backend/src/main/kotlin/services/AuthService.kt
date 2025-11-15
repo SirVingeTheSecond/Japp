@@ -5,7 +5,7 @@ import com.japp.models.domain.User
 import com.japp.models.dto.SignupRequest
 import com.japp.models.dto.LoginRequest
 import com.japp.models.dto.AuthResponse
-import com.japp.repositories.IUserRepository
+import com.japp.repositories.interfaces.IUserRepository
 import com.japp.security.PasswordHasher
 import com.japp.validation.AuthValidator
 import com.japp.utils.toDto
@@ -13,6 +13,7 @@ import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
 import com.japp.models.dto.UpdateUserRequest
 import com.japp.validation.UserValidator
+import com.japp.models.error.AuthError
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction

@@ -1,11 +1,10 @@
 package com.japp.services
 
 import com.japp.models.Result
-import com.japp.models.UserError
-import com.japp.models.domain.User
+import com.japp.models.error.UserError
 import com.japp.models.dto.UpdateUserRequest
 import com.japp.models.dto.UserDto
-import com.japp.repositories.IUserRepository
+import com.japp.repositories.interfaces.IUserRepository
 import com.japp.validation.UserValidator
 import com.japp.utils.toDto
 import kotlinx.coroutines.Dispatchers

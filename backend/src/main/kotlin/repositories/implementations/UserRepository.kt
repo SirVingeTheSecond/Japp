@@ -1,7 +1,8 @@
-package com.japp.repositories
+package com.japp.repositories.implementations
 
 import com.japp.database.tables.Users
 import com.japp.models.domain.User
+import com.japp.repositories.interfaces.IUserRepository
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.or
@@ -16,8 +17,8 @@ class UserRepository : IUserRepository {
         return Users.insert {
             it[email] = user.email
             it[username] = user.username
-            it[firstName] = user.firstname
-            it[lastName] = user.lastname
+            it[firstname] = user.firstname
+            it[lastname] = user.lastname
             it[passwordHash] = user.passwordHash
             it[phone] = user.phone
             it[profilePicture] = user.profilePicture
@@ -61,8 +62,8 @@ class UserRepository : IUserRepository {
         return Users.update({ Users.id eq id }) {
             it[email] = user.email
             it[username] = user.username
-            it[firstName] = user.firstname
-            it[lastName] = user.lastname
+            it[firstname] = user.firstname
+            it[lastname] = user.lastname
             it[phone] = user.phone
             it[profilePicture] = user.profilePicture
         }
@@ -88,8 +89,8 @@ class UserRepository : IUserRepository {
         id = row[Users.id],
         email = row[Users.email],
         username = row[Users.username],
-        firstname = row[Users.firstName],
-        lastname = row[Users.lastName],
+        firstname = row[Users.firstname],
+        lastname = row[Users.lastname],
         passwordHash = row[Users.passwordHash],
         phone = row[Users.phone],
         profilePicture = row[Users.profilePicture],

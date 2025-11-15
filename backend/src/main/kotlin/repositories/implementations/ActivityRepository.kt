@@ -1,8 +1,9 @@
-package com.japp.repositories
+package com.japp.repositories.implementations
 
 import com.japp.database.tables.ActivityLogs
 import com.japp.models.ActivityType
 import com.japp.models.domain.ActivityLog
+import com.japp.repositories.interfaces.IActivityRepository
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.eq

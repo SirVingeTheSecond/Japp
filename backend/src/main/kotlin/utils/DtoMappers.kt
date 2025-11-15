@@ -101,3 +101,19 @@ fun createGroupMemberDto(
     joinedAt = joinedAt,
     isOwner = isOwner
 )
+
+fun Message.toDto(
+    userName: String?,
+    readByUserIds: List<Int> = emptyList()
+) = MessageDto(
+    id = id,
+    groupId = groupId,
+    userId = userId,
+    userName = userName,
+    content = content,
+    messageType = messageType,
+    createdAt = createdAt,
+    editedAt = editedAt,
+    isDeleted = deletedAt != null,
+    readBy = readByUserIds
+)

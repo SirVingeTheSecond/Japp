@@ -3,9 +3,10 @@ package com.japp.services
 import com.japp.models.*
 import com.japp.models.domain.Expense
 import com.japp.models.dto.*
-import com.japp.repositories.IExpenseRepository
-import com.japp.repositories.IGroupRepository
-import com.japp.repositories.IUserRepository
+import com.japp.models.error.ExpenseError
+import com.japp.repositories.interfaces.IExpenseRepository
+import com.japp.repositories.interfaces.IGroupRepository
+import com.japp.repositories.interfaces.IUserRepository
 import com.japp.utils.toDto
 import com.japp.utils.createBalanceDto
 import com.japp.validation.ExpenseValidator
@@ -17,7 +18,8 @@ class ExpenseService(
     private val expenseRepository: IExpenseRepository,
     private val groupRepository: IGroupRepository,
     private val userRepository: IUserRepository,
-    private val activityService: ActivityService
+    private val activityService: ActivityService,
+    private val messageService: MessageService
 ) {
 
     suspend fun createExpense(
@@ -87,6 +89,14 @@ class ExpenseService(
                             )
 
                             Result.Success(toExpenseDto(expense, userId))
+                        }.also { result ->
+                            if (result is Result.Success) {
+                                val user = userRepository.findById(userId)
+                                messageService.createSystemMessage(
+                                    groupId = request.groupId,
+                                    content = "${user?.username ?: "Someone"} added expense: ${request.description} - ${request.amount} ${request.currency.code}"
+                                )
+                            }
                         }
                     } catch (e: Exception) {
                         Result.Failure(
@@ -194,8 +204,18 @@ class ExpenseService(
                         description = expense.description
                     )
 
-                    Result.Success(Unit)
+                    Result.Success(Triple(expense.groupId, expense.description, userId))
+                }.also { result ->
+                    if (result is Result.Success) {
+                        val (groupId, description, uid) = result.value
+                        val user = userRepository.findById(uid)
+                        messageService.createSystemMessage(
+                            groupId = groupId,
+                            content = "${user?.username ?: "Someone"} deleted expense: $description"
+                        )
+                    }
                 }
+                Result.Success(Unit)
             } catch (e: Exception) {
                 Result.Failure(
                     ExpenseError.InternalError(e.message ?: "Failed to delete expense")

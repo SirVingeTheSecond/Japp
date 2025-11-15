@@ -155,6 +155,38 @@ class GroupService(
         }
     }
 
+    suspend fun getGroupInviteDetails(
+        groupId: Int,
+        userId: Int
+    ): Result<GroupInviteDetailsDto, GroupError> {
+        return withContext(Dispatchers.IO) {
+            try {
+                transaction {
+                    if (!groupRepository.isMember(groupId, userId)) {
+                        return@transaction Result.Failure(GroupError.NotMember(groupId))
+                    }
+
+                    val group = groupRepository.findById(groupId)
+                        ?: return@transaction Result.Failure(GroupError.NotFound(groupId))
+
+                    Result.Success(
+                        GroupInviteDetailsDto(
+                            inviteCode = group.inviteCode,
+                            deepLink = "japp://join/${group.inviteCode}",
+                            groupId = group.id,
+                            groupName = group.name,
+                            memberCount = group.memberCount
+                        )
+                    )
+                }
+            } catch (e: Exception) {
+                Result.Failure(
+                    GroupError.InternalError(e.message ?: "Failed to get invite details")
+                )
+            }
+        }
+    }
+
     /**
      * Get members of a group (only if user is member)
      */
@@ -196,7 +228,6 @@ class GroupService(
     /**
      * Leave a group (cannot leave if owner)
      */
-
     suspend fun leaveGroup(
         groupId: Int,
         userId: Int

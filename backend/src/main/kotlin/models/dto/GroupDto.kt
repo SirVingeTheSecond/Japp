@@ -33,3 +33,12 @@ data class GroupMemberDto(
     val joinedAt: String,
     val isOwner: Boolean
 )
+
+@Serializable
+data class GroupInviteDetailsDto(
+    val inviteCode: String,
+    val deepLink: String,
+    val groupId: Int,
+    val groupName: String,
+    val memberCount: Int
+)

@@ -37,6 +37,17 @@ class ActivityService(
         )
     }
 
+    fun logMemberAdded(groupId: Int, addedBy: Int, addedUserId: Int) {
+        val addedUser = userRepository.findById(addedUserId)
+        activityRepository.create(
+            groupId = groupId,
+            userId = addedBy,
+            actionType = ActivityType.MEMBER_JOINED,
+            description = "added ${addedUser?.username ?: "Unknown"} to the group",
+            metadata = """{"addedUserId":$addedUserId,"addedUserName":"${addedUser?.username ?: "Unknown"}"}"""
+        )
+    }
+
     fun logMemberLeft(groupId: Int, userId: Int) {
         activityRepository.create(
             groupId = groupId,

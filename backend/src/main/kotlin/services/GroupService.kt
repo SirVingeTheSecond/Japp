@@ -111,6 +111,82 @@ class GroupService(
     }
 
     /**
+     * Add a member to a group (owner only)
+     */
+    suspend fun addMember(
+        groupId: Int,
+        userIdToAdd: Int,
+        requestingUserId: Int
+    ): Result<GroupMemberDto, GroupError> {
+        return when (val validation = GroupValidator.validateAddMember(userIdToAdd)) {
+            is Result.Failure -> validation
+            is Result.Success -> {
+                withContext(Dispatchers.IO) {
+                    try {
+                        var addedUsername: String? = null
+
+                        val memberDto = transaction {
+                            // Check if group exists
+                            val group = groupRepository.findById(groupId)
+                                ?: return@transaction Result.Failure(GroupError.NotFound(groupId))
+
+                            // Check if requesting user is the owner
+                            if (!groupRepository.isOwner(groupId, requestingUserId)) {
+                                return@transaction Result.Failure(
+                                    GroupError.NotOwner(groupId)
+                                )
+                            }
+
+                            // Check if user to add exists
+                            val userToAdd = userRepository.findById(userIdToAdd)
+                                ?: return@transaction Result.Failure(
+                                    GroupError.ValidationError("User to add does not exist")
+                                )
+
+                            addedUsername = userToAdd.username
+
+                            // Check if user is already a member
+                            if (groupRepository.isMember(groupId, userIdToAdd)) {
+                                return@transaction Result.Failure(
+                                    GroupError.AlreadyMember()
+                                )
+                            }
+
+                            // Add the member
+                            groupRepository.addMember(groupId, userIdToAdd)
+
+                            // Log activity
+                            activityService.logMemberAdded(groupId, requestingUserId, userIdToAdd)
+
+                            // Return the new member info
+                            Result.Success(
+                                createGroupMemberDto(
+                                    user = userToAdd,
+                                    joinedAt = System.currentTimeMillis().toString(),
+                                    isOwner = false
+                                )
+                            )
+                        }
+
+                        if (memberDto is Result.Success) {
+                            messageService.createSystemMessage(
+                                groupId = groupId,
+                                content = "${addedUsername ?: "Someone"} was added to the group"
+                            )
+                        }
+
+                        memberDto
+                    } catch (e: Exception) {
+                        Result.Failure(
+                            GroupError.InternalError(e.message ?: "Failed to add member")
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    /**
      * Get all groups for a user
      */
     suspend fun getUserGroups(userId: Int): Result<List<GroupDto>, GroupError> {
@@ -226,7 +302,7 @@ class GroupService(
     }
 
     /**
-     * Leave a group (cannot leave if owner)
+     * Leave a group (cannot leave if you're the owner)
      */
     suspend fun leaveGroup(
         groupId: Int,
@@ -234,7 +310,7 @@ class GroupService(
     ): Result<Unit, GroupError> {
         return withContext(Dispatchers.IO) {
             try {
-                transaction {
+                val leaveResult = transaction {
                     if (!groupRepository.isMember(groupId, userId)) {
                         return@transaction Result.Failure(GroupError.NotMember(groupId))
                     }
@@ -250,15 +326,17 @@ class GroupService(
                     activityService.logMemberLeft(groupId, userId)
 
                     Result.Success(Unit)
-                }.also { result ->
-                    if (result is Result.Success) {
-                        val user = userRepository.findById(userId)
-                        messageService.createSystemMessage(
-                            groupId = groupId,
-                            content = "${user?.username ?: "Someone"} left the group"
-                        )
-                    }
                 }
+
+                if (leaveResult is Result.Success) {
+                    val user = userRepository.findById(userId)
+                    messageService.createSystemMessage(
+                        groupId = groupId,
+                        content = "${user?.username ?: "Someone"} left the group"
+                    )
+                }
+
+                leaveResult
             } catch (e: Exception) {
                 Result.Failure(
                     GroupError.InternalError(e.message ?: "Failed to leave group")

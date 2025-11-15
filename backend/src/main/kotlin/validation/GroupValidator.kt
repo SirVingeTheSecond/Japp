@@ -45,4 +45,14 @@ object GroupValidator {
 
         return Result.Success(request)
     }
+
+    fun validateAddMember(userId: Int): Result<Int, GroupError> {
+        if (userId <= 0) {
+            return Result.Failure(
+                GroupError.ValidationError("Invalid user ID")
+            )
+        }
+
+        return Result.Success(userId)
+    }
 }

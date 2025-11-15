@@ -1,0 +1,28 @@
+ktor:
+  application:
+    modules:
+      - com.japp.ApplicationKt.module
+  deployment:
+    port: 8080
+
+jwt:
+  secret: test-secret-do-not-use-in-prod
+  issuer: test-issuer
+  audience: test-audience
+  realm: "Japp API Test"
+  expirationDays: 7
+
+database:
+  url: jdbc:h2:mem:test;DB_CLOSE_DELAY=-1
+  driver: org.h2.Driver
+  user: root
+  password: ""
+  pool:
+    maximumPoolSize: 5
+    minimumIdle: 1
+    connectionTimeout: 30000
+    idleTimeout: 600000
+    maxLifetime: 1800000
+
+app:
+  version: 1.0.0-test

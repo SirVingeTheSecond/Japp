@@ -3,10 +3,9 @@ package com.japp.routes
 import com.japp.module
 import com.japp.database.DatabaseSchema
 import com.japp.models.dto.*
+import com.japp.models.SettlementStatus
 import io.kotest.core.spec.style.AnnotationSpec
 import io.kotest.matchers.shouldBe
-import io.kotest.matchers.shouldNotBe
-import io.kotest.matchers.string.shouldContain
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
@@ -42,7 +41,6 @@ class SettlementIntegrationTest : AnnotationSpec() {
         }
     }
 
-    // Helper to set up test config
     private fun ApplicationTestBuilder.setupTestConfig() {
         environment {
             config = MapApplicationConfig(
@@ -126,7 +124,7 @@ class SettlementIntegrationTest : AnnotationSpec() {
         response.status shouldBe HttpStatusCode.Created
         val settlement = json.decodeFromString<SettlementDto>(response.bodyAsText())
         settlement.amount shouldBe 150.0
-        settlement.status shouldBe "pending"
+        settlement.status shouldBe SettlementStatus.PENDING
     }
 
     @Test
@@ -192,7 +190,7 @@ class SettlementIntegrationTest : AnnotationSpec() {
 
         response.status shouldBe HttpStatusCode.OK
         val completed = json.decodeFromString<SettlementDto>(response.bodyAsText())
-        completed.status shouldBe "completed"
+        completed.status shouldBe SettlementStatus.COMPLETED
     }
 
     @Test

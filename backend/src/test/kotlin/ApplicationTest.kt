@@ -1,15 +1,25 @@
 import com.japp.database.DatabaseSchema
 import com.japp.models.domain.User
 import com.japp.models.dto.CreateGroupRequest
+import com.japp.models.dto.CreateSettlementRequest
 import com.japp.models.dto.LoginRequest
 import com.japp.models.dto.SignupRequest
-import com.japp.repositories.GroupRepository
-import com.japp.repositories.UserRepository
+import com.japp.repositories.implementations.ActivityRepository
+import com.japp.repositories.implementations.ExpenseRepository
+import com.japp.repositories.implementations.GroupRepository
+import com.japp.repositories.implementations.MessageRepository
+import com.japp.repositories.implementations.SettlementRepository
+import com.japp.repositories.implementations.UserRepository
 import com.japp.security.PasswordHasher
+import com.japp.services.ActivityService
 import com.japp.services.AuthService
 import com.japp.services.GroupService
+import com.japp.services.MessageService
+import com.japp.services.SettlementService
+import com.japp.websocket.WebSocketManager
 import io.kotest.core.spec.style.AnnotationSpec
 import io.kotest.matchers.shouldBe
+import io.mockk.mockk
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 
@@ -131,6 +141,12 @@ class ApplicationTest : AnnotationSpec() {
         val userRepository = UserRepository()
         val groupRepository = GroupRepository()
         val passwordHasher = PasswordHasher()
+        val activityRepository = mockk<ActivityRepository>()
+        val messageRepository = mockk<MessageRepository>()
+        val webSocketManager = mockk<WebSocketManager>()
+
+        val activityService = ActivityService(activityRepository,groupRepository, userRepository)
+        val messageService = MessageService(messageRepository,groupRepository, userRepository, webSocketManager)
 
         // creating mock user for test
         transaction {
@@ -149,7 +165,7 @@ class ApplicationTest : AnnotationSpec() {
 
         // create group
         val createGroupRequest = CreateGroupRequest("group name", "group description")
-        val groupService = GroupService(groupRepository, userRepository)
+        val groupService = GroupService(groupRepository, userRepository, activityService,messageService)
 
         // assert that group can be created and that user is in group
         groupService.createGroup(createGroupRequest,0)
@@ -162,6 +178,13 @@ class ApplicationTest : AnnotationSpec() {
         val userRepository = UserRepository()
         val groupRepository = GroupRepository()
         val passwordHasher = PasswordHasher()
+
+        val activityRepository = mockk<ActivityRepository>()
+        val messageRepository = mockk<MessageRepository>()
+        val webSocketManager = mockk<WebSocketManager>()
+
+        val activityService = ActivityService(activityRepository,groupRepository, userRepository)
+        val messageService = MessageService(messageRepository,groupRepository, userRepository, webSocketManager)
 
         // creating mock user
         transaction {
@@ -180,7 +203,7 @@ class ApplicationTest : AnnotationSpec() {
 
         // create group
         val createGroupRequest = CreateGroupRequest("group name", "group description")
-        val groupService = GroupService(groupRepository, userRepository)
+        val groupService = GroupService(groupRepository, userRepository, activityService, messageService)
         groupService.createGroup(createGroupRequest,0)
 
         // leave group and assert user has left group
@@ -188,5 +211,67 @@ class ApplicationTest : AnnotationSpec() {
 
         // assert that the user is not part of group anymore TODO should be rewritten
         groupService.getUserGroups(0).toString().contains("[]")
+    }
+
+    @Test
+    suspend fun createSettlement() {
+
+        val settlementRepository = SettlementRepository()
+        val userRepository = UserRepository()
+        val expenseRepository = ExpenseRepository()
+        val groupRepository = GroupRepository()
+        val passwordHasher = PasswordHasher()
+        val activityRepository = mockk<ActivityRepository>()
+        val messageRepository = mockk<MessageRepository>()
+        val webSocketManager = mockk<WebSocketManager>()
+
+        val activityService = ActivityService(activityRepository,groupRepository, userRepository)
+        val messageService = MessageService(messageRepository,groupRepository, userRepository, webSocketManager)
+        val settlementService =
+            SettlementService(settlementRepository, groupRepository, userRepository,
+                expenseRepository, activityService, messageService)
+
+        //create user
+        transaction {
+            userRepository.create(
+                User(
+                    id = 0,
+                    username = "Niels69",
+                    firstname = "Niels",
+                    lastname = "Nielsen",
+                    email = "hello@gmail.com",
+                    passwordHash = passwordHasher.hash("secret12345"),
+                    phone = "1234567890",
+                    profilePicture = null,
+                    createdAt = System.currentTimeMillis().toString()
+                )
+            )
+            userRepository.create(
+                User(
+                    id = 1,
+                    username = "Niels79",
+                    firstname = "Niels79",
+                    lastname = "Nielsen79",
+                    email = "hello79@gmail.com",
+                    passwordHash = passwordHasher.hash("secret12345"),
+                    phone = "1234567890",
+                    profilePicture = null,
+                    createdAt = System.currentTimeMillis().toString()
+                )
+            )
+        }
+
+        // create group
+        val createGroupRequest = CreateGroupRequest("group name", "group description")
+        val groupService = GroupService(groupRepository, userRepository, activityService, messageService)
+        groupService.createGroup(createGroupRequest, 1)
+
+        // create settlement request
+        val settlementRequest = CreateSettlementRequest(1, 2, 300.0)
+
+        // create settlement
+        settlementService.createSettlement(settlementRequest, 1)
+
+        settlementService.getGroupSettlements(1, 1)
     }
 }

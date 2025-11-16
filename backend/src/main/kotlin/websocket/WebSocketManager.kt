@@ -54,7 +54,7 @@ class WebSocketManager {
             if (excludeUserId == null || wrapper.userId != excludeUserId) {
                 try {
                     wrapper.session.send(Frame.Text(json))
-                } catch (e: Exception) {
+                } catch (_: Exception) {
                     // Connection closed, will be cleaned up on unregister
                 }
             }
@@ -71,7 +71,7 @@ class WebSocketManager {
         sessions.forEach { wrapper ->
             try {
                 wrapper.session.send(Frame.Text(json))
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 // Connection closed, will be cleaned up on unregister
             }
         }

@@ -13,8 +13,16 @@ data class GroupDto(
 
 data class GroupMemberDto(
     val userId: Int,
-    val userName: String,
+    val username: String,
     val userEmail: String,
     val joinedAt: String,
     val isOwner: Boolean
+)
+
+data class GroupInviteDetailsDto(
+    val inviteCode: String,
+    val deepLink: String,
+    val groupId: Int,
+    val groupName: String,
+    val memberCount: Int
 )

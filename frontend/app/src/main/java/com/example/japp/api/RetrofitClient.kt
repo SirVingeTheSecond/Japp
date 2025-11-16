@@ -14,6 +14,7 @@ import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.GET
 import java.util.Date
 import androidx.core.content.edit
+import com.example.japp.api.responses.activity.ActivityService
 import com.example.japp.api.responses.auth.AuthService
 import com.example.japp.api.responses.expense.ExpenseService
 import com.example.japp.api.responses.group.GroupService
@@ -134,6 +135,9 @@ object RetrofitClient {
             .addConverterFactory(GsonConverterFactory.create())
             .build()
     }
+
+    val activityService: ActivityService
+        get() = retrofit!!.create(ActivityService::class.java)
 
     val authService: AuthService
         get() = retrofit!!.create(AuthService::class.java)

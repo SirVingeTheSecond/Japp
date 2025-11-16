@@ -25,7 +25,10 @@ interface GroupService {
     fun get_group(@Path("id") id: Int): Call<GroupDto?>?
 
     @GET("$BASE_ROUTE/{id}/members")
-    fun add_group_member(@Path("id") id: Int, @Body request: AddMemberRequest): Call<List<GroupMemberDto>?>?
+    fun add_group_member(
+        @Path("id") id: Int,
+        @Body request: AddMemberRequest
+    ): Call<List<GroupMemberDto>?>?
 
     @POST("$BASE_ROUTE/{id}/members")
     fun get_group_members(@Path("id") id: Int): Call<List<GroupMemberDto>?>?

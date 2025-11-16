@@ -14,7 +14,10 @@ interface SettlementService {
     }
 
     @POST(BASE_ROUTE)
-    fun create_settlement(@Body request: CreateSettlementRequest, @Query("pending") pendingOnly: Boolean? = null): Call<SettlementDto?>?
+    fun create_settlement(
+        @Body request: CreateSettlementRequest,
+        @Query("pending") pendingOnly: Boolean? = null
+    ): Call<SettlementDto?>?
 
     @GET("${BASE_ROUTE}/group/{groupId}")
     fun get_group_settlements(@Path("groupId") groupId: Int): Call<List<SettlementDto>?>?

@@ -11,6 +11,9 @@ interface ActivityService {
     }
 
     @POST("${BASE_ROUTE}/group/{groupId}")
-    fun get_group_activities(@Path("groupId") groupId: Int, @Query("limit") limit: Int? = null): Call<GroupActivitiesDto?>?
+    fun get_group_activities(
+        @Path("groupId") groupId: Int,
+        @Query("limit") limit: Int? = null
+    ): Call<GroupActivitiesDto?>?
 
 }

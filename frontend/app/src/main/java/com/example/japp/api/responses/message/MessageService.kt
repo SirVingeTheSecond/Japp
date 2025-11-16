@@ -19,10 +19,16 @@ interface MessageService {
 
     //TODO: ISSUE: Backend has no info on what the before should be formatted as, other than string. Therefore not implemented.
     @GET("${BASE_ROUTE}/group/{groupId}")
-    fun get_group_messages(@Path("groupId") groupId: Int, @Query("limit") limit: Int? = null): Call<MessagePageDto?>?
+    fun get_group_messages(
+        @Path("groupId") groupId: Int,
+        @Query("limit") limit: Int? = null
+    ): Call<MessagePageDto?>?
 
     @POST("${BASE_ROUTE}/read")
-    fun read_message(@Body request: MarkMessageReadRequest, @Query("groupId") groupId: Int): Call<Unit?>?
+    fun read_message(
+        @Body request: MarkMessageReadRequest,
+        @Query("groupId") groupId: Int
+    ): Call<Unit?>?
 
     @DELETE("${BASE_ROUTE}/{id}")
     fun delete_message(@Path("id") id: Int): Call<Unit?>?

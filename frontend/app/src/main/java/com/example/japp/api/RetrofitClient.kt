@@ -1,27 +1,27 @@
 package com.example.japp.api
 
 import android.content.Context
-import com.example.japp.api.responses.HealthResponse
-import okhttp3.Authenticator
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.Response
-import okhttp3.Route
-import okhttp3.logging.HttpLoggingInterceptor
-import retrofit2.Retrofit
-import retrofit2.Response as RetrofitResponse
-import retrofit2.converter.gson.GsonConverterFactory
-import retrofit2.http.GET
-import java.util.Date
 import androidx.core.content.edit
+import com.example.japp.api.responses.HealthResponse
 import com.example.japp.api.responses.activity.ActivityService
 import com.example.japp.api.responses.auth.AuthService
 import com.example.japp.api.responses.expense.ExpenseService
 import com.example.japp.api.responses.group.GroupService
 import com.example.japp.api.responses.message.MessageService
 import com.example.japp.api.responses.settlement.SettlementService
+import okhttp3.Authenticator
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.Response
 import okhttp3.ResponseBody
+import okhttp3.Route
+import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Converter
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
+import retrofit2.http.GET
+import java.util.Date
+import retrofit2.Response as RetrofitResponse
 
 
 data class ErrorResponse(
@@ -137,23 +137,23 @@ object RetrofitClient {
             .build()
     }
 
+    val jappService: JappService
+        get() = retrofit!!.create(JappService::class.java)
+
     val activityService: ActivityService
         get() = retrofit!!.create(ActivityService::class.java)
 
     val authService: AuthService
         get() = retrofit!!.create(AuthService::class.java)
 
-    val jappService: JappService
-        get() = retrofit!!.create(JappService::class.java)
+    val expenseService: ExpenseService
+        get() = retrofit!!.create(ExpenseService::class.java)
 
     val groupService: GroupService
         get() = retrofit!!.create(GroupService::class.java)
 
     val messageService: MessageService
         get() = retrofit!!.create(MessageService::class.java)
-
-    val expenseService: ExpenseService
-        get() = retrofit!!.create(ExpenseService::class.java)
 
     val settlementService: SettlementService
         get() = retrofit!!.create(SettlementService::class.java)

@@ -1,6 +1,7 @@
 package com.example.japp.api
 
 import android.content.Context
+import android.util.Log
 import androidx.core.content.edit
 import com.example.japp.api.responses.HealthResponse
 import com.example.japp.api.responses.activity.ActivityService
@@ -9,7 +10,9 @@ import com.example.japp.api.responses.expense.ExpenseService
 import com.example.japp.api.responses.group.GroupService
 import com.example.japp.api.responses.message.MessageService
 import com.example.japp.api.responses.settlement.SettlementService
+import com.example.japp.api.responses.user.UserService
 import okhttp3.Authenticator
+import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
@@ -19,6 +22,7 @@ import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Converter
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import retrofit2.create
 import retrofit2.http.GET
 import java.util.Date
 import retrofit2.Response as RetrofitResponse
@@ -90,30 +94,23 @@ interface JappService {
 // https://medium.com/@ratko.kostov21/jwt-authentication-in-android-using-retrofit-and-authenticator-b7b66e231295
 // https://notificare.com/blog/2023/04/21/android-retrofit-refresh-authentication/
 
-class OAuthAuthenticator(private val appContext: Context) : Authenticator {
-    override fun authenticate(route: Route?, response: Response): Request? {
-        if (response.request.header("Authorization") == null) {
-            val credentials = CredentialsStorage.load(appContext) ?: return null
+class AuthInterceptor(val context: Context) : Interceptor {
+    override fun intercept(chain: Interceptor.Chain): Response {
+        val credentials = CredentialsStorage.load(context)
 
-            // NOTE: this can be improved by checking the expiration date locally instead of
-            // sending a request to the API which will result in a 401.
-
-            // Adding the access token to the request.
-            return response.request.newBuilder()
-                .header("Authorization", "Bearer ${credentials.accessToken}")
-                .build()
+        if (credentials == null) {
+            return chain.proceed(chain.request())
         }
 
-        // Use the authenticated original request.
-        return response.request
-    }
+        val newReq = chain.request().newBuilder().apply {
+            credentials?.let {
+                header("Authorization", "Bearer ${it.accessToken}")
+            }
+        }.build()
 
-    private fun getCredentials(): Credentials {
-        return Credentials("Idk?", Date())
-        // TODO("Get the user credentials from local storage.")
+        return chain.proceed(newReq)
     }
 }
-
 object RetrofitClient {
     private const val BASE_URL = "https://japp-app-api.itnerd.net/api/"
     var retrofit: Retrofit? = null
@@ -126,7 +123,7 @@ object RetrofitClient {
         }
 
         val client = OkHttpClient.Builder()
-            .authenticator(OAuthAuthenticator(context))
+            .addInterceptor(AuthInterceptor(context))
             .addInterceptor(interceptor)
             .build()
 
@@ -157,4 +154,7 @@ object RetrofitClient {
 
     val settlementService: SettlementService
         get() = retrofit!!.create(SettlementService::class.java)
+
+    val userService: UserService
+        get() = retrofit!!.create(UserService::class.java)
 }

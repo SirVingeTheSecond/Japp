@@ -1,5 +1,6 @@
 package com.japp.routes
 
+import com.japp.models.dto.AddMemberRequest
 import com.japp.models.dto.CreateGroupRequest
 import com.japp.models.dto.JoinGroupRequest
 import com.japp.plugins.getUserId
@@ -48,6 +49,14 @@ fun Route.groupRoutes() {
             val userId = call.getUserId()
             val result = groupService.getGroupMembers(groupId, userId)
             call.respondResult(result)
+        }
+
+        post("/{id}/members") {
+            val groupId = call.requirePathInt("id")
+            val request = call.receive<AddMemberRequest>()
+            val userId = call.getUserId()
+            val result = groupService.addMember(groupId, request.userId, userId)
+            call.respondResult(result, HttpStatusCode.Created)
         }
 
         delete("/{id}/leave") {

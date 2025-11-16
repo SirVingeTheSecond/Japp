@@ -14,6 +14,11 @@ data class JoinGroupRequest(
 )
 
 @Serializable
+data class AddMemberRequest(
+    val userId: Int
+)
+
+@Serializable
 data class GroupDto(
     val id: Int,
     val name: String,

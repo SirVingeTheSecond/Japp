@@ -56,3 +56,5 @@ local.properties
 out/
 !**/src/main/**/out/
 !**/src/test/**/out/
+
+backend/.kotlin/

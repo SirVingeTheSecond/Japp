@@ -20,7 +20,7 @@ interface SettlementService {
     ): Call<SettlementDto?>?
 
     @GET("${BASE_ROUTE}/group/{groupId}")
-    fun get_group_settlements(@Path("groupId") groupId: Int): Call<List<SettlementDto>?>?
+    fun get_group_settlements(@Path("groupId") groupId: Int, @Query("pending") pendingOnly: Boolean? = null): Call<List<SettlementDto>?>?
 
     @GET("${BASE_ROUTE}/group/{groupId}/suggestions")
     fun get_group_settlement_suggestions(@Path("groupId") groupId: Int): Call<GroupSettlementSuggestionsDto?>?

@@ -1,9 +1,18 @@
 package com.example.japp.api
 
+import android.R.attr.type
 import android.content.Context
 import android.util.Log
 import androidx.core.content.edit
+import com.example.japp.api.responses.ActivityType
+import com.example.japp.api.responses.Currency
+import com.example.japp.api.responses.ExpenseCategory
+import com.example.japp.api.responses.GroupRole
 import com.example.japp.api.responses.HealthResponse
+import com.example.japp.api.responses.MessageType
+import com.example.japp.api.responses.SettlementStatus
+import com.example.japp.api.responses.SplitType
+import com.example.japp.api.responses.UserStatus
 import com.example.japp.api.responses.activity.ActivityService
 import com.example.japp.api.responses.auth.AuthService
 import com.example.japp.api.responses.expense.ExpenseService
@@ -11,6 +20,11 @@ import com.example.japp.api.responses.group.GroupService
 import com.example.japp.api.responses.message.MessageService
 import com.example.japp.api.responses.settlement.SettlementService
 import com.example.japp.api.responses.user.UserService
+import com.google.gson.GsonBuilder
+import com.google.gson.JsonDeserializationContext
+import com.google.gson.JsonDeserializer
+import com.google.gson.JsonElement
+import com.google.gson.JsonParseException
 import okhttp3.Authenticator
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
@@ -24,6 +38,7 @@ import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.create
 import retrofit2.http.GET
+import java.lang.reflect.Type
 import java.util.Date
 import retrofit2.Response as RetrofitResponse
 
@@ -127,10 +142,35 @@ object RetrofitClient {
             .addInterceptor(interceptor)
             .build()
 
+        val enums = listOf(
+            SplitType::class.java,
+            Currency::class.java,
+            UserStatus::class.java,
+            GroupRole::class.java,
+            ActivityType::class.java,
+            SettlementStatus::class.java,
+            ExpenseCategory::class.java,
+            MessageType::class.java
+        )
+
+        val builder = GsonBuilder()
+
+        val adapter = JsonDeserializer { json, type, _ ->
+            val enumClass = type as Class<*>
+            val fromString = enumClass.getMethod("fromString", String::class.java)
+            fromString.invoke(null, json.asString)
+        }
+
+        for (e in enums) {
+            builder.registerTypeAdapter(e, adapter)
+        }
+
+        val gson = builder.create()
+
         retrofit = Retrofit.Builder()
             .baseUrl(BASE_URL)
             .client(client)
-            .addConverterFactory(GsonConverterFactory.create())
+            .addConverterFactory(GsonConverterFactory.create(gson))
             .build()
     }
 

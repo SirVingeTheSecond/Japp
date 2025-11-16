@@ -18,6 +18,7 @@ import com.example.japp.api.responses.activity.ActivityService
 import com.example.japp.api.responses.auth.AuthService
 import com.example.japp.api.responses.expense.ExpenseService
 import com.example.japp.api.responses.group.GroupService
+import com.example.japp.api.responses.message.MessageService
 import com.example.japp.api.responses.settlement.SettlementService
 import okhttp3.ResponseBody
 import retrofit2.Converter
@@ -147,6 +148,9 @@ object RetrofitClient {
 
     val groupService: GroupService
         get() = retrofit!!.create(GroupService::class.java)
+
+    val messageService: MessageService
+        get() = retrofit!!.create(MessageService::class.java)
 
     val expenseService: ExpenseService
         get() = retrofit!!.create(ExpenseService::class.java)

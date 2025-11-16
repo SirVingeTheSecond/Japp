@@ -167,13 +167,20 @@ class MessageService(
                         return@transaction false
                     }
 
-                    messageRepository.markMultipleAsRead(messageIds, userId)
+                    println("DEBUG: About to mark ${messageIds.size} messages as read for user $userId")
+
+                    val result = messageRepository.markMultipleAsRead(messageIds, userId)
+
+                    println("DEBUG: Marked ${result.size} messages as read")
+
                     true
                 }
 
                 if (!isMember) {
                     return@withContext Result.Failure(MessageError.NotMember(groupId))
                 }
+
+                println("DEBUG: About to broadcast WebSocket message")
 
                 webSocketManager.broadcastToGroup(
                     groupId = groupId,
@@ -187,6 +194,9 @@ class MessageService(
 
                 Result.Success(Unit)
             } catch (e: Exception) {
+                println("DEBUG: Exception in markMessagesAsRead: ${e.message}")
+                e.printStackTrace()
+
                 Result.Failure(
                     MessageError.InternalError(e.message ?: "Failed to mark messages as read")
                 )

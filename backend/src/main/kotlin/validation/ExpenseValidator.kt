@@ -17,7 +17,7 @@ object ExpenseValidator {
             "Amount",
             errorFactory
         )?.let {
-            return Result.Failure(it.errorOrNull()!!)
+            return Result.Failure(it)
         }
 
         // Validate description
@@ -26,7 +26,7 @@ object ExpenseValidator {
             "Description",
             errorFactory
         )?.let {
-            return Result.Failure(it.errorOrNull()!!)
+            return Result.Failure(it)
         }
 
         ValidationHelpers.validateLength(
@@ -35,7 +35,7 @@ object ExpenseValidator {
             maxLength = ValidationConstants.Length.EXPENSE_DESCRIPTION_MAX,
             errorFactory = errorFactory
         )?.let {
-            return Result.Failure(it.errorOrNull()!!)
+            return Result.Failure(it)
         }
 
         // Validate custom split

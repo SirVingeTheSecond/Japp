@@ -17,7 +17,7 @@ object UserValidator {
             ValidationConstants.Length.NAME_MAX,
             errorFactory
         )?.let {
-            return Result.Failure(it.errorOrNull()!!)
+            return Result.Failure(it)
         }
 
         // Validate lastname if provided
@@ -28,7 +28,7 @@ object UserValidator {
             ValidationConstants.Length.NAME_MAX,
             errorFactory
         )?.let {
-            return Result.Failure(it.errorOrNull()!!)
+            return Result.Failure(it)
         }
 
         // Validate phone if provided
@@ -37,7 +37,7 @@ object UserValidator {
             "Phone",
             errorFactory = errorFactory
         )?.let {
-            return Result.Failure(it.errorOrNull()!!)
+            return Result.Failure(it)
         }
 
         // Validate profilePicture if provided
@@ -46,7 +46,7 @@ object UserValidator {
             "Profile picture URL",
             errorFactory = errorFactory
         )?.let {
-            return Result.Failure(it.errorOrNull()!!)
+            return Result.Failure(it)
         }
 
         // At least one field must be provided

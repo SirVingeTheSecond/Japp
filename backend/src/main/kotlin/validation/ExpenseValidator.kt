@@ -1,49 +1,68 @@
 package com.japp.validation
 
-import com.japp.models.ExpenseError
+import com.japp.models.error.ExpenseError
 import com.japp.models.Result
+import com.japp.models.SplitType
 import com.japp.models.dto.CreateExpenseRequest
+import kotlin.math.abs
 
 object ExpenseValidator {
 
     fun validateCreateExpense(request: CreateExpenseRequest): Result<CreateExpenseRequest, ExpenseError> {
-        if (request.amount <= 0) {
-            return Result.Failure(ExpenseError.ValidationError("Amount must be greater than 0"))
+        val errorFactory: (String) -> ExpenseError = { ExpenseError.ValidationError(it) }
+
+        // Validate amount
+        ValidationHelpers.validatePositiveAmount(
+            request.amount,
+            "Amount",
+            errorFactory
+        )?.let {
+            return Result.Failure(it.errorOrNull()!!)
         }
 
-        if (request.description.isBlank()) {
-            return Result.Failure(ExpenseError.ValidationError("Description is required"))
+        // Validate description
+        ValidationHelpers.validateNotBlank(
+            request.description,
+            "Description",
+            errorFactory
+        )?.let {
+            return Result.Failure(it.errorOrNull()!!)
         }
 
-        if (request.description.length > 500) {
-            return Result.Failure(ExpenseError.ValidationError("Description must not exceed 500 characters"))
+        ValidationHelpers.validateLength(
+            request.description,
+            "Description",
+            maxLength = ValidationConstants.Length.EXPENSE_DESCRIPTION_MAX,
+            errorFactory = errorFactory
+        )?.let {
+            return Result.Failure(it.errorOrNull()!!)
         }
 
-        // Example of needing to utilize Enums?
-        if (request.splitType !in listOf("equal", "custom")) {
-            return Result.Failure(ExpenseError.ValidationError("Split type must be 'equal' or 'custom'"))
-        }
-
-        if (request.splitType == "custom") {
+        // Validate custom split
+        if (request.splitType == SplitType.CUSTOM) {
             if (request.splits.isNullOrEmpty()) {
-                return Result.Failure(ExpenseError.ValidationError("Custom split requires splits data"))
+                return Result.Failure(
+                    ExpenseError.ValidationError(ValidationConstants.Messages.CUSTOM_SPLIT_NEEDS_DATA)
+                )
             }
 
             val totalSplitAmount = request.splits.sumOf { it.shareAmount ?: 0.0 }
             val totalSplitPercentage = request.splits.sumOf { it.sharePercentage ?: 0.0 }
 
+            // Validate amount-based splits
             if (request.splits.all { it.shareAmount != null }) {
-                if (kotlin.math.abs(totalSplitAmount - request.amount) > 0.01) {
+                if (abs(totalSplitAmount - request.amount) > ValidationConstants.Amount.COMPARISON_TOLERANCE) {
                     return Result.Failure(
-                        ExpenseError.ValidationError("Split amounts must sum to total expense amount")
+                        ExpenseError.ValidationError(ValidationConstants.Messages.SPLIT_AMOUNTS_MISMATCH)
                     )
                 }
             }
 
+            // Validate percentage-based splits
             if (request.splits.all { it.sharePercentage != null }) {
-                if (kotlin.math.abs(totalSplitPercentage - 100.0) > 0.01) {
+                if (abs(totalSplitPercentage - ValidationConstants.Amount.PERCENTAGE_TOTAL) > ValidationConstants.Amount.COMPARISON_TOLERANCE) {
                     return Result.Failure(
-                        ExpenseError.ValidationError("Split percentages must sum to 100%")
+                        ExpenseError.ValidationError(ValidationConstants.Messages.SPLIT_PERCENTAGES_MISMATCH)
                     )
                 }
             }

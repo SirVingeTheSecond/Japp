@@ -22,6 +22,10 @@ application {
     mainClass = "io.ktor.server.netty.EngineMain"
 }
 
+tasks.withType<Test> {
+    useJUnitPlatform()
+}
+
 dependencies {
     // Ktor
     implementation("io.ktor:ktor-server-core")

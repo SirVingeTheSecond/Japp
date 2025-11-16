@@ -1,8 +1,9 @@
-package com.japp.repositories
+package com.japp.repositories.implementations
 
 import com.japp.database.tables.GroupMembers
 import com.japp.database.tables.Groups
 import com.japp.models.domain.Group
+import com.japp.repositories.interfaces.IGroupRepository
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.*

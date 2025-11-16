@@ -1,5 +1,6 @@
 package com.japp.models.dto
 
+import com.japp.models.SettlementStatus
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -18,7 +19,7 @@ data class SettlementDto(
     val toUserId: Int,
     val toUserName: String,
     val amount: Double,
-    val completed: Boolean,
+    val status: SettlementStatus,
     val createdAt: String,
     val completedAt: String?
 )

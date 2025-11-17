@@ -3,9 +3,11 @@ package com.japp.services
 import com.japp.models.*
 import com.japp.models.dto.*
 import com.japp.models.error.GroupError
+import com.japp.repositories.interfaces.IDebtHistoryRepository
 import com.japp.repositories.interfaces.IExpenseRepository
 import com.japp.repositories.interfaces.IGroupRepository
 import com.japp.repositories.interfaces.IUserRepository
+import com.japp.utils.createDebtHistoryDto
 import com.japp.validation.GroupValidator
 import com.japp.utils.toDto
 import com.japp.utils.createGroupMemberDto
@@ -18,7 +20,8 @@ class GroupService(
     private val userRepository: IUserRepository,
     private val activityService: ActivityService,
     private val messageService: MessageService,
-    private val expenseRepository: IExpenseRepository
+    private val expenseRepository: IExpenseRepository,
+    private val debtHistoryRepository: IDebtHistoryRepository
 ) {
 
     /**
@@ -335,6 +338,17 @@ class GroupService(
                         }
                     }
 
+                    val balances = expenseRepository.calculateGroupBalances(groupId)
+                    val userBalance = balances[userId] ?: 0.0
+
+                    if (userBalance < 0.0) {
+                        debtHistoryRepository.create(
+                            groupId = groupId,
+                            userId = userId,
+                            amountOwed = -userBalance
+                        )
+                    }
+
                     groupRepository.removeMember(groupId, userId)
                     activityService.logMemberLeft(groupId, userId)
                     systemMessageContent = "$username left the group"
@@ -394,6 +408,43 @@ class GroupService(
             } catch (e: Exception) {
                 Result.Failure(
                     GroupError.InternalError(e.message ?: "Failed to delete group")
+                )
+            }
+        }
+    }
+
+    /**
+     * Get debt history for a group (traitors who left with unpaid debts)
+     */
+    suspend fun getGroupDebtHistory(
+        groupId: Int,
+        userId: Int
+    ): Result<List<DebtHistoryDto>, GroupError> {
+        return withContext(Dispatchers.IO) {
+            try {
+                transaction {
+                    if (!groupRepository.isMember(groupId, userId)) {
+                        return@transaction Result.Failure(GroupError.NotMember(groupId))
+                    }
+
+                    val group = groupRepository.findById(groupId)
+                        ?: return@transaction Result.Failure(GroupError.NotFound(groupId))
+
+                    val debtRecords = debtHistoryRepository.findByGroupId(groupId)
+
+                    val debtDtos = debtRecords.map { record ->
+                        val user = userRepository.findById(record.userId)
+                        createDebtHistoryDto(
+                            debtHistory = record,
+                            username = user?.username ?: "Unknown"
+                        )
+                    }
+
+                    Result.Success(debtDtos)
+                }
+            } catch (e: Exception) {
+                Result.Failure(
+                    GroupError.InternalError(e.message ?: "Failed to retrieve debt history")
                 )
             }
         }

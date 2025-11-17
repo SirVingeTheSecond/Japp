@@ -1,14 +1,6 @@
 package com.japp.database
 
-import com.japp.database.tables.ActivityLogs
-import com.japp.database.tables.ExpenseSplits
-import com.japp.database.tables.Expenses
-import com.japp.database.tables.GroupMembers
-import com.japp.database.tables.Groups
-import com.japp.database.tables.MessageReadStatus
-import com.japp.database.tables.Messages
-import com.japp.database.tables.Settlements
-import com.japp.database.tables.Users
+import com.japp.database.tables.*
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jetbrains.exposed.v1.jdbc.SchemaUtils
 
@@ -23,6 +15,7 @@ object DatabaseSchema {
                 Users,
                 Groups,
                 GroupMembers,
+                DebtHistory,
                 Expenses,
                 ExpenseSplits,
                 Settlements,
@@ -46,6 +39,7 @@ object DatabaseSchema {
                 ExpenseSplits,
                 Expenses,
                 GroupMembers,
+                DebtHistory,
                 Groups,
                 Users
             )

@@ -79,5 +79,12 @@ fun Route.groupRoutes() {
             val result = groupService.getGroupInviteDetails(groupId, userId)
             call.respondResult(result)
         }
+
+        get("/{id}/debt-history") {
+            val groupId = call.requirePathInt("id")
+            val userId = call.getUserId()
+            val result = groupService.getGroupDebtHistory(groupId, userId)
+            call.respondResult(result)
+        }
     }
 }

@@ -117,3 +117,15 @@ fun Message.toDto(
     isDeleted = deletedAt != null,
     readBy = readByUserIds
 )
+
+fun createDebtHistoryDto(
+    debtHistory: DebtHistory,
+    username: String
+) = DebtHistoryDto(
+    id = debtHistory.id,
+    groupId = debtHistory.groupId,
+    userId = debtHistory.userId,
+    username = username,
+    amountOwed = debtHistory.amountOwed,
+    leftAt = debtHistory.leftAt
+)

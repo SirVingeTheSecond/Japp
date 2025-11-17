@@ -3,9 +3,12 @@ package com.japp.services
 import com.japp.models.*
 import com.japp.models.domain.Expense
 import com.japp.models.dto.*
-import com.japp.repositories.IExpenseRepository
-import com.japp.repositories.IGroupRepository
-import com.japp.repositories.IUserRepository
+import com.japp.models.error.ExpenseError
+import com.japp.repositories.interfaces.IExpenseRepository
+import com.japp.repositories.interfaces.IGroupRepository
+import com.japp.repositories.interfaces.IUserRepository
+import com.japp.utils.toDto
+import com.japp.utils.createBalanceDto
 import com.japp.validation.ExpenseValidator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -14,7 +17,9 @@ import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 class ExpenseService(
     private val expenseRepository: IExpenseRepository,
     private val groupRepository: IGroupRepository,
-    private val userRepository: IUserRepository
+    private val userRepository: IUserRepository,
+    private val activityService: ActivityService,
+    private val messageService: MessageService
 ) {
 
     suspend fun createExpense(
@@ -37,7 +42,7 @@ class ExpenseService(
                                 groupId = request.groupId,
                                 paidBy = userId,
                                 amount = request.amount,
-                                currency = "DKK",
+                                currency = request.currency,
                                 description = request.description,
                                 category = request.category,
                                 splitType = request.splitType
@@ -46,7 +51,7 @@ class ExpenseService(
                             val members = groupRepository.getMembers(request.groupId)
 
                             when (request.splitType) {
-                                "equal" -> {
+                                SplitType.EQUAL -> {
                                     val shareAmount = request.amount / members.size
                                     members.forEach { memberId ->
                                         expenseRepository.createSplit(
@@ -57,7 +62,7 @@ class ExpenseService(
                                         )
                                     }
                                 }
-                                "custom" -> {
+                                SplitType.CUSTOM -> {
                                     request.splits?.forEach { split ->
                                         val shareAmount = split.shareAmount
                                             ?: (split.sharePercentage?.let { it / 100.0 * request.amount })
@@ -74,7 +79,24 @@ class ExpenseService(
 
                             groupRepository.updateTotalExpenses(request.groupId, request.amount)
 
+                            activityService.logExpenseCreated(
+                                groupId = request.groupId,
+                                userId = userId,
+                                expenseId = expense.id,
+                                amount = request.amount,
+                                currency = request.currency.code,
+                                description = request.description
+                            )
+
                             Result.Success(toExpenseDto(expense, userId))
+                        }.also { result ->
+                            if (result is Result.Success) {
+                                val user = userRepository.findById(userId)
+                                messageService.createSystemMessage(
+                                    groupId = request.groupId,
+                                    content = "${user?.username ?: "Someone"} added expense: ${request.description} - ${request.amount} ${request.currency.code}"
+                                )
+                            }
                         }
                     } catch (e: Exception) {
                         Result.Failure(
@@ -132,7 +154,7 @@ class ExpenseService(
 
                     val balanceDtos = balances.map { (userId, balance) ->
                         val user = userRepository.findById(userId)
-                        BalanceDto(
+                        createBalanceDto(
                             userId = userId,
                             username = user?.username ?: "Unknown",
                             balance = balance
@@ -174,8 +196,26 @@ class ExpenseService(
                     expenseRepository.delete(expenseId)
                     groupRepository.updateTotalExpenses(expense.groupId, -expense.amount)
 
-                    Result.Success(Unit)
+                    activityService.logExpenseDeleted(
+                        groupId = expense.groupId,
+                        userId = userId,
+                        expenseId = expenseId,
+                        amount = expense.amount,
+                        description = expense.description
+                    )
+
+                    Result.Success(Triple(expense.groupId, expense.description, userId))
+                }.also { result ->
+                    if (result is Result.Success) {
+                        val (groupId, description, uid) = result.value
+                        val user = userRepository.findById(uid)
+                        messageService.createSystemMessage(
+                            groupId = groupId,
+                            content = "${user?.username ?: "Someone"} deleted expense: $description"
+                        )
+                    }
                 }
+                Result.Success(Unit)
             } catch (e: Exception) {
                 Result.Failure(
                     ExpenseError.InternalError(e.message ?: "Failed to delete expense")
@@ -190,26 +230,12 @@ class ExpenseService(
 
         val splitDtos = splits.map { split ->
             val user = userRepository.findById(split.userId)
-            ExpenseSplitDto(
-                userId = split.userId,
-                username = user?.username ?: "Unknown",
-                shareAmount = split.shareAmount,
-                sharePercentage = split.sharePercentage
-            )
+            split.toDto(username = user?.username ?: "Unknown")
         }
 
-        return ExpenseDto(
-            id = expense.id,
-            groupId = expense.groupId,
-            paidBy = expense.paidBy,
+        return expense.toDto(
             paidByName = payer?.username ?: "Unknown",
-            amount = expense.amount,
-            currency = expense.currency,
-            description = expense.description,
-            category = expense.category,
-            splitType = expense.splitType,
-            splits = splitDtos,
-            createdAt = expense.createdAt
+            splits = splitDtos
         )
     }
 }

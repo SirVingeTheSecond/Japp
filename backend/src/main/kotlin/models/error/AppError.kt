@@ -1,4 +1,4 @@
-package com.japp.models
+package com.japp.models.error
 
 sealed interface IAppError {
     val message: String

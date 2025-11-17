@@ -11,6 +11,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Camera
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.GroupAdd
+import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
@@ -47,6 +48,7 @@ import com.example.japp.screens.GroupScreen
 import com.example.japp.screens.HomeScreen
 import com.example.japp.screens.ProfileScreen
 import com.example.japp.screens.ScanScreen
+import com.example.japp.screens.ShowGroupsScreen
 import com.example.japp.ui.theme.JappTheme
 
 class MainActivity : ComponentActivity() {
@@ -171,7 +173,7 @@ enum class AppDestinations(
     PROFILE("Profile", Icons.Default.Person, { navController -> ProfileScreen(navController) }),
     ACTIVITY("Activity", Icons.Default.Notifications, { navController -> ActivityScreen(navController) }),
     CREATEGROUP("Create Group", Icons.Default.GroupAdd, { navController -> CreateGroupScreen(navController) }),
-
+    MYGROUPS("My Groups", Icons.Default.Groups, { navController -> ShowGroupsScreen(navController) }),
     GROUP("Group", Icons.Default.Group, { navController -> GroupScreen(navController) });
 
     val route: String

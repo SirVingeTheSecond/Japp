@@ -167,7 +167,7 @@ fun QuickGroups(navController: NavController?) {
         ) {
             Text("Groups", style = MaterialTheme.typography.headlineSmall)
             TextButton(
-                onClick = { navController?.navigate(AppDestinations.HOME.route) } //TODO: Groups route
+                onClick = { navController?.navigate(AppDestinations.MYGROUPS.route) }
             ) {
                 Text("My Groups ->", textAlign = TextAlign.End)
             }

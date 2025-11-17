@@ -82,7 +82,7 @@ dependencies {
     // Testing
     testImplementation("io.ktor:ktor-server-test-host")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit:$kotlin_version")
-    testImplementation("io.kotest:kotest-runner-junit5:$kotest_version")
+    testImplementation("io.kotest:kotest-runner-junit5:${kotest_version}")
     testImplementation("io.kotest:kotest-assertions-core:$kotest_version")
     testImplementation("io.kotest:kotest-property:$kotest_version")
     testImplementation("io.mockk:mockk:$mockk_version")

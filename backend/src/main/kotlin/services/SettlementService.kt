@@ -67,14 +67,6 @@ class SettlementService(
                             fromUsername = fromUser?.username
                             toUsername = toUser?.username
 
-                            activityService.logSettlementCreated(
-                                groupId = request.groupId,
-                                userId = userId,
-                                settlementId = settlement.id,
-                                toUserId = request.toUserId,
-                                amount = request.amount
-                            )
-
                             Result.Success(settlement.toDto(
                                 fromUserName = fromUser?.username ?: "Unknown",
                                 toUserName = toUser?.username ?: "Unknown"
@@ -82,6 +74,14 @@ class SettlementService(
                         }
 
                         if (settlementResult is Result.Success) {
+                            activityService.logSettlementCreated(
+                                groupId = request.groupId,
+                                userId = userId,
+                                settlementId = settlementResult.value.id,
+                                toUserId = request.toUserId,
+                                amount = request.amount
+                            )
+
                             messageService.createSystemMessage(
                                 groupId = request.groupId,
                                 content = "${fromUsername ?: "Someone"} recorded payment of ${request.amount} DKK to ${toUsername ?: "Someone"}"
@@ -193,14 +193,6 @@ class SettlementService(
                     groupId = settlement.groupId
                     amount = settlement.amount
 
-                    activityService.logSettlementCompleted(
-                        groupId = settlement.groupId,
-                        userId = userId,
-                        settlementId = settlementId,
-                        fromUserId = settlement.fromUserId,
-                        amount = settlement.amount
-                    )
-
                     Result.Success(updatedSettlement.toDto(
                         fromUserName = fromUser?.username ?: "Unknown",
                         toUserName = toUser?.username ?: "Unknown"
@@ -208,6 +200,14 @@ class SettlementService(
                 }
 
                 if (completionResult is Result.Success && groupId != null) {
+                    activityService.logSettlementCompleted(
+                        groupId = groupId!!,
+                        userId = userId,
+                        settlementId = settlementId,
+                        fromUserId = completionResult.value.fromUserId,
+                        amount = amount ?: 0.0
+                    )
+
                     messageService.createSystemMessage(
                         groupId = groupId!!,
                         content = "${currentUsername ?: "Someone"} confirmed payment from ${fromUsername ?: "Someone"} - ${amount ?: 0.0} DKK"

@@ -36,7 +36,7 @@ class GroupService(
             is Result.Success -> {
                 withContext(Dispatchers.IO) {
                     try {
-                        transaction {
+                        val result = transaction {
                             userRepository.findById(userId)
                                 ?: return@transaction Result.Failure(
                                     GroupError.InternalError("User not found")
@@ -48,10 +48,14 @@ class GroupService(
                                 createdBy = userId
                             )
 
-                            activityService.logGroupCreated(group.id, userId, group.name)
-
                             Result.Success(group.toDto())
                         }
+
+                        if (result is Result.Success) {
+                            activityService.logGroupCreated(result.value.id, userId, result.value.name)
+                        }
+
+                        result
                     } catch (e: Exception) {
                         Result.Failure(
                             GroupError.InternalError(e.message ?: "Failed to create group")
@@ -74,7 +78,7 @@ class GroupService(
             is Result.Success -> {
                 withContext(Dispatchers.IO) {
                     try {
-                        transaction {
+                        val result = transaction {
                             val group = groupRepository.findByInviteCode(request.inviteCode)
                                 ?: return@transaction Result.Failure(
                                     GroupError.InvalidInviteCode()
@@ -88,23 +92,26 @@ class GroupService(
 
                             groupRepository.addMember(group.id, userId)
 
-                            activityService.logMemberJoined(group.id, userId, userId)
-
                             val updatedGroup = groupRepository.findById(group.id)
                                 ?: return@transaction Result.Failure(
                                     GroupError.InternalError("Failed to retrieve group")
                                 )
 
                             Result.Success(updatedGroup.toDto())
-                        }.also { result ->
-                            if (result is Result.Success) {
-                                val user = userRepository.findById(userId)
-                                messageService.createSystemMessage(
-                                    groupId = result.value.id,
-                                    content = "${user?.username ?: "Someone"} joined the group"
-                                )
-                            }
                         }
+
+                        // Log activity and send message AFTER transaction completes
+                        if (result is Result.Success) {
+                            activityService.logMemberJoined(result.value.id, userId, userId)
+
+                            val user = userRepository.findById(userId)
+                            messageService.createSystemMessage(
+                                groupId = result.value.id,
+                                content = "${user?.username ?: "Someone"} joined the group"
+                            )
+                        }
+
+                        result
                     } catch (e: Exception) {
                         Result.Failure(
                             GroupError.InternalError(e.message ?: "Failed to join group")
@@ -155,8 +162,6 @@ class GroupService(
 
                             groupRepository.addMember(groupId, userIdToAdd)
 
-                            activityService.logMemberAdded(groupId, requestingUserId, userIdToAdd)
-
                             Result.Success(
                                 createGroupMemberDto(
                                     user = userToAdd,
@@ -167,6 +172,8 @@ class GroupService(
                         }
 
                         if (memberDto is Result.Success) {
+                            activityService.logMemberAdded(groupId, requestingUserId, userIdToAdd)
+
                             messageService.createSystemMessage(
                                 groupId = groupId,
                                 content = "${addedUsername ?: "Someone"} was added to the group"
@@ -325,7 +332,6 @@ class GroupService(
                     if (groupRepository.isOwner(groupId, userId)) {
                         if (group.memberCount == 1) {
                             groupRepository.delete(groupId)
-                            activityService.logMemberLeft(groupId, userId)
                             groupWasDeleted = true
                             return@transaction Result.Success(Unit)
                         } else {
@@ -350,17 +356,20 @@ class GroupService(
                     }
 
                     groupRepository.removeMember(groupId, userId)
-                    activityService.logMemberLeft(groupId, userId)
                     systemMessageContent = "$username left the group"
 
                     Result.Success(Unit)
                 }
+                
+                if (leaveResult is Result.Success) {
+                    activityService.logMemberLeft(groupId, userId)
 
-                if (leaveResult is Result.Success && !groupWasDeleted && systemMessageContent != null) {
-                    messageService.createSystemMessage(
-                        groupId = groupId,
-                        content = systemMessageContent
-                    )
+                    if (!groupWasDeleted && systemMessageContent != null) {
+                        messageService.createSystemMessage(
+                            groupId = groupId,
+                            content = systemMessageContent
+                        )
+                    }
                 }
 
                 leaveResult

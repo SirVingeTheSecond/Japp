@@ -1,6 +1,7 @@
 package com.japp.services
 
 import com.japp.models.ActivityType
+import com.japp.models.dto.ActivityDto
 import com.japp.models.dto.GroupActivitiesDto
 import com.japp.repositories.interfaces.IActivityRepository
 import com.japp.repositories.interfaces.IGroupRepository
@@ -12,8 +13,8 @@ import kotlinx.serialization.json.jsonPrimitive
 
 class ActivityService(
     private val activityRepository: IActivityRepository,
-    private val groupRepository: IGroupRepository,
-    private val userRepository: IUserRepository
+    private val userRepository: IUserRepository,
+    private val groupRepository: IGroupRepository
 ) {
 
     fun logGroupCreated(groupId: Int, userId: Int, groupName: String) {
@@ -26,35 +27,25 @@ class ActivityService(
         )
     }
 
-    fun logMemberJoined(groupId: Int, userId: Int, joinedUserId: Int) {
-        val joinedUser = userRepository.findById(joinedUserId)
+    fun logMemberJoined(groupId: Int, userId: Int, newMemberId: Int) {
+        val newMember = userRepository.findById(newMemberId)
         activityRepository.create(
             groupId = groupId,
-            userId = userId,
+            userId = newMemberId,
             actionType = ActivityType.MEMBER_JOINED,
             description = "joined the group",
-            metadata = """{"joinedUserId":$joinedUserId,"joinedUserName":"${joinedUser?.username ?: "Unknown"}"}"""
-        )
-    }
-
-    fun logMemberAdded(groupId: Int, addedBy: Int, addedUserId: Int) {
-        val addedUser = userRepository.findById(addedUserId)
-        activityRepository.create(
-            groupId = groupId,
-            userId = addedBy,
-            actionType = ActivityType.MEMBER_JOINED,
-            description = "added ${addedUser?.username ?: "Unknown"} to the group",
-            metadata = """{"addedUserId":$addedUserId,"addedUserName":"${addedUser?.username ?: "Unknown"}"}"""
+            metadata = """{"addedBy":$userId,"memberName":"${newMember?.username ?: "Unknown"}"}"""
         )
     }
 
     fun logMemberLeft(groupId: Int, userId: Int) {
+        val user = userRepository.findById(userId)
         activityRepository.create(
             groupId = groupId,
             userId = userId,
             actionType = ActivityType.MEMBER_LEFT,
             description = "left the group",
-            metadata = "{}"
+            metadata = """{"memberName":"${user?.username ?: "Unknown"}"}"""
         )
     }
 
@@ -63,7 +54,6 @@ class ActivityService(
         userId: Int,
         expenseId: Int,
         amount: Double,
-        currency: String,
         description: String
     ) {
         activityRepository.create(
@@ -72,7 +62,23 @@ class ActivityService(
             actionType = ActivityType.EXPENSE_CREATED,
             description = "added expense: $description",
             relatedExpenseId = expenseId,
-            metadata = """{"amount":$amount,"currency":"$currency","description":"$description"}"""
+            metadata = """{"amount":$amount,"description":"$description"}"""
+        )
+    }
+
+    fun logExpenseUpdated(
+        groupId: Int,
+        userId: Int,
+        expenseId: Int,
+        description: String
+    ) {
+        activityRepository.create(
+            groupId = groupId,
+            userId = userId,
+            actionType = ActivityType.EXPENSE_UPDATED,
+            description = "updated expense: $description",
+            relatedExpenseId = expenseId,
+            metadata = """{"description":"$description"}"""
         )
     }
 
@@ -80,7 +86,6 @@ class ActivityService(
         groupId: Int,
         userId: Int,
         expenseId: Int,
-        amount: Double,
         description: String
     ) {
         activityRepository.create(
@@ -89,7 +94,7 @@ class ActivityService(
             actionType = ActivityType.EXPENSE_DELETED,
             description = "deleted expense: $description",
             relatedExpenseId = expenseId,
-            metadata = """{"amount":$amount,"description":"$description"}"""
+            metadata = """{"description":"$description"}"""
         )
     }
 
@@ -105,7 +110,7 @@ class ActivityService(
             groupId = groupId,
             userId = userId,
             actionType = ActivityType.SETTLEMENT_CREATED,
-            description = "recorded payment to ${toUser?.username ?: "Unknown"}",
+            description = "created payment to ${toUser?.username ?: "Unknown"}",
             relatedSettlementId = settlementId,
             metadata = """{"amount":$amount,"toUserId":$toUserId,"toUserName":"${toUser?.username ?: "Unknown"}"}"""
         )
@@ -164,6 +169,20 @@ class ActivityService(
             groupName = group?.name ?: "Unknown",
             activities = activityDtos
         )
+    }
+
+    fun getUserActivities(userId: Int, limit: Int = 50): List<ActivityDto> {
+        val activities = activityRepository.findByUserId(userId, limit)
+
+        return activities.map { activity ->
+            val user = userRepository.findById(activity.userId)
+            val metadataMap = parseMetadata(activity.metadata)
+
+            activity.toDto(
+                userName = user?.username ?: "Unknown",
+                metadata = metadataMap
+            )
+        }
     }
 
     private fun parseMetadata(jsonString: String): Map<String, String> {

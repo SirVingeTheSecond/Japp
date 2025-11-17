@@ -51,7 +51,6 @@ dependencies {
 
     // Serialization
     implementation("io.ktor:ktor-server-content-negotiation")
-    implementation("io.ktor:ktor-serialization-jackson")
     implementation("io.ktor:ktor-serialization-kotlinx-json")
 
     // Dependency Injection

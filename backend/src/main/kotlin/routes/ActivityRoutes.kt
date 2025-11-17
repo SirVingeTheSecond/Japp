@@ -18,6 +18,31 @@ fun Route.activityRoutes() {
 
     route("/activities") {
 
+        // Get activities for current user across all groups
+        get {
+            val userId = call.getUserId()
+            val limit = call.request.queryParameters["limit"]?.toIntOrNull() ?: 50
+
+            try {
+                val activities = withContext(Dispatchers.IO) {
+                    transaction {
+                        activityService.getUserActivities(userId, limit)
+                    }
+                }
+
+                call.respond(HttpStatusCode.OK, activities)
+            } catch (e: Exception) {
+                call.respond(
+                    HttpStatusCode.InternalServerError,
+                    ResponseFactory.error(
+                        error = "InternalServerError",
+                        message = e.message ?: "Failed to retrieve activities"
+                    )
+                )
+            }
+        }
+
+        // Get activities for a specific group
         get("/group/{groupId}") {
             val groupId = call.parameters["groupId"]?.toIntOrNull()
                 ?: return@get call.respond(
@@ -35,13 +60,12 @@ fun Route.activityRoutes() {
                 val activities = withContext(Dispatchers.IO) {
                     transaction {
                         if (!groupRepository.isMember(groupId, userId)) {
-                            return@transaction null  // Not a member
+                            return@transaction null
                         }
                         activityService.getGroupActivities(groupId, limit)
                     }
                 }
 
-                // Check if user is not a member
                 if (activities == null) {
                     call.respond(
                         HttpStatusCode.Forbidden,

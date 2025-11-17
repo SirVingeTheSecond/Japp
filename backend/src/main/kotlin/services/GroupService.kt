@@ -126,18 +126,15 @@ class GroupService(
                         var addedUsername: String? = null
 
                         val memberDto = transaction {
-                            // Check if group exists
-                            val group = groupRepository.findById(groupId)
+                            groupRepository.findById(groupId)
                                 ?: return@transaction Result.Failure(GroupError.NotFound(groupId))
 
-                            // Check if requesting user is the owner
                             if (!groupRepository.isOwner(groupId, requestingUserId)) {
                                 return@transaction Result.Failure(
                                     GroupError.NotOwner(groupId)
                                 )
                             }
 
-                            // Check if user to add exists
                             val userToAdd = userRepository.findById(userIdToAdd)
                                 ?: return@transaction Result.Failure(
                                     GroupError.ValidationError("User to add does not exist")
@@ -145,20 +142,16 @@ class GroupService(
 
                             addedUsername = userToAdd.username
 
-                            // Check if user is already a member
                             if (groupRepository.isMember(groupId, userIdToAdd)) {
                                 return@transaction Result.Failure(
                                     GroupError.AlreadyMember()
                                 )
                             }
 
-                            // Add the member
                             groupRepository.addMember(groupId, userIdToAdd)
 
-                            // Log activity
                             activityService.logMemberAdded(groupId, requestingUserId, userIdToAdd)
-
-                            // Return the new member info
+                            
                             Result.Success(
                                 createGroupMemberDto(
                                     user = userToAdd,

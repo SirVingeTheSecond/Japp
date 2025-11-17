@@ -37,6 +37,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.example.japp.AppDestinations
 import com.example.japp.api.RetrofitClient
 import com.example.japp.api.responses.group.GroupDto
 import com.example.japp.composables.GroupIcon
@@ -103,8 +104,8 @@ fun ShowGroupsScreen(navController: NavController? = null) {
                 modifier = Modifier,
                 groups = groups,
                 onGroupClick = {
-                    group ->
-                    navController?.navigate("group/${group.id}")
+                    group -> GROUP_ID = group.id
+                    navController?.navigate(AppDestinations.GROUP.route)
                 }
             )
         }

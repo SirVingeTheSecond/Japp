@@ -101,7 +101,11 @@ fun ShowGroupsScreen(navController: NavController? = null) {
                 onSearch = onSearch,
                 searchResults = searchResults,
                 modifier = Modifier,
-                groups = groups
+                groups = groups,
+                onGroupClick = {
+                    group ->
+                    navController?.navigate("group/${group.id}")
+                }
             )
         }
     }
@@ -114,7 +118,8 @@ fun SimpleSearchBar(
     onSearch: (String) -> Unit,
     searchResults: List<String>,
     modifier: Modifier = Modifier,
-    groups: List<GroupDto>
+    groups: List<GroupDto>,
+    onGroupClick: (GroupDto) -> Unit
 ) {
     var expanded by rememberSaveable { mutableStateOf(false) }
 
@@ -145,6 +150,7 @@ fun SimpleSearchBar(
             },
             expanded = expanded,
             onExpandedChange = { expanded = it },
+
         ) {
             Column(Modifier.verticalScroll(rememberScrollState())) {
                 searchResults.forEach { result ->
@@ -169,19 +175,26 @@ fun SimpleSearchBar(
             }
         }
             groups.forEach { group ->
-                GroupCard(group)
+                GroupCard(group,
+                    onClick = { onGroupClick(group)})
             }
     }
     }
 }
 
 @Composable
-fun GroupCard(group: GroupDto){
+fun GroupCard(
+    group: GroupDto,
+    onClick: () -> Unit
+){
     ElevatedCard(
         elevation = CardDefaults.cardElevation(
             defaultElevation = 6.dp
         ),
-        modifier = Modifier.padding(15.dp).fillMaxWidth().height(100.dp)
+        modifier = Modifier.padding(15.dp).fillMaxWidth().height(100.dp),
+        onClick = {
+            onClick()
+        }
     ) {
         Row {
             GroupIcon(group.name)

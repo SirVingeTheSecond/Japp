@@ -24,7 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.japp.AppDestinations
 import com.example.japp.api.RetrofitClient
-import com.example.japp.api.responses.group.GroupCreateRequest
+import com.example.japp.api.responses.group.CreateGroupRequest
 import com.example.japp.api.responses.group.GroupDto
 import com.example.japp.composables.GroupIcon
 import retrofit2.Call
@@ -43,7 +43,7 @@ fun CreateGroupScreen(navController: NavController? = null) {
     fun createGroup(){
         if (!nameValid && !descriptValid) return
         val call = RetrofitClient.groupService.create_group(
-            GroupCreateRequest(
+            CreateGroupRequest(
                 name,
                 descript
             )

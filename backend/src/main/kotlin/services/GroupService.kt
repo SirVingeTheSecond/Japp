@@ -302,7 +302,7 @@ class GroupService(
     }
 
     /**
-     * Leave a group (cannot leave if you're the owner)
+     * Leave a group (owner transfers ownership automatically or deletes if last member)
      */
     suspend fun leaveGroup(
         groupId: Int,
@@ -310,37 +310,47 @@ class GroupService(
     ): Result<Unit, GroupError> {
         return withContext(Dispatchers.IO) {
             try {
+                var groupWasDeleted = false
+                var systemMessageContent: String? = null
+
                 val leaveResult = transaction {
                     if (!groupRepository.isMember(groupId, userId)) {
                         return@transaction Result.Failure(GroupError.NotMember(groupId))
                     }
 
+                    val group = groupRepository.findById(groupId)
+                        ?: return@transaction Result.Failure(GroupError.NotFound(groupId))
+
+                    val user = userRepository.findById(userId)
+                    val username = user?.username ?: "Someone"
+
                     if (groupRepository.isOwner(groupId, userId)) {
-                        return@transaction Result.Failure(
-                            GroupError.ValidationError("Group owner cannot leave. Delete the group instead.")
-                        )
+                        if (group.memberCount == 1) {
+                            groupRepository.delete(groupId)
+                            activityService.logMemberLeft(groupId, userId)
+                            groupWasDeleted = true
+                            return@transaction Result.Success(Unit)
+                        } else {
+                            val members = groupRepository.getMembersSortedByJoinDate(groupId)
+                            val nextOwner = members.firstOrNull { it != userId }
+                                ?: return@transaction Result.Failure(
+                                    GroupError.InternalError("No eligible member to transfer ownership")
+                                )
+                            groupRepository.transferOwnership(groupId, nextOwner)
+                        }
                     }
 
                     groupRepository.removeMember(groupId, userId)
-
                     activityService.logMemberLeft(groupId, userId)
+                    systemMessageContent = "$username left the group"
 
                     Result.Success(Unit)
-                }.also { result ->
-                    if (result is Result.Success) {
-                        val user = userRepository.findById(userId)
-                        messageService.createSystemMessage(
-                            groupId = groupId,
-                            content = "${user?.username ?: "Someone"} left the group"
-                        )
-                    }
                 }
 
-                if (leaveResult is Result.Success) {
-                    val user = userRepository.findById(userId)
+                if (leaveResult is Result.Success && !groupWasDeleted && systemMessageContent != null) {
                     messageService.createSystemMessage(
                         groupId = groupId,
-                        content = "${user?.username ?: "Someone"} left the group"
+                        content = systemMessageContent
                     )
                 }
 

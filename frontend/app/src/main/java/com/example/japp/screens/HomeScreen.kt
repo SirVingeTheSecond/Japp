@@ -35,12 +35,14 @@ import androidx.core.graphics.ColorUtils
 import androidx.navigation.NavController
 import com.example.japp.AppDestinations
 import com.example.japp.api.RetrofitClient
+import com.example.japp.api.responses.activity.ActivityDto
+import com.example.japp.api.responses.activity.GroupActivitiesDto
 import com.example.japp.api.responses.group.GroupDto
+import com.example.japp.composables.TimeText
 import kotlinx.coroutines.delay
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
-import java.text.DateFormat
 import java.util.Date
 import kotlin.math.round
 import kotlin.random.Random
@@ -48,6 +50,66 @@ import kotlin.random.Random
 @Preview(showSystemUi = true)
 @Composable
 fun HomeScreen(navController: NavController? = null) {
+    var groups by remember { mutableStateOf<List<GroupDto>?>(null) }
+    var recentActivities by remember { mutableStateOf<List<ActivityDto>?>(null) }
+
+    LaunchedEffect(Unit) {
+        val call = RetrofitClient.groupService.get_my_groups()
+        call.enqueue(object: Callback<List<GroupDto>?>{
+            override fun onResponse(
+                call: Call<List<GroupDto>?>,
+                response: Response<List<GroupDto>?>
+            ) {
+                val body = response.body()
+                if (body != null && response.isSuccessful) {
+                    if (body.isEmpty()) {
+                        groups = body
+                        return
+                    }
+                    groups = body.sortedBy {
+                        Random.nextBoolean()
+                    }.slice(IntRange(0, 2.coerceAtMost(body.size-1)))
+                }
+            }
+
+            override fun onFailure(
+                call: Call<List<GroupDto>?>,
+                t: Throwable
+            ) {
+                TODO("Not yet implemented")
+            }
+
+        })
+    }
+    LaunchedEffect(groups) {
+        if (groups == null) return@LaunchedEffect
+        for (group in groups) {
+            val call = RetrofitClient.activityService.get_group_activities(group.id)
+            call!!.enqueue(object: Callback<GroupActivitiesDto?>{
+                override fun onResponse(
+                    call: Call<GroupActivitiesDto?>,
+                    response: Response<GroupActivitiesDto?>
+                ) {
+                    val body = response.body()
+                    if (body != null && response.isSuccessful) {
+                        if (recentActivities == null) { recentActivities = arrayListOf() }
+                        recentActivities = recentActivities?.plus(body.activities)
+                    }
+                }
+
+                override fun onFailure(
+                    call: Call<GroupActivitiesDto?>,
+                    t: Throwable
+                ) {
+                    TODO("Not yet implemented")
+                }
+
+            })
+        }
+        recentActivities = recentActivities?.sortedBy { dto -> dto.createdAt.toLong() }
+        if (recentActivities == null) { recentActivities = arrayListOf() }
+    }
+
     Column(
         Modifier.fillMaxSize().padding(10.dp).verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally
@@ -57,12 +119,12 @@ fun HomeScreen(navController: NavController? = null) {
             Modifier.padding(10.dp).background(MaterialTheme.colorScheme.primary),
             thickness = 2.dp
         )
-        QuickActivities(navController)
+        QuickActivities(navController, recentActivities)
         HorizontalDivider(
             Modifier.padding(10.dp).background(MaterialTheme.colorScheme.primary),
             thickness = 2.dp
         )
-        QuickGroups(navController)
+        QuickGroups(navController, groups)
     }
 }
 
@@ -120,8 +182,7 @@ fun Pill(content: String = "Idk?", label: String? = null, color: Color? = null, 
 }
 
 @Composable
-fun QuickActivities(navController: NavController?) {
-    //TODO: Fetch activities
+fun QuickActivities(navController: NavController?, activities: List<ActivityDto>?) {
 
     Column(
         horizontalAlignment = Alignment.Start
@@ -138,57 +199,40 @@ fun QuickActivities(navController: NavController?) {
                 Text("Activities ->", textAlign = TextAlign.End)
             }
         }
-        Activity(Date()) {
-            Text("Someone")
-            Text("created an expense of 500", style = MaterialTheme.typography.bodySmall)
+        if (activities != null) {
+            for (activity in activities) {
+                Activity(activity)
+            }
+        } else {
+            LinearProgressIndicator(
+                Modifier.align(Alignment.CenterHorizontally),
+                color = MaterialTheme.colorScheme.secondary,
+                trackColor = MaterialTheme.colorScheme.surfaceVariant,
+            )
         }
     }
 }
 
 @Composable
-fun Activity(time: Date? = null, content: @Composable (() -> Unit)) {
+fun Activity(activity: ActivityDto) {
     Row(
         Modifier.fillMaxWidth().padding(horizontal = 10.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Row(
+        Column(
             Modifier.fillMaxWidth(0.7f),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            verticalAlignment = Alignment.CenterVertically
         ) {
-            content()
+            Text(activity.userName)
+            Text(activity.description)
+            Text(activity.actionType.toString())
         }
-        time?.let { Text(DateFormat.getDateInstance().format(it)) }
+        TimeText(Date(activity.createdAt.toLong()))
     }
 }
 
 @Composable
-fun QuickGroups(navController: NavController?) {
-    var groups by remember { mutableStateOf<List<GroupDto>?>(null) }
-
-    LaunchedEffect(Unit) {
-        val call = RetrofitClient.groupService.get_my_groups()
-        call.enqueue(object: Callback<List<GroupDto>?>{
-            override fun onResponse(
-                call: Call<List<GroupDto>?>,
-                response: Response<List<GroupDto>?>
-            ) {
-                val body = response.body()
-                if (body != null && response.isSuccessful) {
-                    groups = body.sortedBy { Random.nextBoolean() }.slice(IntRange(0, 2))
-                }
-            }
-
-            override fun onFailure(
-                call: Call<List<GroupDto>?>,
-                t: Throwable
-            ) {
-                TODO("Not yet implemented")
-            }
-
-        })
-    }
+fun QuickGroups(navController: NavController?, groups: List<GroupDto>? = null) {
 
     Column(
         horizontalAlignment = Alignment.Start
@@ -207,7 +251,7 @@ fun QuickGroups(navController: NavController?) {
         }
         //TODO: Use group card
         if (groups != null) {
-            groups!!.forEach { dto ->
+            groups.forEach { dto ->
                 GroupCard(dto, onClick = {
                     GROUP_ID = dto.id
                     navController?.navigate(AppDestinations.GROUP.route)

@@ -10,6 +10,7 @@ import com.japp.utils.toDto
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 
 class ActivityService(
     private val activityRepository: IActivityRepository,
@@ -18,35 +19,54 @@ class ActivityService(
 ) {
 
     fun logGroupCreated(groupId: Int, userId: Int, groupName: String) {
-        activityRepository.create(
-            groupId = groupId,
-            userId = userId,
-            actionType = ActivityType.GROUP_CREATED,
-            description = "created the group",
-            metadata = """{"groupName":"$groupName"}"""
-        )
+        transaction {
+            activityRepository.create(
+                groupId = groupId,
+                userId = userId,
+                actionType = ActivityType.GROUP_CREATED,
+                description = "created the group",
+                metadata = """{"groupName":"$groupName"}"""
+            )
+        }
     }
 
     fun logMemberJoined(groupId: Int, userId: Int, newMemberId: Int) {
-        val newMember = userRepository.findById(newMemberId)
-        activityRepository.create(
-            groupId = groupId,
-            userId = newMemberId,
-            actionType = ActivityType.MEMBER_JOINED,
-            description = "joined the group",
-            metadata = """{"addedBy":$userId,"memberName":"${newMember?.username ?: "Unknown"}"}"""
-        )
+        transaction {
+            val newMember = userRepository.findById(newMemberId)
+            activityRepository.create(
+                groupId = groupId,
+                userId = newMemberId,
+                actionType = ActivityType.MEMBER_JOINED,
+                description = "joined the group",
+                metadata = """{"addedBy":$userId,"memberName":"${newMember?.username ?: "Unknown"}"}"""
+            )
+        }
+    }
+
+    fun logMemberAdded(groupId: Int, addedBy: Int, addedUserId: Int) {
+        transaction {
+            val addedUser = userRepository.findById(addedUserId)
+            activityRepository.create(
+                groupId = groupId,
+                userId = addedBy,
+                actionType = ActivityType.MEMBER_JOINED,
+                description = "added ${addedUser?.username ?: "Unknown"} to the group",
+                metadata = """{"addedUserId":$addedUserId,"addedUserName":"${addedUser?.username ?: "Unknown"}"}"""
+            )
+        }
     }
 
     fun logMemberLeft(groupId: Int, userId: Int) {
-        val user = userRepository.findById(userId)
-        activityRepository.create(
-            groupId = groupId,
-            userId = userId,
-            actionType = ActivityType.MEMBER_LEFT,
-            description = "left the group",
-            metadata = """{"memberName":"${user?.username ?: "Unknown"}"}"""
-        )
+        transaction {
+            val user = userRepository.findById(userId)
+            activityRepository.create(
+                groupId = groupId,
+                userId = userId,
+                actionType = ActivityType.MEMBER_LEFT,
+                description = "left the group",
+                metadata = """{"memberName":"${user?.username ?: "Unknown"}"}"""
+            )
+        }
     }
 
     fun logExpenseCreated(
@@ -54,16 +74,19 @@ class ActivityService(
         userId: Int,
         expenseId: Int,
         amount: Double,
+        currency: String,
         description: String
     ) {
-        activityRepository.create(
-            groupId = groupId,
-            userId = userId,
-            actionType = ActivityType.EXPENSE_CREATED,
-            description = "added expense: $description",
-            relatedExpenseId = expenseId,
-            metadata = """{"amount":$amount,"description":"$description"}"""
-        )
+        transaction {
+            activityRepository.create(
+                groupId = groupId,
+                userId = userId,
+                actionType = ActivityType.EXPENSE_CREATED,
+                description = "added expense: $description",
+                relatedExpenseId = expenseId,
+                metadata = """{"amount":$amount,"currency":"$currency","description":"$description"}"""
+            )
+        }
     }
 
     fun logExpenseUpdated(
@@ -72,30 +95,35 @@ class ActivityService(
         expenseId: Int,
         description: String
     ) {
-        activityRepository.create(
-            groupId = groupId,
-            userId = userId,
-            actionType = ActivityType.EXPENSE_UPDATED,
-            description = "updated expense: $description",
-            relatedExpenseId = expenseId,
-            metadata = """{"description":"$description"}"""
-        )
+        transaction {
+            activityRepository.create(
+                groupId = groupId,
+                userId = userId,
+                actionType = ActivityType.EXPENSE_UPDATED,
+                description = "updated expense: $description",
+                relatedExpenseId = expenseId,
+                metadata = """{"description":"$description"}"""
+            )
+        }
     }
 
     fun logExpenseDeleted(
         groupId: Int,
         userId: Int,
         expenseId: Int,
+        amount: Double,
         description: String
     ) {
-        activityRepository.create(
-            groupId = groupId,
-            userId = userId,
-            actionType = ActivityType.EXPENSE_DELETED,
-            description = "deleted expense: $description",
-            relatedExpenseId = expenseId,
-            metadata = """{"description":"$description"}"""
-        )
+        transaction {
+            activityRepository.create(
+                groupId = groupId,
+                userId = userId,
+                actionType = ActivityType.EXPENSE_DELETED,
+                description = "deleted expense: $description",
+                relatedExpenseId = expenseId,
+                metadata = """{"amount":$amount,"description":"$description"}"""
+            )
+        }
     }
 
     fun logSettlementCreated(
@@ -105,15 +133,17 @@ class ActivityService(
         toUserId: Int,
         amount: Double
     ) {
-        val toUser = userRepository.findById(toUserId)
-        activityRepository.create(
-            groupId = groupId,
-            userId = userId,
-            actionType = ActivityType.SETTLEMENT_CREATED,
-            description = "created payment to ${toUser?.username ?: "Unknown"}",
-            relatedSettlementId = settlementId,
-            metadata = """{"amount":$amount,"toUserId":$toUserId,"toUserName":"${toUser?.username ?: "Unknown"}"}"""
-        )
+        transaction {
+            val toUser = userRepository.findById(toUserId)
+            activityRepository.create(
+                groupId = groupId,
+                userId = userId,
+                actionType = ActivityType.SETTLEMENT_CREATED,
+                description = "created payment to ${toUser?.username ?: "Unknown"}",
+                relatedSettlementId = settlementId,
+                metadata = """{"amount":$amount,"toUserId":$toUserId,"toUserName":"${toUser?.username ?: "Unknown"}"}"""
+            )
+        }
     }
 
     fun logSettlementCompleted(
@@ -123,15 +153,17 @@ class ActivityService(
         fromUserId: Int,
         amount: Double
     ) {
-        val fromUser = userRepository.findById(fromUserId)
-        activityRepository.create(
-            groupId = groupId,
-            userId = userId,
-            actionType = ActivityType.SETTLEMENT_COMPLETED,
-            description = "confirmed payment from ${fromUser?.username ?: "Unknown"}",
-            relatedSettlementId = settlementId,
-            metadata = """{"amount":$amount,"fromUserId":$fromUserId,"fromUserName":"${fromUser?.username ?: "Unknown"}"}"""
-        )
+        transaction {
+            val fromUser = userRepository.findById(fromUserId)
+            activityRepository.create(
+                groupId = groupId,
+                userId = userId,
+                actionType = ActivityType.SETTLEMENT_COMPLETED,
+                description = "confirmed payment from ${fromUser?.username ?: "Unknown"}",
+                relatedSettlementId = settlementId,
+                metadata = """{"amount":$amount,"fromUserId":$fromUserId,"fromUserName":"${fromUser?.username ?: "Unknown"}"}"""
+            )
+        }
     }
 
     fun logReceiptUploaded(
@@ -140,14 +172,16 @@ class ActivityService(
         expenseId: Int,
         expenseDescription: String
     ) {
-        activityRepository.create(
-            groupId = groupId,
-            userId = userId,
-            actionType = ActivityType.RECEIPT_UPLOADED,
-            description = "added receipt for: $expenseDescription",
-            relatedExpenseId = expenseId,
-            metadata = """{"expenseDescription":"$expenseDescription"}"""
-        )
+        transaction {
+            activityRepository.create(
+                groupId = groupId,
+                userId = userId,
+                actionType = ActivityType.RECEIPT_UPLOADED,
+                description = "added receipt for: $expenseDescription",
+                relatedExpenseId = expenseId,
+                metadata = """{"expenseDescription":"$expenseDescription"}"""
+            )
+        }
     }
 
     fun getGroupActivities(groupId: Int, limit: Int = 50): GroupActivitiesDto {

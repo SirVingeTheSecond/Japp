@@ -31,7 +31,7 @@ class ExpenseService(
             is Result.Success -> {
                 withContext(Dispatchers.IO) {
                     try {
-                        transaction {
+                        val result = transaction {
                             if (!groupRepository.isMember(request.groupId, userId)) {
                                 return@transaction Result.Failure(
                                     ExpenseError.NotMember(request.groupId)
@@ -79,25 +79,27 @@ class ExpenseService(
 
                             groupRepository.updateTotalExpenses(request.groupId, request.amount)
 
+                            Result.Success(toExpenseDto(expense, userId))
+                        }
+
+                        if (result is Result.Success) {
                             activityService.logExpenseCreated(
                                 groupId = request.groupId,
                                 userId = userId,
-                                expenseId = expense.id,
+                                expenseId = result.value.id,
                                 amount = request.amount,
                                 currency = request.currency.code,
                                 description = request.description
                             )
 
-                            Result.Success(toExpenseDto(expense, userId))
-                        }.also { result ->
-                            if (result is Result.Success) {
-                                val user = userRepository.findById(userId)
-                                messageService.createSystemMessage(
-                                    groupId = request.groupId,
-                                    content = "${user?.username ?: "Someone"} added expense: ${request.description} - ${request.amount} ${request.currency.code}"
-                                )
-                            }
+                            val user = userRepository.findById(userId)
+                            messageService.createSystemMessage(
+                                groupId = request.groupId,
+                                content = "${user?.username ?: "Someone"} added expense: ${request.description} - ${request.amount} ${request.currency.code}"
+                            )
                         }
+
+                        result
                     } catch (e: Exception) {
                         Result.Failure(
                             ExpenseError.InternalError(e.message ?: "Failed to create expense")
@@ -183,7 +185,7 @@ class ExpenseService(
     ): Result<Unit, ExpenseError> {
         return withContext(Dispatchers.IO) {
             try {
-                transaction {
+                val result = transaction {
                     val expense = expenseRepository.findById(expenseId)
                         ?: return@transaction Result.Failure(ExpenseError.NotFound(expenseId))
 
@@ -196,26 +198,31 @@ class ExpenseService(
                     expenseRepository.delete(expenseId)
                     groupRepository.updateTotalExpenses(expense.groupId, -expense.amount)
 
-                    activityService.logExpenseDeleted(
-                        groupId = expense.groupId,
-                        userId = userId,
-                        expenseId = expenseId,
-                        amount = expense.amount,
-                        description = expense.description
-                    )
+                    Result.Success(Triple(expense.groupId, expense.description, expense.amount))
+                }
+                
+                when (result) {
+                    is Result.Success -> {
+                        val (groupId, description, amount) = result.value
 
-                    Result.Success(Triple(expense.groupId, expense.description, userId))
-                }.also { result ->
-                    if (result is Result.Success) {
-                        val (groupId, description, uid) = result.value
-                        val user = userRepository.findById(uid)
+                        activityService.logExpenseDeleted(
+                            groupId = groupId,
+                            userId = userId,
+                            expenseId = expenseId,
+                            amount = amount,
+                            description = description
+                        )
+
+                        val user = userRepository.findById(userId)
                         messageService.createSystemMessage(
                             groupId = groupId,
                             content = "${user?.username ?: "Someone"} deleted expense: $description"
                         )
+
+                        Result.Success(Unit)
                     }
+                    is Result.Failure -> result
                 }
-                Result.Success(Unit)
             } catch (e: Exception) {
                 Result.Failure(
                     ExpenseError.InternalError(e.message ?: "Failed to delete expense")

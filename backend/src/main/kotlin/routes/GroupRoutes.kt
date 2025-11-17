@@ -66,10 +66,24 @@ fun Route.groupRoutes() {
             call.respondResult(result)
         }
 
+        delete("/{id}") {
+            val groupId = call.requirePathInt("id")
+            val userId = call.getUserId()
+            val result = groupService.deleteGroup(groupId, userId)
+            call.respondResult(result)
+        }
+
         get("/{id}/invite") {
             val groupId = call.requirePathInt("id")
             val userId = call.getUserId()
             val result = groupService.getGroupInviteDetails(groupId, userId)
+            call.respondResult(result)
+        }
+
+        get("/{id}/debt-history") {
+            val groupId = call.requirePathInt("id")
+            val userId = call.getUserId()
+            val result = groupService.getGroupDebtHistory(groupId, userId)
             call.respondResult(result)
         }
     }

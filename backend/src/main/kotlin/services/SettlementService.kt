@@ -1,7 +1,6 @@
 package com.japp.services
 
 import com.japp.models.*
-import com.japp.models.domain.Settlement
 import com.japp.models.dto.*
 import com.japp.models.error.SettlementError
 import com.japp.repositories.interfaces.ISettlementRepository
@@ -76,10 +75,12 @@ class SettlementService(
                                 amount = request.amount
                             )
 
-                            Result.Success(toSettlementDto(settlement))
+                            Result.Success(settlement.toDto(
+                                fromUserName = fromUser?.username ?: "Unknown",
+                                toUserName = toUser?.username ?: "Unknown"
+                            ))
                         }
 
-                        // Send system message outside transaction
                         if (settlementResult is Result.Success) {
                             messageService.createSystemMessage(
                                 groupId = request.groupId,
@@ -183,9 +184,11 @@ class SettlementService(
                             SettlementError.InternalError("Failed to update settlement")
                         )
 
-                    val user = userRepository.findById(userId)
+                    val currentUser = userRepository.findById(userId)
                     val fromUser = userRepository.findById(settlement.fromUserId)
-                    currentUsername = user?.username
+                    val toUser = userRepository.findById(updatedSettlement.toUserId)
+
+                    currentUsername = currentUser?.username
                     fromUsername = fromUser?.username
                     groupId = settlement.groupId
                     amount = settlement.amount
@@ -198,7 +201,10 @@ class SettlementService(
                         amount = settlement.amount
                     )
 
-                    Result.Success(toSettlementDto(updatedSettlement))
+                    Result.Success(updatedSettlement.toDto(
+                        fromUserName = fromUser?.username ?: "Unknown",
+                        toUserName = toUser?.username ?: "Unknown"
+                    ))
                 }
 
                 if (completionResult is Result.Success && groupId != null) {
@@ -235,7 +241,15 @@ class SettlementService(
                         settlementRepository.findByGroupId(groupId)
                     }
 
-                    val settlementDtos = settlements.map { toSettlementDto(it) }
+                    val settlementDtos = settlements.map { settlement ->
+                        val fromUser = userRepository.findById(settlement.fromUserId)
+                        val toUser = userRepository.findById(settlement.toUserId)
+                        settlement.toDto(
+                            fromUserName = fromUser?.username ?: "Unknown",
+                            toUserName = toUser?.username ?: "Unknown"
+                        )
+                    }
+
                     Result.Success(settlementDtos)
                 }
             } catch (e: Exception) {
@@ -266,15 +280,5 @@ class SettlementService(
         }
 
         return settlements
-    }
-
-    private fun toSettlementDto(settlement: Settlement): SettlementDto {
-        val fromUser = userRepository.findById(settlement.fromUserId)
-        val toUser = userRepository.findById(settlement.toUserId)
-
-        return settlement.toDto(
-            fromUserName = fromUser?.username ?: "Unknown",
-            toUserName = toUser?.username ?: "Unknown"
-        )
     }
 }

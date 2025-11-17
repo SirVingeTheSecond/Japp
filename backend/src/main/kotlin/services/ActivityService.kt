@@ -170,7 +170,7 @@ class ActivityService(
         return try {
             val json = Json.parseToJsonElement(jsonString).jsonObject
             json.mapValues { it.value.jsonPrimitive.content }
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             emptyMap()
         }
     }

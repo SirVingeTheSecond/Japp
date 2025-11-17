@@ -3,6 +3,7 @@ package com.japp.services
 import com.japp.models.*
 import com.japp.models.dto.*
 import com.japp.models.error.GroupError
+import com.japp.repositories.interfaces.IExpenseRepository
 import com.japp.repositories.interfaces.IGroupRepository
 import com.japp.repositories.interfaces.IUserRepository
 import com.japp.validation.GroupValidator
@@ -16,7 +17,8 @@ class GroupService(
     private val groupRepository: IGroupRepository,
     private val userRepository: IUserRepository,
     private val activityService: ActivityService,
-    private val messageService: MessageService
+    private val messageService: MessageService,
+    private val expenseRepository: IExpenseRepository
 ) {
 
     /**
@@ -126,18 +128,15 @@ class GroupService(
                         var addedUsername: String? = null
 
                         val memberDto = transaction {
-                            // Check if group exists
-                            val group = groupRepository.findById(groupId)
+                            groupRepository.findById(groupId)
                                 ?: return@transaction Result.Failure(GroupError.NotFound(groupId))
 
-                            // Check if requesting user is the owner
                             if (!groupRepository.isOwner(groupId, requestingUserId)) {
                                 return@transaction Result.Failure(
                                     GroupError.NotOwner(groupId)
                                 )
                             }
 
-                            // Check if user to add exists
                             val userToAdd = userRepository.findById(userIdToAdd)
                                 ?: return@transaction Result.Failure(
                                     GroupError.ValidationError("User to add does not exist")
@@ -145,20 +144,16 @@ class GroupService(
 
                             addedUsername = userToAdd.username
 
-                            // Check if user is already a member
                             if (groupRepository.isMember(groupId, userIdToAdd)) {
                                 return@transaction Result.Failure(
                                     GroupError.AlreadyMember()
                                 )
                             }
 
-                            // Add the member
                             groupRepository.addMember(groupId, userIdToAdd)
 
-                            // Log activity
                             activityService.logMemberAdded(groupId, requestingUserId, userIdToAdd)
 
-                            // Return the new member info
                             Result.Success(
                                 createGroupMemberDto(
                                     user = userToAdd,
@@ -358,6 +353,47 @@ class GroupService(
             } catch (e: Exception) {
                 Result.Failure(
                     GroupError.InternalError(e.message ?: "Failed to leave group")
+                )
+            }
+        }
+    }
+
+    /**
+     * Delete a group (owner only, all balances must be zero)
+     */
+    suspend fun deleteGroup(
+        groupId: Int,
+        userId: Int
+    ): Result<Unit, GroupError> {
+        return withContext(Dispatchers.IO) {
+            try {
+                transaction {
+                    if (!groupRepository.isMember(groupId, userId)) {
+                        return@transaction Result.Failure(GroupError.NotMember(groupId))
+                    }
+
+                    if (!groupRepository.isOwner(groupId, userId)) {
+                        return@transaction Result.Failure(GroupError.NotOwner(groupId))
+                    }
+
+                    groupRepository.findById(groupId)
+                        ?: return@transaction Result.Failure(GroupError.NotFound(groupId))
+
+                    val balances = expenseRepository.calculateGroupBalances(groupId)
+                    val hasOutstandingDebts = balances.values.any { it != 0.0 }
+
+                    if (hasOutstandingDebts) {
+                        return@transaction Result.Failure(
+                            GroupError.ValidationError("Cannot delete group with outstanding debts. All balances must be settled first.")
+                        )
+                    }
+
+                    groupRepository.delete(groupId)
+                    Result.Success(Unit)
+                }
+            } catch (e: Exception) {
+                Result.Failure(
+                    GroupError.InternalError(e.message ?: "Failed to delete group")
                 )
             }
         }

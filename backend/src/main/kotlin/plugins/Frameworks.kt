@@ -86,7 +86,8 @@ fun appModule(application: Application) = module {
             groupRepository = get(),
             userRepository = get(),
             activityService = get(),
-            messageService = get()
+            messageService = get(),
+            expenseRepository = get()
         )
     }
 

@@ -326,6 +326,14 @@ class GroupService(
                     activityService.logMemberLeft(groupId, userId)
 
                     Result.Success(Unit)
+                }.also { result ->
+                    if (result is Result.Success) {
+                        val user = userRepository.findById(userId)
+                        messageService.createSystemMessage(
+                            groupId = groupId,
+                            content = "${user?.username ?: "Someone"} left the group"
+                        )
+                    }
                 }
 
                 if (leaveResult is Result.Success) {

@@ -27,6 +27,8 @@ services:
             JWT_DOMAIN: "https://jwt-provider-domain/"
             JWT_AUDIENCE: "jwt-audience"
             JWT_REALM: "ktor sample app"
+        volumes:
+            - japp-backend-data:/var/japp
         networks:
             japp-app-backend-network:
                 ipv4_address: 10.23.45.3
@@ -41,6 +43,8 @@ services:
             POSTGRES_USER: japp
             POSTGRES_PASSWORD: japper
             POSTGRES_DB: japp
+        volumes:
+            - japp-database-data:/var/lib/postgresql/data
         networks:
             japp-app-backend-network:
                 ipv4_address: 10.23.45.2
@@ -54,3 +58,7 @@ networks:
                 - subnet: "10.23.45.0/24"
     private_network:
         external: true
+
+volumes:
+    japp-backend-data:
+    japp-database-data:

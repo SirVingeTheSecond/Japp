@@ -1,7 +1,11 @@
 import com.japp.database.DatabaseSchema
+import com.japp.models.Currency
+import com.japp.models.SplitType
 import com.japp.models.domain.User
+import com.japp.models.dto.CreateExpenseRequest
 import com.japp.models.dto.CreateGroupRequest
 import com.japp.models.dto.CreateSettlementRequest
+import com.japp.models.dto.ExpenseSplitRequest
 import com.japp.models.dto.LoginRequest
 import com.japp.models.dto.SignupRequest
 import com.japp.repositories.implementations.ActivityRepository
@@ -13,12 +17,14 @@ import com.japp.repositories.implementations.UserRepository
 import com.japp.security.PasswordHasher
 import com.japp.services.ActivityService
 import com.japp.services.AuthService
+import com.japp.services.ExpenseService
 import com.japp.services.GroupService
 import com.japp.services.MessageService
 import com.japp.services.SettlementService
 import com.japp.websocket.WebSocketManager
 import io.kotest.core.spec.style.AnnotationSpec
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.shouldNotBe
 import io.mockk.mockk
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
@@ -214,6 +220,132 @@ class ApplicationTest : AnnotationSpec() {
     }
 
     @Test
+    suspend fun createExpense() {
+
+        val userRepository = UserRepository()
+        val expenseRepository = ExpenseRepository()
+        val groupRepository = GroupRepository()
+        val activityRepository = mockk<ActivityRepository>()
+        val messageRepository = mockk<MessageRepository>()
+        val webSocketManager = mockk<WebSocketManager>()
+        val passwordHasher = PasswordHasher()
+
+        val activityService = ActivityService(activityRepository,groupRepository, userRepository)
+        val messageService = MessageService(messageRepository,groupRepository, userRepository, webSocketManager)
+        val expenseService = ExpenseService(expenseRepository, groupRepository, userRepository, activityService, messageService)
+
+        transaction {
+            userRepository.create(
+                User(
+                id = 0,
+                username = "Niels69",
+                firstname = "Niels",
+                lastname = "Nielsen",
+                email = "hello@gmail.com",
+                passwordHash = passwordHasher.hash("secret12345"),
+                phone = "1234567890",
+                profilePicture = null,
+                createdAt = System.currentTimeMillis().toString()
+                )
+            )
+        }
+        val createGroupRequest = CreateGroupRequest("group name", "group description")
+        val groupService = GroupService(groupRepository, userRepository, activityService, messageService)
+        groupService.createGroup(createGroupRequest, 1)
+
+        val expenseRequest = CreateExpenseRequest(1, 300.0, "test expense", null, Currency.DKK, SplitType.EQUAL)
+
+        expenseService.createExpense(expenseRequest,1)
+        expenseService.getGroupExpenses(1,1)
+    }
+
+    @Test
+    suspend fun deleteExpense() {
+
+        val userRepository = UserRepository()
+        val expenseRepository = ExpenseRepository()
+        val groupRepository = GroupRepository()
+        val activityRepository = mockk<ActivityRepository>()
+        val messageRepository = mockk<MessageRepository>()
+        val webSocketManager = mockk<WebSocketManager>()
+        val passwordHasher = PasswordHasher()
+
+        val activityService = ActivityService(activityRepository,groupRepository, userRepository)
+        val messageService = MessageService(messageRepository,groupRepository, userRepository, webSocketManager)
+        val expenseService = ExpenseService(expenseRepository, groupRepository, userRepository, activityService, messageService)
+
+        transaction {
+            userRepository.create(
+                User(
+                    id = 0,
+                    username = "Niels69",
+                    firstname = "Niels",
+                    lastname = "Nielsen",
+                    email = "hello@gmail.com",
+                    passwordHash = passwordHasher.hash("secret12345"),
+                    phone = "1234567890",
+                    profilePicture = null,
+                    createdAt = System.currentTimeMillis().toString()
+                )
+            )
+        }
+        val createGroupRequest = CreateGroupRequest("group name", "group description")
+        val groupService = GroupService(groupRepository, userRepository, activityService, messageService)
+        groupService.createGroup(createGroupRequest, 1)
+
+        val expenseRequest = CreateExpenseRequest(1, 300.0, "test expense", null, Currency.DKK, SplitType.EQUAL)
+
+        expenseService.createExpense(expenseRequest,1)
+        expenseService.deleteExpense(1,1)
+
+        // assert that the expense is deleted TODO should be rewritten
+        expenseService.getGroupExpenses(1,1).toString().contains("[]")
+    }
+
+    @Test
+    suspend fun expenseBalances() {
+
+        val userRepository = UserRepository()
+        val expenseRepository = ExpenseRepository()
+        val groupRepository = GroupRepository()
+        val activityRepository = mockk<ActivityRepository>()
+        val messageRepository = mockk<MessageRepository>()
+        val webSocketManager = mockk<WebSocketManager>()
+        val passwordHasher = PasswordHasher()
+
+        val activityService = ActivityService(activityRepository,groupRepository, userRepository)
+        val messageService = MessageService(messageRepository,groupRepository, userRepository, webSocketManager)
+        val expenseService = ExpenseService(expenseRepository, groupRepository, userRepository, activityService, messageService)
+
+        transaction {
+            userRepository.create(
+                User(
+                    id = 0,
+                    username = "Niels69",
+                    firstname = "Niels",
+                    lastname = "Nielsen",
+                    email = "hello@gmail.com",
+                    passwordHash = passwordHasher.hash("secret12345"),
+                    phone = "1234567890",
+                    profilePicture = null,
+                    createdAt = System.currentTimeMillis().toString()
+                )
+            )
+        }
+        val createGroupRequest = CreateGroupRequest("group name", "group description")
+        val groupService = GroupService(groupRepository, userRepository, activityService, messageService)
+        groupService.createGroup(createGroupRequest, 1)
+
+        val expenseRequest = CreateExpenseRequest(1, 300.0, "test expense", null, Currency.DKK, SplitType.EQUAL)
+
+        expenseService.createExpense(expenseRequest,1)
+
+        // assert that the balance is the correct amount
+        expenseService.getGroupBalances(1,1).toString().contains("300.0")
+    }
+
+
+    @Test
     suspend fun createSettlement() {
 
         val settlementRepository = SettlementRepository()
@@ -272,6 +404,7 @@ class ApplicationTest : AnnotationSpec() {
         // create settlement
         settlementService.createSettlement(settlementRequest, 1)
 
+        // assert settlement exist on user
         settlementService.getGroupSettlements(1, 1)
     }
 }

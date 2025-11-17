@@ -9,7 +9,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -32,16 +34,22 @@ import androidx.compose.ui.unit.dp
 import androidx.core.graphics.ColorUtils
 import androidx.navigation.NavController
 import com.example.japp.AppDestinations
+import com.example.japp.api.RetrofitClient
+import com.example.japp.api.responses.group.GroupDto
 import kotlinx.coroutines.delay
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
 import java.text.DateFormat
 import java.util.Date
 import kotlin.math.round
+import kotlin.random.Random
 
 @Preview(showSystemUi = true)
 @Composable
 fun HomeScreen(navController: NavController? = null) {
     Column(
-        Modifier.fillMaxSize().padding(10.dp),
+        Modifier.fillMaxSize().padding(10.dp).verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         QuickStats()
@@ -157,6 +165,31 @@ fun Activity(time: Date? = null, content: @Composable (() -> Unit)) {
 
 @Composable
 fun QuickGroups(navController: NavController?) {
+    var groups by remember { mutableStateOf<List<GroupDto>?>(null) }
+
+    LaunchedEffect(Unit) {
+        val call = RetrofitClient.groupService.get_my_groups()
+        call.enqueue(object: Callback<List<GroupDto>?>{
+            override fun onResponse(
+                call: Call<List<GroupDto>?>,
+                response: Response<List<GroupDto>?>
+            ) {
+                val body = response.body()
+                if (body != null && response.isSuccessful) {
+                    groups = body.sortedBy { Random.nextBoolean() }.slice(IntRange(0, 2))
+                }
+            }
+
+            override fun onFailure(
+                call: Call<List<GroupDto>?>,
+                t: Throwable
+            ) {
+                TODO("Not yet implemented")
+            }
+
+        })
+    }
+
     Column(
         horizontalAlignment = Alignment.Start
     ) {
@@ -173,5 +206,19 @@ fun QuickGroups(navController: NavController?) {
             }
         }
         //TODO: Use group card
+        if (groups != null) {
+            groups!!.forEach { dto ->
+                GroupCard(dto, onClick = {
+                    GROUP_ID = dto.id
+                    navController?.navigate(AppDestinations.GROUP.route)
+                })
+            }
+        } else {
+            LinearProgressIndicator(
+                Modifier.align(Alignment.CenterHorizontally),
+                color = MaterialTheme.colorScheme.secondary,
+                trackColor = MaterialTheme.colorScheme.surfaceVariant,
+            )
+        }
     }
 }

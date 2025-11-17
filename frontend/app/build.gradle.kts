@@ -5,13 +5,13 @@ plugins {
 }
 
 android {
-    namespace = "com.example.japp"
+    namespace = "com.japp"
     compileSdk {
         version = release(36)
     }
 
     defaultConfig {
-        applicationId = "com.example.japp"
+        applicationId = "com.japp"
         minSdk = 34
         targetSdk = 36
         versionCode = 1

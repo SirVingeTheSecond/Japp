@@ -13,8 +13,8 @@ interface UserService {
         private const val BASE_ROUTE = "user"
     }
 
-    @GET("${BASE_ROUTE}/me")
-    fun get_my_user(): Call<UserDto?>?
+    @GET("user/me")
+    suspend fun get_my_user(): UserDto
 
     @PATCH("${BASE_ROUTE}/me")
     fun update_my_user(@Body request: UpdateUserRequest): Call<UserDto?>?

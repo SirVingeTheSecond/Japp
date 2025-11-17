@@ -1,6 +1,7 @@
 package com.japp.repositories.implementations
 
 import com.japp.database.tables.ActivityLogs
+import com.japp.database.tables.GroupMembers
 import com.japp.models.ActivityType
 import com.japp.models.domain.ActivityLog
 import com.japp.repositories.interfaces.IActivityRepository
@@ -46,6 +47,15 @@ class ActivityRepository : IActivityRepository {
     override fun findByGroupId(groupId: Int, limit: Int): List<ActivityLog> {
         return ActivityLogs.selectAll()
             .where { ActivityLogs.groupId eq groupId }
+            .orderBy(ActivityLogs.createdAt to SortOrder.DESC)
+            .limit(limit)
+            .map { rowToActivityLog(it) }
+    }
+
+    override fun findByUserId(userId: Int, limit: Int): List<ActivityLog> {
+        return (ActivityLogs innerJoin GroupMembers)
+            .selectAll()
+            .where { GroupMembers.userId eq userId }
             .orderBy(ActivityLogs.createdAt to SortOrder.DESC)
             .limit(limit)
             .map { rowToActivityLog(it) }

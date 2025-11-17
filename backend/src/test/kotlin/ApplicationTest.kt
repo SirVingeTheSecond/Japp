@@ -156,7 +156,7 @@ class ApplicationTest : AnnotationSpec() {
         val expenseRepository = mockk<ExpenseRepository>()
         val debtHistoryRepository = mockk<DebtHistoryRepository>()
 
-        val activityService = ActivityService(activityRepository,groupRepository, userRepository)
+        val activityService = ActivityService(activityRepository,userRepository, groupRepository)
         val messageService = MessageService(messageRepository,groupRepository, userRepository, webSocketManager)
 
         // creating mock user for test
@@ -196,7 +196,7 @@ class ApplicationTest : AnnotationSpec() {
         val expenseRepository = mockk<ExpenseRepository>()
         val debtHistoryRepository = mockk<DebtHistoryRepository>()
 
-        val activityService = ActivityService(activityRepository,groupRepository, userRepository)
+        val activityService = ActivityService(activityRepository,userRepository, groupRepository)
         val messageService = MessageService(messageRepository,groupRepository, userRepository, webSocketManager)
 
         // creating mock user
@@ -239,7 +239,7 @@ class ApplicationTest : AnnotationSpec() {
 
         val passwordHasher = PasswordHasher()
 
-        val activityService = ActivityService(activityRepository,groupRepository, userRepository)
+        val activityService = ActivityService(activityRepository,userRepository, groupRepository)
         val messageService = MessageService(messageRepository,groupRepository, userRepository, webSocketManager)
         val expenseService = ExpenseService(expenseRepository, groupRepository, userRepository, activityService, messageService)
 
@@ -280,7 +280,7 @@ class ApplicationTest : AnnotationSpec() {
         val passwordHasher = PasswordHasher()
         val debtHistoryRepository = mockk<DebtHistoryRepository>()
 
-        val activityService = ActivityService(activityRepository,groupRepository, userRepository)
+        val activityService = ActivityService(activityRepository,userRepository, groupRepository)
         val messageService = MessageService(messageRepository,groupRepository, userRepository, webSocketManager)
         val expenseService = ExpenseService(expenseRepository, groupRepository, userRepository, activityService, messageService)
 
@@ -324,7 +324,7 @@ class ApplicationTest : AnnotationSpec() {
         val passwordHasher = PasswordHasher()
         val debtHistoryRepository = mockk<DebtHistoryRepository>()
 
-        val activityService = ActivityService(activityRepository,groupRepository, userRepository)
+        val activityService = ActivityService(activityRepository,userRepository, groupRepository)
         val messageService = MessageService(messageRepository,groupRepository, userRepository, webSocketManager)
         val expenseService = ExpenseService(expenseRepository, groupRepository, userRepository, activityService, messageService)
 
@@ -369,7 +369,7 @@ class ApplicationTest : AnnotationSpec() {
         val webSocketManager = mockk<WebSocketManager>()
         val debtHistoryRepository = mockk<DebtHistoryRepository>()
 
-        val activityService = ActivityService(activityRepository,groupRepository, userRepository)
+        val activityService = ActivityService(activityRepository,userRepository, groupRepository)
         val messageService = MessageService(messageRepository,groupRepository, userRepository, webSocketManager)
         val settlementService =
             SettlementService(settlementRepository, groupRepository, userRepository,
@@ -433,7 +433,7 @@ class ApplicationTest : AnnotationSpec() {
         val webSocketManager = mockk<WebSocketManager>()
         val debtHistoryRepository = mockk<DebtHistoryRepository>()
 
-        val activityService = ActivityService(activityRepository,groupRepository, userRepository)
+        val activityService = ActivityService(activityRepository,userRepository, groupRepository)
         val messageService = MessageService(messageRepository,groupRepository, userRepository, webSocketManager)
         val settlementService =
             SettlementService(settlementRepository, groupRepository, userRepository,
@@ -487,7 +487,7 @@ class ApplicationTest : AnnotationSpec() {
         val webSocketManager = mockk<WebSocketManager>(relaxed = true)
         val debtHistoryRepository = DebtHistoryRepository()
 
-        val activityService = ActivityService(activityRepository,groupRepository, userRepository)
+        val activityService = ActivityService(activityRepository,userRepository, groupRepository)
         val messageService = MessageService(messageRepository,groupRepository, userRepository, webSocketManager)
         val expenseService = ExpenseService(expenseRepository,groupRepository,userRepository,activityService, messageService)
         val settlementService =

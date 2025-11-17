@@ -1,5 +1,7 @@
 package com.example.japp.api.responses.settlement
 
+import com.example.japp.api.responses.SettlementStatus
+
 data class SettlementDto(
     val id: Int,
     val groupId: Int,
@@ -8,7 +10,7 @@ data class SettlementDto(
     val toUserId: Int,
     val toUserName: String,
     val amount: Double,
-    val completed: Boolean,
+    val status: SettlementStatus,
     val createdAt: String,
     val completedAt: String?
 )

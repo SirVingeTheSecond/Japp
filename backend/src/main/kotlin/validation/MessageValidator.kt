@@ -16,7 +16,7 @@ object MessageValidator {
             "Message content",
             errorFactory
         )?.let {
-            return Result.Failure(it.errorOrNull()!!)
+            return Result.Failure(it)
         }
 
         if (request.content.length > MAX_MESSAGE_LENGTH) {

@@ -1,25 +1,46 @@
 package com.example.japp.api
 
+import android.R.attr.type
 import android.content.Context
-import com.example.japp.api.responses.HealthResponse
-import okhttp3.Authenticator
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.Response
-import okhttp3.Route
-import okhttp3.logging.HttpLoggingInterceptor
-import retrofit2.Retrofit
-import retrofit2.Response as RetrofitResponse
-import retrofit2.converter.gson.GsonConverterFactory
-import retrofit2.http.GET
-import java.util.Date
+import android.util.Log
 import androidx.core.content.edit
+import com.example.japp.api.responses.ActivityType
+import com.example.japp.api.responses.Currency
+import com.example.japp.api.responses.ExpenseCategory
+import com.example.japp.api.responses.GroupRole
+import com.example.japp.api.responses.HealthResponse
+import com.example.japp.api.responses.MessageType
+import com.example.japp.api.responses.SettlementStatus
+import com.example.japp.api.responses.SplitType
+import com.example.japp.api.responses.UserStatus
+import com.example.japp.api.responses.activity.ActivityService
 import com.example.japp.api.responses.auth.AuthService
 import com.example.japp.api.responses.expense.ExpenseService
 import com.example.japp.api.responses.group.GroupService
+import com.example.japp.api.responses.message.MessageService
 import com.example.japp.api.responses.settlement.SettlementService
+import com.example.japp.api.responses.user.UserService
+import com.google.gson.GsonBuilder
+import com.google.gson.JsonDeserializationContext
+import com.google.gson.JsonDeserializer
+import com.google.gson.JsonElement
+import com.google.gson.JsonParseException
+import okhttp3.Authenticator
+import okhttp3.Interceptor
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.Response
 import okhttp3.ResponseBody
+import okhttp3.Route
+import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Converter
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
+import retrofit2.create
+import retrofit2.http.GET
+import java.lang.reflect.Type
+import java.util.Date
+import retrofit2.Response as RetrofitResponse
 
 
 data class ErrorResponse(
@@ -88,30 +109,23 @@ interface JappService {
 // https://medium.com/@ratko.kostov21/jwt-authentication-in-android-using-retrofit-and-authenticator-b7b66e231295
 // https://notificare.com/blog/2023/04/21/android-retrofit-refresh-authentication/
 
-class OAuthAuthenticator(private val appContext: Context) : Authenticator {
-    override fun authenticate(route: Route?, response: Response): Request? {
-        if (response.request.header("Authorization") == null) {
-            val credentials = CredentialsStorage.load(appContext) ?: return null
+class AuthInterceptor(val context: Context) : Interceptor {
+    override fun intercept(chain: Interceptor.Chain): Response {
+        val credentials = CredentialsStorage.load(context)
 
-            // NOTE: this can be improved by checking the expiration date locally instead of
-            // sending a request to the API which will result in a 401.
-
-            // Adding the access token to the request.
-            return response.request.newBuilder()
-                .header("Authorization", "Bearer ${credentials.accessToken}")
-                .build()
+        if (credentials == null) {
+            return chain.proceed(chain.request())
         }
 
-        // Use the authenticated original request.
-        return response.request
-    }
+        val newReq = chain.request().newBuilder().apply {
+            credentials?.let {
+                header("Authorization", "Bearer ${it.accessToken}")
+            }
+        }.build()
 
-    private fun getCredentials(): Credentials {
-        return Credentials("Idk?", Date())
-        // TODO("Get the user credentials from local storage.")
+        return chain.proceed(newReq)
     }
 }
-
 object RetrofitClient {
     private const val BASE_URL = "https://japp-app-api.itnerd.net/api/"
     var retrofit: Retrofit? = null
@@ -124,29 +138,63 @@ object RetrofitClient {
         }
 
         val client = OkHttpClient.Builder()
-            .authenticator(OAuthAuthenticator(context))
+            .addInterceptor(AuthInterceptor(context))
             .addInterceptor(interceptor)
             .build()
+
+        val enums = listOf(
+            SplitType::class.java,
+            Currency::class.java,
+            UserStatus::class.java,
+            GroupRole::class.java,
+            ActivityType::class.java,
+            SettlementStatus::class.java,
+            ExpenseCategory::class.java,
+            MessageType::class.java
+        )
+
+        val builder = GsonBuilder()
+
+        val adapter = JsonDeserializer { json, type, _ ->
+            val enumClass = type as Class<*>
+            val fromString = enumClass.getMethod("fromString", String::class.java)
+            fromString.invoke(null, json.asString)
+        }
+
+        for (e in enums) {
+            builder.registerTypeAdapter(e, adapter)
+        }
+
+        val gson = builder.create()
 
         retrofit = Retrofit.Builder()
             .baseUrl(BASE_URL)
             .client(client)
-            .addConverterFactory(GsonConverterFactory.create())
+            .addConverterFactory(GsonConverterFactory.create(gson))
             .build()
     }
-
-    val authService: AuthService
-        get() = retrofit!!.create(AuthService::class.java)
 
     val jappService: JappService
         get() = retrofit!!.create(JappService::class.java)
 
-    val groupService: GroupService
-        get() = retrofit!!.create(GroupService::class.java)
+    val activityService: ActivityService
+        get() = retrofit!!.create(ActivityService::class.java)
+
+    val authService: AuthService
+        get() = retrofit!!.create(AuthService::class.java)
 
     val expenseService: ExpenseService
         get() = retrofit!!.create(ExpenseService::class.java)
 
+    val groupService: GroupService
+        get() = retrofit!!.create(GroupService::class.java)
+
+    val messageService: MessageService
+        get() = retrofit!!.create(MessageService::class.java)
+
     val settlementService: SettlementService
         get() = retrofit!!.create(SettlementService::class.java)
+
+    val userService: UserService
+        get() = retrofit!!.create(UserService::class.java)
 }

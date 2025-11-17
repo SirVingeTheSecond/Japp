@@ -1,11 +1,16 @@
 import com.japp.database.DatabaseSchema
 import com.japp.models.Currency
+import com.japp.models.Result
 import com.japp.models.SplitType
+import com.japp.models.domain.Group
 import com.japp.models.domain.User
 import com.japp.models.dto.CreateExpenseRequest
 import com.japp.models.dto.CreateGroupRequest
 import com.japp.models.dto.CreateSettlementRequest
 import com.japp.models.dto.ExpenseSplitRequest
+import com.japp.models.dto.GroupDto
+import com.japp.models.dto.GroupSettlementSuggestionsDto
+import com.japp.models.dto.JoinGroupRequest
 import com.japp.models.dto.LoginRequest
 import com.japp.models.dto.SignupRequest
 import com.japp.repositories.implementations.ActivityRepository
@@ -24,10 +29,12 @@ import com.japp.services.SettlementService
 import com.japp.websocket.WebSocketManager
 import io.kotest.core.spec.style.AnnotationSpec
 import io.kotest.matchers.shouldBe
-import io.kotest.matchers.shouldNotBe
+import io.kotest.matchers.types.shouldBeInstanceOf
 import io.mockk.mockk
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import kotlinx.serialization.json.Json
+import org.jetbrains.exposed.v1.core.transactions.transactionScope
 
 class ApplicationTest : AnnotationSpec() {
     @BeforeClass
@@ -407,4 +414,132 @@ class ApplicationTest : AnnotationSpec() {
         // assert settlement exist on user
         settlementService.getGroupSettlements(1, 1)
     }
+
+    @Test
+    suspend fun completeSettlement() {
+
+        val settlementRepository = SettlementRepository()
+        val userRepository = UserRepository()
+        val expenseRepository = ExpenseRepository()
+        val groupRepository = GroupRepository()
+        val passwordHasher = PasswordHasher()
+        val activityRepository = mockk<ActivityRepository>()
+        val messageRepository = mockk<MessageRepository>()
+        val webSocketManager = mockk<WebSocketManager>()
+
+        val activityService = ActivityService(activityRepository,groupRepository, userRepository)
+        val messageService = MessageService(messageRepository,groupRepository, userRepository, webSocketManager)
+        val settlementService =
+            SettlementService(settlementRepository, groupRepository, userRepository,
+                expenseRepository, activityService, messageService)
+
+        //create user
+        transaction {
+            userRepository.create(
+                User(
+                    id = 0,
+                    username = "Niels69",
+                    firstname = "Niels",
+                    lastname = "Nielsen",
+                    email = "hello@gmail.com",
+                    passwordHash = passwordHasher.hash("secret12345"),
+                    phone = "1234567890",
+                    profilePicture = null,
+                    createdAt = System.currentTimeMillis().toString()
+                )
+            )
+        }
+
+        // create group
+        val createGroupRequest = CreateGroupRequest("group name", "group description")
+        val groupService = GroupService(groupRepository, userRepository, activityService, messageService)
+        groupService.createGroup(createGroupRequest, 1)
+
+        // create settlement request
+        val settlementRequest = CreateSettlementRequest(1, 2, 300.0)
+
+        // create settlement
+        settlementService.createSettlement(settlementRequest, 1)
+
+        // assert settlement exist on user
+        settlementService.getGroupSettlements(1, 1)
+
+        // delete settlement
+        settlementService.markSettlementCompleted(1, 1)
+    }
+
+    @Test
+    suspend fun settlementSuggestions() {
+
+        val settlementRepository = SettlementRepository()
+        val userRepository = UserRepository()
+        val expenseRepository = ExpenseRepository()
+        val groupRepository = GroupRepository()
+        val passwordHasher = PasswordHasher()
+        val activityRepository = mockk<ActivityRepository>()
+        val messageRepository = mockk<MessageRepository>()
+        val webSocketManager = mockk<WebSocketManager>()
+
+        val activityService = ActivityService(activityRepository,groupRepository, userRepository)
+        val messageService = MessageService(messageRepository,groupRepository, userRepository, webSocketManager)
+        val expenseService = ExpenseService(expenseRepository,groupRepository,userRepository,activityService, messageService)
+        val settlementService =
+            SettlementService(settlementRepository, groupRepository, userRepository,
+                expenseRepository, activityService, messageService)
+
+        //create user
+        transaction {
+            userRepository.create(
+                User(
+                    id = 0,
+                    username = "Niels69",
+                    firstname = "Niels",
+                    lastname = "Nielsen",
+                    email = "hello@gmail.com",
+                    passwordHash = passwordHasher.hash("secret12345"),
+                    phone = "1234567890",
+                    profilePicture = null,
+                    createdAt = System.currentTimeMillis().toString()
+                )
+            )
+            userRepository.create(
+                User(
+                    id = 1,
+                    username = "Siels69",
+                    firstname = "Siels",
+                    lastname = "Sielsen",
+                    email = "Shello@gmail.com",
+                    passwordHash = passwordHasher.hash("secret12345"),
+                    phone = "1234567890",
+                    profilePicture = null,
+                    createdAt = System.currentTimeMillis().toString()
+                )
+            )
+        }
+
+        // create group
+        val createGroupRequest = CreateGroupRequest("group name", "group description")
+        val groupService = GroupService(groupRepository, userRepository, activityService, messageService)
+        groupService.createGroup(createGroupRequest, 1)
+
+        // get invite group and make user 2 join it
+        val group = transaction { groupRepository.findById(1) }
+        val inviteCode = group?.inviteCode
+        val joinGroupRequest = JoinGroupRequest(inviteCode!!)
+        groupService.joinGroup(joinGroupRequest, 2)
+
+        // create expense request
+        val expenseRequest = CreateExpenseRequest(1, 300.0, "test expense", null, Currency.DKK, SplitType.EQUAL)
+        val expenseRequest2 = CreateExpenseRequest(1, 600.0, "test expense", null, Currency.DKK, SplitType.EQUAL)
+
+        expenseService.createExpense(expenseRequest, 1)
+        expenseService.createExpense(expenseRequest2, 2)
+
+        // get suggestions
+        val suggestion = settlementService.getSettlementSuggestions(1, 2)
+        
+        // assert you get a suggestion
+        suggestion.shouldBeInstanceOf<Result.Success<GroupSettlementSuggestionsDto>>()
+    }
+
 }

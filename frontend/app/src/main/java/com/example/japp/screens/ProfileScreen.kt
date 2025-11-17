@@ -7,22 +7,34 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import com.example.japp.AppDestinations
 import com.example.japp.StartupActivity
 import com.example.japp.api.CredentialsStorage
+import com.example.japp.api.RetrofitClient
+import com.example.japp.api.responses.auth.UserDto
 import com.example.japp.ui.theme.Dimens
 
 @Composable
 fun ProfileScreen(navController: NavController) {
 
     val context = LocalContext.current
+
+    var user by remember { mutableStateOf<UserDto?>(null) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(Unit) {
+        try {
+            user = RetrofitClient.userService.get_my_user()
+        } catch (e: Exception) {
+            errorMessage = e.message
+        }
+    }
 
     fun logout() {
         CredentialsStorage.clear(context)
@@ -43,8 +55,6 @@ fun ProfileScreen(navController: NavController) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Top
         ) {
-            // Profile icon (This should be default when users haven't set their own one)
-            // TODO: Fetch image from backend
             Box(
                 modifier = Modifier
                     .size(120.dp)
@@ -62,22 +72,23 @@ fun ProfileScreen(navController: NavController) {
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // TODO: Fetch display values from backend
             Text(
-                text = "John Doe",
+                text = user?.firstname ?: "Unknown",
                 style = MaterialTheme.typography.titleLarge
             )
 
             Text(
-                text = "john.doe@example.com",
+                text = user?.email ?: "No email",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.secondary
             )
-            Text(
-                text = "+45 12 34 56 78",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.secondary
-            )
+            user?.phone?.let { phone ->
+                Text(
+                    text = phone,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.secondary
+                )
+            }
 
             Spacer(modifier = Modifier.height(Dimens.spacingMedium))
             Button(

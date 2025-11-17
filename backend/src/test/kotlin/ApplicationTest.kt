@@ -2,13 +2,10 @@ import com.japp.database.DatabaseSchema
 import com.japp.models.Currency
 import com.japp.models.Result
 import com.japp.models.SplitType
-import com.japp.models.domain.Group
 import com.japp.models.domain.User
 import com.japp.models.dto.CreateExpenseRequest
 import com.japp.models.dto.CreateGroupRequest
 import com.japp.models.dto.CreateSettlementRequest
-import com.japp.models.dto.ExpenseSplitRequest
-import com.japp.models.dto.GroupDto
 import com.japp.models.dto.GroupSettlementSuggestionsDto
 import com.japp.models.dto.JoinGroupRequest
 import com.japp.models.dto.LoginRequest
@@ -33,8 +30,6 @@ import io.kotest.matchers.types.shouldBeInstanceOf
 import io.mockk.mockk
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
-import kotlinx.serialization.json.Json
-import org.jetbrains.exposed.v1.core.transactions.transactionScope
 
 class ApplicationTest : AnnotationSpec() {
     @BeforeClass
@@ -537,7 +532,7 @@ class ApplicationTest : AnnotationSpec() {
 
         // get suggestions
         val suggestion = settlementService.getSettlementSuggestions(1, 2)
-        
+
         // assert you get a suggestion
         suggestion.shouldBeInstanceOf<Result.Success<GroupSettlementSuggestionsDto>>()
     }

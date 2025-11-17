@@ -229,6 +229,136 @@ Content-Type: application/json
 ###
 
 ### ============================================
+### USER PROFILE TESTS
+### ============================================
+
+### Get Current User Profile
+GET http://localhost:8080/api/user/me
+Authorization: Bearer {{marius_token}}
+
+###
+
+### Get Another User's Profile (by ID)
+GET http://localhost:8080/api/user/{{rolf_id}}
+Authorization: Bearer {{marius_token}}
+
+###
+
+### Update Profile - All Fields
+PATCH http://localhost:8080/api/user/me
+Authorization: Bearer {{marius_token}}
+Content-Type: application/json
+
+{
+  "firstname": "Marius Updated",
+  "lastname": "Brandorff",
+  "phone": "+45 99999999",
+  "profilePicture": "https://example.com/new-profile.jpg"
+}
+
+###
+
+### Update Profile - Single Field (firstname only)
+PATCH http://localhost:8080/api/user/me
+Authorization: Bearer {{marius_token}}
+Content-Type: application/json
+
+{
+  "firstname": "Marius"
+}
+
+###
+
+### Update Profile - Phone Only
+PATCH http://localhost:8080/api/user/me
+Authorization: Bearer {{marius_token}}
+Content-Type: application/json
+
+{
+  "phone": "+45 12121212"
+}
+
+###
+
+### Update Profile - Remove Phone (set to null)
+PATCH http://localhost:8080/api/user/me
+Authorization: Bearer {{marius_token}}
+Content-Type: application/json
+
+{
+  "phone": null
+}
+
+###
+
+### ============================================
+### USER PROFILE VALIDATION TESTS
+### ============================================
+
+### Update Profile - No Fields (should fail with 400)
+PATCH http://localhost:8080/api/user/me
+Authorization: Bearer {{marius_token}}
+Content-Type: application/json
+
+{}
+
+###
+
+### Update Profile - Invalid Firstname Too Short (should fail with 400)
+PATCH http://localhost:8080/api/user/me
+Authorization: Bearer {{marius_token}}
+Content-Type: application/json
+
+{
+  "firstname": "M"
+}
+
+###
+
+### Update Profile - Blank Lastname (should fail with 400)
+PATCH http://localhost:8080/api/user/me
+Authorization: Bearer {{marius_token}}
+Content-Type: application/json
+
+{
+  "lastname": ""
+}
+
+###
+
+### Update Profile - Blank Phone (should fail with 400)
+PATCH http://localhost:8080/api/user/me
+Authorization: Bearer {{marius_token}}
+Content-Type: application/json
+
+{
+  "phone": ""
+}
+
+###
+
+### Update Profile - Without Auth (should fail with 401)
+PATCH http://localhost:8080/api/user/me
+Content-Type: application/json
+
+{
+  "firstname": "Should Fail"
+}
+
+###
+
+### Get User Profile - Invalid ID (should fail with 404)
+GET http://localhost:8080/api/user/999999
+Authorization: Bearer {{marius_token}}
+
+###
+
+### Get User Profile - Without Auth (should fail with 401)
+GET http://localhost:8080/api/user/{{marius_id}}
+
+###
+
+### ============================================
 ### GROUP MANAGEMENT TESTS
 ### ============================================
 

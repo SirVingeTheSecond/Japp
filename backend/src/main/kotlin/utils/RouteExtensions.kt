@@ -1,6 +1,6 @@
 package com.japp.utils
 
-import com.japp.models.IAppError
+import com.japp.models.error.IAppError
 import com.japp.models.Result
 import io.ktor.http.*
 import io.ktor.server.application.*
@@ -28,4 +28,36 @@ suspend inline fun <reified T : Any> ApplicationCall.respondResult(
             )
         }
     }
+}
+
+/**
+ * Extract and validate integer path parameter
+ * Throws IllegalArgumentException if invalid (caught by StatusPages)
+ */
+fun ApplicationCall.requirePathInt(name: String): Int {
+    return parameters[name]?.toIntOrNull()
+        ?: throw IllegalArgumentException("Invalid $name parameter")
+}
+
+/**
+ * Extract optional query parameter as boolean
+ */
+fun ApplicationCall.getQueryBoolean(name: String, default: Boolean = false): Boolean {
+    return request.queryParameters[name]?.toBoolean() ?: default
+}
+
+
+/**
+ * Extract query parameter as integer
+ */
+fun ApplicationCall.requireQueryInt(name: String): Int {
+    return request.queryParameters[name]?.toIntOrNull()
+        ?: throw IllegalArgumentException("Query parameter '$name' must be a valid integer")
+}
+
+/**
+ * Extract optional query parameter as integer
+ */
+fun ApplicationCall.getOptionalQueryInt(name: String, default: Int? = null): Int? {
+    return request.queryParameters[name]?.toIntOrNull() ?: default
 }

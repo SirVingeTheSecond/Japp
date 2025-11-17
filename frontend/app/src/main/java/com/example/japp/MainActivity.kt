@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Camera
+import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.GroupAdd
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Notifications
@@ -42,6 +43,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.japp.screens.ActivityScreen
 import com.example.japp.screens.CreateGroupScreen
+import com.example.japp.screens.GroupScreen
 import com.example.japp.screens.HomeScreen
 import com.example.japp.screens.ProfileScreen
 import com.example.japp.screens.ScanScreen
@@ -168,7 +170,9 @@ enum class AppDestinations(
     SCAN("Scan", Icons.Default.Camera, { navController -> ScanScreen(navController) }),
     PROFILE("Profile", Icons.Default.Person, { navController -> ProfileScreen(navController) }),
     ACTIVITY("Activity", Icons.Default.Notifications, { navController -> ActivityScreen(navController) }),
-    CREATEGROUP("Create Group", Icons.Default.GroupAdd, { navController -> CreateGroupScreen(navController) });
+    CREATEGROUP("Create Group", Icons.Default.GroupAdd, { navController -> CreateGroupScreen(navController) }),
+
+    GROUP("Group", Icons.Default.Group, { navController -> GroupScreen(navController) });
 
     val route: String
         get() = label.replace(" ", "") // Remove spaces for route

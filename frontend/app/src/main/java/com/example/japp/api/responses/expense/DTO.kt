@@ -1,29 +1,33 @@
 package com.example.japp.api.responses.expense
 
+import com.example.japp.api.responses.Currency
+import com.example.japp.api.responses.ExpenseCategory
+import com.example.japp.api.responses.SplitType
+
 data class ExpenseDto(
     val id: Int,
     val groupId: Int,
     val paidBy: Int,
     val paidByName: String,
     val amount: Double,
-    val currency: String,
+    val currency: Currency,
     val description: String,
-    val category: String?,
-    val splitType: String,
+    val category: ExpenseCategory?,
+    val splitType: SplitType,
     val splits: List<ExpenseSplitDto>,
     val createdAt: String
 )
 
 data class ExpenseSplitDto(
     val userId: Int,
-    val userName: String,
+    val username: String,
     val shareAmount: Double?,
     val sharePercentage: Double?
 )
 
 data class BalanceDto(
     val userId: Int,
-    val userName: String,
+    val username: String,
     val balance: Double
 )
 

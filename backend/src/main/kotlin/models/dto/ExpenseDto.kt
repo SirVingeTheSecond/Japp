@@ -1,5 +1,8 @@
 package com.japp.models.dto
 
+import com.japp.models.Currency
+import com.japp.models.ExpenseCategory
+import com.japp.models.SplitType
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -7,8 +10,9 @@ data class CreateExpenseRequest(
     val groupId: Int,
     val amount: Double,
     val description: String,
-    val category: String? = null,
-    val splitType: String = "equal",
+    val category: ExpenseCategory? = null,
+    val currency: Currency = Currency.DKK,
+    val splitType: SplitType = SplitType.EQUAL,
     val splits: List<ExpenseSplitRequest>? = null
 )
 
@@ -26,10 +30,10 @@ data class ExpenseDto(
     val paidBy: Int,
     val paidByName: String,
     val amount: Double,
-    val currency: String,
+    val currency: Currency,
     val description: String,
-    val category: String?,
-    val splitType: String,
+    val category: ExpenseCategory?,
+    val splitType: SplitType,
     val splits: List<ExpenseSplitDto>,
     val createdAt: String
 )

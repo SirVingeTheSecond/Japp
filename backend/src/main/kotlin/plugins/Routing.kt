@@ -2,10 +2,14 @@ package com.japp.plugins
 
 import com.japp.models.dto.HealthResponse
 import com.japp.models.dto.MeResponse
+import com.japp.routes.activityRoutes
 import com.japp.routes.authRoutes
+import com.japp.routes.chatWebSocket
 import com.japp.routes.groupRoutes
 import com.japp.routes.expenseRoutes
+import com.japp.routes.messageRoutes
 import com.japp.routes.settlementRoutes
+import com.japp.routes.userRoutes
 import com.japp.utils.ResponseFactory
 import io.ktor.http.*
 import io.ktor.server.application.*
@@ -117,21 +121,20 @@ fun Application.configureRouting() {
             authRoutes()
 
             authenticate("auth-jwt") {
-                get("/me") {
-                    val userId = call.getUserId()
-                    call.respond(
-                        MeResponse(
-                            userId = userId,
-                            message = "You are authenticated"
-                        )
-                    )
-                }
+
+                userRoutes()
 
                 groupRoutes()
 
                 expenseRoutes()
 
                 settlementRoutes()
+
+                activityRoutes()
+
+                messageRoutes()
+
+                chatWebSocket()
             }
         }
     }

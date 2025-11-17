@@ -1,7 +1,9 @@
-package com.japp.repositories
+package com.japp.repositories.implementations
 
 import com.japp.database.tables.Settlements
+import com.japp.models.SettlementStatus
 import com.japp.models.domain.Settlement
+import com.japp.repositories.interfaces.ISettlementRepository
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.eq
@@ -30,7 +32,7 @@ class SettlementRepository : ISettlementRepository {
             it[Settlements.fromUserId] = fromUserId
             it[Settlements.toUserId] = toUserId
             it[Settlements.amount] = amount
-            it[completed] = false
+            it[status] = SettlementStatus.PENDING.value
             it[createdAt] = timestamp
             it[completedAt] = null
         }[Settlements.id]
@@ -54,7 +56,10 @@ class SettlementRepository : ISettlementRepository {
 
     override fun findPendingByGroupId(groupId: Int): List<Settlement> {
         return Settlements.selectAll()
-            .where { (Settlements.groupId eq groupId) and (Settlements.completed eq false) }
+            .where {
+                (Settlements.groupId eq groupId) and
+                        (Settlements.status eq SettlementStatus.PENDING.value)
+            }
             .orderBy(Settlements.createdAt to SortOrder.DESC)
             .map { rowToSettlement(it) }
     }
@@ -63,7 +68,7 @@ class SettlementRepository : ISettlementRepository {
         val timestamp = System.currentTimeMillis().toString()
 
         Settlements.update({ Settlements.id eq settlementId }) {
-            it[completed] = true
+            it[status] = SettlementStatus.COMPLETED.value
             it[completedAt] = timestamp
         }
 
@@ -81,7 +86,7 @@ class SettlementRepository : ISettlementRepository {
         fromUserId = row[Settlements.fromUserId],
         toUserId = row[Settlements.toUserId],
         amount = row[Settlements.amount],
-        completed = row[Settlements.completed],
+        status = SettlementStatus.fromString(row[Settlements.status]) ?: SettlementStatus.PENDING,
         createdAt = row[Settlements.createdAt],
         completedAt = row[Settlements.completedAt]
     )

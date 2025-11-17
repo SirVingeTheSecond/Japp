@@ -11,7 +11,7 @@ object GroupValidator {
         val errorFactory: (String) -> GroupError = { GroupError.ValidationError(it) }
 
         ValidationHelpers.validateNotBlank(request.name, "Group name", errorFactory)?.let {
-            return Result.Failure(it.errorOrNull()!!)
+            return Result.Failure(it)
         }
         ValidationHelpers.validateLength(
             request.name,
@@ -20,7 +20,7 @@ object GroupValidator {
             ValidationConstants.Length.GROUP_NAME_MAX,
             errorFactory
         )?.let {
-            return Result.Failure(it.errorOrNull()!!)
+            return Result.Failure(it)
         }
 
         return Result.Success(request)
@@ -34,7 +34,7 @@ object GroupValidator {
             "Invite code",
             errorFactory
         )?.let {
-            return Result.Failure(it.errorOrNull()!!)
+            return Result.Failure(it)
         }
 
         if (request.inviteCode.length != ValidationConstants.Length.INVITE_CODE_LENGTH) {

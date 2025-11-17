@@ -168,6 +168,7 @@ class MessageService(
                     }
 
                     messageRepository.markMultipleAsRead(messageIds, userId)
+
                     true
                 }
 

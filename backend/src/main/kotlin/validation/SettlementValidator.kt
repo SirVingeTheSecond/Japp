@@ -15,7 +15,7 @@ object SettlementValidator {
             "Amount",
             errorFactory
         )?.let {
-            return Result.Failure(it.errorOrNull()!!)
+            return Result.Failure(it)
         }
 
         // Validate group ID

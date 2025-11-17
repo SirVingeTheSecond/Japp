@@ -12,15 +12,15 @@ object AuthValidator {
 
         // Validate email
         ValidationHelpers.validateNotBlank(request.email, "Email", errorFactory)?.let {
-            return Result.Failure(it.errorOrNull()!!)
+            return Result.Failure(it)
         }
         ValidationHelpers.validateEmail(request.email, errorFactory)?.let {
-            return Result.Failure(it.errorOrNull()!!)
+            return Result.Failure(it)
         }
 
         // Validate username
         ValidationHelpers.validateNotBlank(request.username, "Username", errorFactory)?.let {
-            return Result.Failure(it.errorOrNull()!!)
+            return Result.Failure(it)
         }
         ValidationHelpers.validateLength(
             request.username,
@@ -29,15 +29,15 @@ object AuthValidator {
             ValidationConstants.Length.USERNAME_MAX,
             errorFactory
         )?.let {
-            return Result.Failure(it.errorOrNull()!!)
+            return Result.Failure(it)
         }
         ValidationHelpers.validateUsername(request.username, errorFactory)?.let {
-            return Result.Failure(it.errorOrNull()!!)
+            return Result.Failure(it)
         }
 
         // Validate firstname
         ValidationHelpers.validateNotBlank(request.firstname, "First name", errorFactory)?.let {
-            return Result.Failure(it.errorOrNull()!!)
+            return Result.Failure(it)
         }
         ValidationHelpers.validateLength(
             request.firstname,
@@ -46,12 +46,12 @@ object AuthValidator {
             ValidationConstants.Length.NAME_MAX,
             errorFactory
         )?.let {
-            return Result.Failure(it.errorOrNull()!!)
+            return Result.Failure(it)
         }
 
         // Validate lastname
         ValidationHelpers.validateNotBlank(request.lastname, "Last name", errorFactory)?.let {
-            return Result.Failure(it.errorOrNull()!!)
+            return Result.Failure(it)
         }
         ValidationHelpers.validateLength(
             request.lastname,
@@ -60,12 +60,12 @@ object AuthValidator {
             ValidationConstants.Length.NAME_MAX,
             errorFactory
         )?.let {
-            return Result.Failure(it.errorOrNull()!!)
+            return Result.Failure(it)
         }
 
         // Validate password
         ValidationHelpers.validateNotBlank(request.password, "Password", errorFactory)?.let {
-            return Result.Failure(it.errorOrNull()!!)
+            return Result.Failure(it)
         }
         ValidationHelpers.validateLength(
             request.password,
@@ -73,10 +73,10 @@ object AuthValidator {
             minLength = ValidationConstants.Length.PASSWORD_MIN,
             errorFactory = errorFactory
         )?.let {
-            return Result.Failure(it.errorOrNull()!!)
+            return Result.Failure(it)
         }
         ValidationHelpers.validatePassword(request.password, errorFactory)?.let {
-            return Result.Failure(it.errorOrNull()!!)
+            return Result.Failure(it)
         }
 
         // Validate phone (optional)
@@ -85,7 +85,7 @@ object AuthValidator {
             "Phone",
             errorFactory = errorFactory
         )?.let {
-            return Result.Failure(it.errorOrNull()!!)
+            return Result.Failure(it)
         }
 
         return Result.Success(request)
@@ -99,7 +99,7 @@ object AuthValidator {
             "Email or username",
             errorFactory
         )?.let {
-            return Result.Failure(it.errorOrNull()!!)
+            return Result.Failure(it)
         }
 
         ValidationHelpers.validateNotBlank(
@@ -107,7 +107,7 @@ object AuthValidator {
             "Password",
             errorFactory
         )?.let {
-            return Result.Failure(it.errorOrNull()!!)
+            return Result.Failure(it)
         }
 
         return Result.Success(request)

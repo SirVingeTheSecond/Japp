@@ -12,9 +12,9 @@ object ValidationHelpers {
         value: String?,
         fieldName: String,
         errorFactory: (String) -> E
-    ): Result<Unit, E>? {
+    ): E? {
         if (value.isNullOrBlank()) {
-            return Result.Failure(errorFactory("$fieldName is required"))
+            return errorFactory("$fieldName is required")
         }
         return null
     }
@@ -28,16 +28,16 @@ object ValidationHelpers {
         minLength: Int? = null,
         maxLength: Int? = null,
         errorFactory: (String) -> E
-    ): Result<Unit, E>? {
+    ): E? {
         minLength?.let {
             if (value.length < it) {
-                return Result.Failure(errorFactory(ValidationConstants.Messages.minLength(fieldName, it)))
+                return errorFactory(ValidationConstants.Messages.minLength(fieldName, it))
             }
         }
 
         maxLength?.let {
             if (value.length > it) {
-                return Result.Failure(errorFactory(ValidationConstants.Messages.maxLength(fieldName, it)))
+                return errorFactory(ValidationConstants.Messages.maxLength(fieldName, it))
             }
         }
 
@@ -50,9 +50,9 @@ object ValidationHelpers {
     inline fun <reified E : IAppError> validateEmail(
         email: String,
         errorFactory: (String) -> E
-    ): Result<Unit, E>? {
+    ): E? {
         if (!ValidationConstants.Regex.EMAIL.matches(email)) {
-            return Result.Failure(errorFactory(ValidationConstants.Messages.INVALID_EMAIL))
+            return errorFactory(ValidationConstants.Messages.INVALID_EMAIL)
         }
         return null
     }
@@ -63,15 +63,15 @@ object ValidationHelpers {
     inline fun <reified E : IAppError> validateUsername(
         username: String,
         errorFactory: (String) -> E
-    ): Result<Unit, E>? {
+    ): E? {
         // Check banned usernames
         if (username.lowercase() in ValidationConstants.Banned.USERNAMES) {
-            return Result.Failure(errorFactory(ValidationConstants.Messages.BANNED_USERNAME_ROLF))
+            return errorFactory(ValidationConstants.Messages.BANNED_USERNAME_ROLF)
         }
 
         // Check format
         if (!ValidationConstants.Regex.USERNAME.matches(username)) {
-            return Result.Failure(errorFactory(ValidationConstants.Messages.INVALID_USERNAME_FORMAT))
+            return errorFactory(ValidationConstants.Messages.INVALID_USERNAME_FORMAT)
         }
 
         return null
@@ -83,13 +83,13 @@ object ValidationHelpers {
     inline fun <reified E : IAppError> validatePassword(
         password: String,
         errorFactory: (String) -> E
-    ): Result<Unit, E>? {
+    ): E? {
         if (!password.any { it.isDigit() }) {
-            return Result.Failure(errorFactory(ValidationConstants.Messages.PASSWORD_NEEDS_DIGIT))
+            return errorFactory(ValidationConstants.Messages.PASSWORD_NEEDS_DIGIT)
         }
 
         if (!password.any { it.isLetter() }) {
-            return Result.Failure(errorFactory(ValidationConstants.Messages.PASSWORD_NEEDS_LETTER))
+            return errorFactory(ValidationConstants.Messages.PASSWORD_NEEDS_LETTER)
         }
 
         return null
@@ -102,9 +102,9 @@ object ValidationHelpers {
         amount: Double,
         fieldName: String = "Amount",
         errorFactory: (String) -> E
-    ): Result<Unit, E>? {
+    ): E? {
         if (amount <= 0) {
-            return Result.Failure(errorFactory(ValidationConstants.Messages.amountMustBePositive(fieldName)))
+            return errorFactory(ValidationConstants.Messages.amountMustBePositive(fieldName))
         }
         return null
     }
@@ -118,10 +118,10 @@ object ValidationHelpers {
         minLength: Int? = null,
         maxLength: Int? = null,
         errorFactory: (String) -> E
-    ): Result<Unit, E>? {
+    ): E? {
         value?.let {
             if (it.isBlank()) {
-                return Result.Failure(errorFactory(ValidationConstants.Messages.cannotBeBlankIfProvided(fieldName)))
+                return errorFactory(ValidationConstants.Messages.cannotBeBlankIfProvided(fieldName))
             }
 
             return validateLength(it, fieldName, minLength, maxLength, errorFactory)

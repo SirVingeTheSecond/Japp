@@ -44,8 +44,7 @@ fun ProfileScreen(navController: NavController) {
         context.startActivity(intent)
     }
 
-    Scaffold(modifier = Modifier
-        .background(MaterialTheme.colorScheme.primary))
+    Scaffold(containerColor = MaterialTheme.colorScheme.surface)
     { padding ->
         Column(
             modifier = Modifier

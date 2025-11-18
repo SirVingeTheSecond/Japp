@@ -58,18 +58,18 @@ object ValidationHelpers {
     }
 
     /**
-     * Validate username format and constraints
+     * Validate username format and constraints.
      */
     inline fun <reified E : IAppError> validateUsername(
         username: String,
         errorFactory: (String) -> E
     ): E? {
-        // Check banned usernames
-        if (username.lowercase() in ValidationConstants.Banned.USERNAMES) {
-            return errorFactory(ValidationConstants.Messages.BANNED_USERNAME_ROLF)
+        // Check if username is reserved (case-insensitive)
+        if (username.lowercase() in ValidationConstants.Reserved.USERNAMES) {
+            return errorFactory(ValidationConstants.Messages.RESERVED_USERNAME)
         }
 
-        // Check format
+        // Check format (alphanumeric and underscore only)
         if (!ValidationConstants.Regex.USERNAME.matches(username)) {
             return errorFactory(ValidationConstants.Messages.INVALID_USERNAME_FORMAT)
         }

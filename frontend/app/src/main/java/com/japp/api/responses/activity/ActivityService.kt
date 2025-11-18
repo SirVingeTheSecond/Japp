@@ -16,7 +16,7 @@ interface ActivityService {
         @Query("limit") limit: Int? = null
     ): Call<GroupActivitiesDto?>?
 
-    @GET("${BASE_ROUTE}/activities")
+    @GET("${BASE_ROUTE}")
     fun get_user_activities(
         @Query("limit") limit: Int? = null
     ): Call<List<ActivityDto>>

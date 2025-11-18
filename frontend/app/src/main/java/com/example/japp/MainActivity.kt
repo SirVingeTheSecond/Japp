@@ -39,13 +39,17 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.PreviewScreenSizes
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
+import androidx.navigation.navDeepLink
 import com.example.japp.screens.ActivityScreen
 import com.example.japp.screens.CreateGroupScreen
 import com.example.japp.screens.GroupScreen
 import com.example.japp.screens.HomeScreen
+import com.example.japp.screens.JoinGroupScreen
 import com.example.japp.screens.ProfileScreen
 import com.example.japp.screens.ScanScreen
 import com.example.japp.screens.ShowGroupsScreen
@@ -68,16 +72,15 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun JappApp() {
     val navController = rememberNavController()
-    var currentDestination by rememberSaveable { mutableStateOf(AppDestinations.HOME) }
+    var currentDestination by rememberSaveable { mutableStateOf<AppDestinations?>(AppDestinations.HOME) }
     navController.addOnDestinationChangedListener(
         listener = { controller, destination, arguments ->
-            // This nullpointr shouldn't fail 🙏
-            currentDestination = AppDestinations.entries.find { it.route == destination.route }!!
+            currentDestination = AppDestinations.entries.find { it.route == destination.route }
         }
     )
 
     fun navigate(route: String) {
-        if (currentDestination.route != route) {
+        if (currentDestination?.route != route) {
             navController.navigate(route)
         }
     }
@@ -92,7 +95,7 @@ fun JappApp() {
                     actionIconContentColor = MaterialTheme.colorScheme.onSecondary
                 ),
                 title = {
-                    Text(currentDestination.label)
+                    Text(currentDestination?.label ?: "")
                 },
                 navigationIcon = {
                     IconButton(onClick = { navigate(AppDestinations.ACTIVITY.route) }) {
@@ -122,7 +125,7 @@ fun JappApp() {
         bottomBar = {
             NavigationBar {
                 NavigationBarItem(
-                    selected = AppDestinations.HOME.route == currentDestination.route,
+                    selected = AppDestinations.HOME.route == currentDestination?.route,
                     onClick = { navigate(AppDestinations.HOME.route) },
                     icon = { Icon(AppDestinations.HOME.icon, "idk")},
                     label = {
@@ -130,7 +133,7 @@ fun JappApp() {
                     },
                     alwaysShowLabel = false,
                 )
-                val actionButton = NavigationActionButtons.entries.find { it.route == currentDestination.route } ?: NavigationActionButtons.DEFAULT
+                val actionButton = NavigationActionButtons.entries.find { it.route == currentDestination?.route } ?: NavigationActionButtons.DEFAULT
                 FloatingActionButton (
                     onClick = { navigate(actionButton.destination.route) },
                     // Tendency to hit home or profile instead of scan, but moves them far apart. TODO: Better solution
@@ -139,7 +142,7 @@ fun JappApp() {
                     Icon(actionButton.icon, actionButton.destination.route)
                 }
                 NavigationBarItem(
-                    selected = AppDestinations.PROFILE.route == currentDestination.route,
+                    selected = AppDestinations.PROFILE.route == currentDestination?.route,
                     onClick = { navigate(AppDestinations.PROFILE.route) },
                     icon = { Icon(AppDestinations.PROFILE.icon, "idk")},
                     label = {
@@ -158,6 +161,16 @@ fun JappApp() {
         ) {
             for (destination in AppDestinations.entries) {
                 composable(destination.route) { destination.screen(navController) }
+            }
+            composable(
+                route = "join/{code}",
+                arguments = listOf(navArgument("code") { type = NavType.StringType }),
+                deepLinks = listOf(navDeepLink {
+                    uriPattern = "japp://join/{code}"
+                })
+            ) {
+                val code = it.arguments?.getString("code")
+                JoinGroupScreen(navController, code)
             }
         }
     }

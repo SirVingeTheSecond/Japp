@@ -4,13 +4,14 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Camera
+import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.GroupAdd
+import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
@@ -38,15 +39,21 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.PreviewScreenSizes
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.japp.screens.ActivityScreen
-import com.japp.screens.CreateGroupScreen
 import com.japp.screens.HomeScreen
 import com.japp.screens.ProfileScreen
 import com.japp.screens.ScanScreen
 import com.japp.ui.theme.JappTheme
+import androidx.navigation.navArgument
+import androidx.navigation.navDeepLink
+import com.japp.screens.CreateGroupScreen
+import com.japp.screens.GroupScreen
+import com.japp.screens.JoinGroupScreen
+import com.japp.screens.ShowGroupsScreen
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -65,16 +72,15 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun JappApp() {
     val navController = rememberNavController()
-    var currentDestination by rememberSaveable { mutableStateOf(AppDestinations.HOME) }
+    var currentDestination by rememberSaveable { mutableStateOf<AppDestinations?>(AppDestinations.HOME) }
     navController.addOnDestinationChangedListener(
         listener = { controller, destination, arguments ->
-            // This nullpointr shouldn't fail 🙏
-            currentDestination = AppDestinations.entries.find { it.route == destination.route }!!
+            currentDestination = AppDestinations.entries.find { it.route == destination.route }
         }
     )
 
     fun navigate(route: String) {
-        if (currentDestination.route != route) {
+        if (currentDestination?.route != route) {
             navController.navigate(route)
         }
     }
@@ -89,7 +95,7 @@ fun JappApp() {
                     actionIconContentColor = MaterialTheme.colorScheme.onSurface
                 ),
                 title = {
-                    Text(currentDestination.label)
+                    Text(currentDestination?.label ?: "")
                 },
                 navigationIcon = {
                     IconButton(onClick = { navigate(AppDestinations.ACTIVITY.route) }) {
@@ -119,7 +125,7 @@ fun JappApp() {
         bottomBar = {
             NavigationBar {
                 NavigationBarItem(
-                    selected = AppDestinations.HOME.route == currentDestination.route,
+                    selected = AppDestinations.HOME.route == currentDestination?.route,
                     onClick = { navigate(AppDestinations.HOME.route) },
                     icon = { Icon(AppDestinations.HOME.icon, "idk")},
                     label = {
@@ -127,7 +133,7 @@ fun JappApp() {
                     },
                     alwaysShowLabel = false,
                 )
-                val actionButton = NavigationActionButtons.entries.find { it.route == currentDestination.route } ?: NavigationActionButtons.DEFAULT
+                val actionButton = NavigationActionButtons.entries.find { it.route == currentDestination?.route } ?: NavigationActionButtons.DEFAULT
                 FloatingActionButton (
                     onClick = { navigate(actionButton.destination.route) },
                     // Tendency to hit home or profile instead of scan, but moves them far apart. TODO: Better solution
@@ -136,7 +142,7 @@ fun JappApp() {
                     Icon(actionButton.icon, actionButton.destination.route)
                 }
                 NavigationBarItem(
-                    selected = AppDestinations.PROFILE.route == currentDestination.route,
+                    selected = AppDestinations.PROFILE.route == currentDestination?.route,
                     onClick = { navigate(AppDestinations.PROFILE.route) },
                     icon = { Icon(AppDestinations.PROFILE.icon, "idk")},
                     label = {
@@ -157,6 +163,16 @@ fun JappApp() {
             for (destination in AppDestinations.entries) {
                 composable(destination.route) { destination.screen(navController) }
             }
+            composable(
+                route = "join/{code}",
+                arguments = listOf(navArgument("code") { type = NavType.StringType }),
+                deepLinks = listOf(navDeepLink {
+                    uriPattern = "japp://join/{code}"
+                })
+            ) {
+                val code = it.arguments?.getString("code")
+                JoinGroupScreen(navController, code)
+            }
         }
     }
 }
@@ -170,7 +186,9 @@ enum class AppDestinations(
     SCAN("Scan", Icons.Default.Camera, { navController -> ScanScreen(navController) }),
     PROFILE("Profile", Icons.Default.Person, { navController -> ProfileScreen(navController) }),
     ACTIVITY("Activity", Icons.Default.Notifications, { navController -> ActivityScreen(navController) }),
-    CREATEGROUP("Create Group", Icons.Default.GroupAdd, { navController -> CreateGroupScreen(navController) });
+    CREATEGROUP("Create Group", Icons.Default.GroupAdd, { navController -> CreateGroupScreen(navController) }),
+    MYGROUPS("My Groups", Icons.Default.Groups, { navController -> ShowGroupsScreen(navController) }),
+    GROUP("Group", Icons.Default.Group, { navController -> GroupScreen(navController) });
 
     val route: String
         get() = label.replace(" ", "") // Remove spaces for route

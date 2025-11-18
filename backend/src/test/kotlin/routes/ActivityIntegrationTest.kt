@@ -6,6 +6,7 @@ import com.japp.models.dto.*
 import com.japp.module
 import io.kotest.core.spec.style.AnnotationSpec
 import io.kotest.matchers.collections.shouldContain
+import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
 import io.ktor.client.request.*
@@ -145,9 +146,7 @@ class ActivityIntegrationTest : AnnotationSpec() {
         response.status shouldBe HttpStatusCode.OK
         val activities = json.decodeFromString<List<ActivityDto>>(response.bodyAsText())
 
-        activities.shouldNotBe(emptyList<ActivityDto>())
-        // Expect it to contain at least GROUP_CREATED, MEMBER_JOINED (for user2), EXPENSE_CREATED
-        activities.size shouldBe 3
+        activities shouldHaveSize 3
         activities.map { it.actionType } shouldContain ActivityType.GROUP_CREATED
         activities.map { it.actionType } shouldContain ActivityType.EXPENSE_CREATED
     }

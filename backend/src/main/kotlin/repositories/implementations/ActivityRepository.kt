@@ -8,6 +8,7 @@ import com.japp.repositories.interfaces.IActivityRepository
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.innerJoin
 import org.jetbrains.exposed.v1.jdbc.*
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 
@@ -53,7 +54,8 @@ class ActivityRepository : IActivityRepository {
     }
 
     override fun findByUserId(userId: Int, limit: Int): List<ActivityLog> {
-        return (ActivityLogs innerJoin GroupMembers)
+        return ActivityLogs
+            .innerJoin(GroupMembers, { ActivityLogs.groupId }, { GroupMembers.groupId })
             .selectAll()
             .where { GroupMembers.userId eq userId }
             .orderBy(ActivityLogs.createdAt to SortOrder.DESC)

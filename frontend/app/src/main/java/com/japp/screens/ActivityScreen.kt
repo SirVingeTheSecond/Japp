@@ -35,8 +35,9 @@ import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 import retrofit2.Callback
 import retrofit2.Response
-
-
+import java.time.Instant
+import java.time.ZoneId
+import java.time.ZoneOffset
 
 
 fun printableDatetime(time: LocalDateTime): String {
@@ -109,7 +110,7 @@ fun getActivities(
     groupActivity: MutableState<GroupActivitiesDto?>,
     isLoading: MutableState<Boolean>
 ) {
-    val call = RetrofitClient.activityService.get_group_activities(1)
+    val call = RetrofitClient.activityService.get_group_activities(2)
 
     call!!.enqueue(object: Callback<GroupActivitiesDto?> {
 
@@ -168,8 +169,8 @@ fun ActivityScreen(navController: NavController? = null) {
                     ActivityRow(
                         Icons.Default.Circle, // todo, icon per actionType
                         it.userName,
-                        it.actionType.name,
-                        LocalDateTime.now()
+                        it.actionType.description,
+                        LocalDateTime.ofInstant(Instant.ofEpochMilli(it.createdAt.toLong()), ZoneId.systemDefault())
                     )
                 }
 

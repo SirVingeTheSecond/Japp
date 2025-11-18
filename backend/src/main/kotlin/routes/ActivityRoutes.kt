@@ -24,12 +24,7 @@ fun Route.activityRoutes() {
             val limit = call.request.queryParameters["limit"]?.toIntOrNull() ?: 50
 
             try {
-                val activities = withContext(Dispatchers.IO) {
-                    transaction {
-                        activityService.getUserActivities(userId, limit)
-                    }
-                }
-
+                val activities = activityService.getUserActivities(userId, limit)
                 call.respond(HttpStatusCode.OK, activities)
             } catch (e: Exception) {
                 call.respond(
@@ -57,16 +52,13 @@ fun Route.activityRoutes() {
             val userId = call.getUserId()
 
             try {
-                val activities = withContext(Dispatchers.IO) {
+                val isMember = withContext(Dispatchers.IO) {
                     transaction {
-                        if (!groupRepository.isMember(groupId, userId)) {
-                            return@transaction null
-                        }
-                        activityService.getGroupActivities(groupId, limit)
+                        groupRepository.isMember(groupId, userId)
                     }
                 }
 
-                if (activities == null) {
+                if (!isMember) {
                     call.respond(
                         HttpStatusCode.Forbidden,
                         ResponseFactory.error(
@@ -74,9 +66,11 @@ fun Route.activityRoutes() {
                             message = "Not a member of this group"
                         )
                     )
-                } else {
-                    call.respond(HttpStatusCode.OK, activities)
+                    return@get
                 }
+
+                val activities = activityService.getGroupActivities(groupId, limit)
+                call.respond(HttpStatusCode.OK, activities)
 
             } catch (e: Exception) {
                 call.respond(

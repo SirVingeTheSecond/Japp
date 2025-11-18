@@ -18,7 +18,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.example.japp.ui.theme.JappTheme
+import com.japp.ui.theme.JappTheme
 
 @Composable
 fun GroupIcon(content: String, modifier: Modifier = Modifier){

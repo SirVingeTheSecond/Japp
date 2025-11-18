@@ -1,4 +1,4 @@
-package com.example.japp.screens
+package com.japp.screens
 
 import android.util.Log
 import androidx.compose.foundation.clickable
@@ -36,9 +36,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import com.example.japp.AppDestinations
-import com.example.japp.api.RetrofitClient
-import com.example.japp.api.responses.group.GroupDto
+import com.japp.AppDestinations
+import com.japp.api.RetrofitClient
+import com.japp.api.responses.group.GroupDto
 import com.japp.composables.GroupIcon
 import retrofit2.Call
 import retrofit2.Callback

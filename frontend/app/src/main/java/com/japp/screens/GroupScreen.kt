@@ -1,4 +1,4 @@
-package com.example.japp.screens
+package com.japp.screens
 
 
 import android.graphics.Bitmap
@@ -41,8 +41,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.example.japp.api.RetrofitClient
-import com.example.japp.api.responses.group.GroupDto
+import com.japp.api.RetrofitClient
+import com.japp.api.responses.group.GroupDto
 import com.japp.composables.GroupIcon
 import com.google.zxing.BarcodeFormat
 import com.journeyapps.barcodescanner.BarcodeEncoder

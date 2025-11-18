@@ -1,10 +1,9 @@
-package com.example.japp
+package com.japp
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -45,16 +44,16 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.japp.screens.ActivityScreen
-import com.japp.screens.CreateGroupScreen
 import com.japp.screens.HomeScreen
 import com.japp.screens.ProfileScreen
 import com.japp.screens.ScanScreen
 import com.japp.ui.theme.JappTheme
 import androidx.navigation.navArgument
 import androidx.navigation.navDeepLink
-import com.example.japp.screens.GroupScreen
-import com.example.japp.screens.JoinGroupScreen
-import com.example.japp.screens.ShowGroupsScreen
+import com.japp.screens.CreateGroupScreen
+import com.japp.screens.GroupScreen
+import com.japp.screens.JoinGroupScreen
+import com.japp.screens.ShowGroupsScreen
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {

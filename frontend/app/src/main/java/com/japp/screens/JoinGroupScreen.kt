@@ -1,4 +1,4 @@
-package com.example.japp.screens
+package com.japp.screens
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -12,6 +12,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -19,10 +20,10 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import com.example.japp.AppDestinations
-import com.example.japp.api.RetrofitClient
-import com.example.japp.api.responses.group.GroupDto
-import com.example.japp.api.responses.group.JoinGroupRequest
+import com.japp.AppDestinations
+import com.japp.api.RetrofitClient
+import com.japp.api.responses.group.GroupDto
+import com.japp.api.responses.group.JoinGroupRequest
 import com.japp.composables.GroupIcon
 import retrofit2.Call
 import retrofit2.Callback

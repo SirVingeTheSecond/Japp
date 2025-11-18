@@ -1,4 +1,4 @@
-package com.japp.routes
+package routes
 
 import com.japp.module
 import com.japp.database.DatabaseSchema

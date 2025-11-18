@@ -5,7 +5,6 @@ import com.japp.models.dto.MarkMessageReadRequest
 import com.japp.models.dto.WebSocketMessage
 import com.japp.plugins.getUserId
 import com.japp.services.MessageService
-import com.japp.utils.getOptionalQueryInt
 import com.japp.utils.requirePathInt
 import com.japp.utils.requireQueryInt
 import com.japp.utils.respondResult

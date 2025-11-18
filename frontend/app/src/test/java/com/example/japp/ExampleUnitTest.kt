@@ -1,4 +1,4 @@
-package com.example.japp
+package com.japp
 
 import org.junit.Test
 

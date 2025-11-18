@@ -1,3 +1,5 @@
+import org.gradle.api.tasks.testing.logging.TestExceptionFormat
+
 val h2_version: String by project
 val koin_version: String by project
 val kotlin_version: String by project
@@ -24,6 +26,15 @@ application {
 
 tasks.withType<Test> {
     useJUnitPlatform()
+
+    testLogging {
+        events("passed", "skipped", "failed")
+        exceptionFormat = TestExceptionFormat.FULL
+        showStandardStreams = false
+        showExceptions = true
+        showCauses = true
+        showStackTraces = true
+    }
 }
 
 dependencies {
@@ -40,7 +51,6 @@ dependencies {
 
     // Serialization
     implementation("io.ktor:ktor-server-content-negotiation")
-    implementation("io.ktor:ktor-serialization-jackson")
     implementation("io.ktor:ktor-serialization-kotlinx-json")
 
     // Dependency Injection
@@ -71,7 +81,7 @@ dependencies {
     // Testing
     testImplementation("io.ktor:ktor-server-test-host")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit:$kotlin_version")
-    testImplementation("io.kotest:kotest-runner-junit5:$kotest_version")
+    testImplementation("io.kotest:kotest-runner-junit5:${kotest_version}")
     testImplementation("io.kotest:kotest-assertions-core:$kotest_version")
     testImplementation("io.kotest:kotest-property:$kotest_version")
     testImplementation("io.mockk:mockk:$mockk_version")

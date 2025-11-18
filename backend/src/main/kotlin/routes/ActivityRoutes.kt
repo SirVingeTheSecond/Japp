@@ -18,6 +18,26 @@ fun Route.activityRoutes() {
 
     route("/activities") {
 
+        // Get activities for current user across all groups
+        get {
+            val userId = call.getUserId()
+            val limit = call.request.queryParameters["limit"]?.toIntOrNull() ?: 50
+
+            try {
+                val activities = activityService.getUserActivities(userId, limit)
+                call.respond(HttpStatusCode.OK, activities)
+            } catch (e: Exception) {
+                call.respond(
+                    HttpStatusCode.InternalServerError,
+                    ResponseFactory.error(
+                        error = "InternalServerError",
+                        message = e.message ?: "Failed to retrieve activities"
+                    )
+                )
+            }
+        }
+
+        // Get activities for a specific group
         get("/group/{groupId}") {
             val groupId = call.parameters["groupId"]?.toIntOrNull()
                 ?: return@get call.respond(
@@ -32,17 +52,13 @@ fun Route.activityRoutes() {
             val userId = call.getUserId()
 
             try {
-                val activities = withContext(Dispatchers.IO) {
+                val isMember = withContext(Dispatchers.IO) {
                     transaction {
-                        if (!groupRepository.isMember(groupId, userId)) {
-                            return@transaction null  // Not a member
-                        }
-                        activityService.getGroupActivities(groupId, limit)
+                        groupRepository.isMember(groupId, userId)
                     }
                 }
 
-                // Check if user is not a member
-                if (activities == null) {
+                if (!isMember) {
                     call.respond(
                         HttpStatusCode.Forbidden,
                         ResponseFactory.error(
@@ -50,9 +66,11 @@ fun Route.activityRoutes() {
                             message = "Not a member of this group"
                         )
                     )
-                } else {
-                    call.respond(HttpStatusCode.OK, activities)
+                    return@get
                 }
+
+                val activities = activityService.getGroupActivities(groupId, limit)
+                call.respond(HttpStatusCode.OK, activities)
 
             } catch (e: Exception) {
                 call.respond(

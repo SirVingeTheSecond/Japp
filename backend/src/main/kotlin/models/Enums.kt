@@ -9,7 +9,41 @@ import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 
 /**
- * Split type for expense distribution
+ * Base serializer for string enums.
+ * Provides common serialization logic to reduce boilerplate across enum types.
+ *
+ * @param T The enum type to serialize
+ * @param enumName The name of the enum for error messages
+ * @param fromString Function to parse string value to enum
+ * @param toString Function to convert enum to string value
+ */
+abstract class StringEnumSerializer<T : Enum<T>>(
+    private val enumName: String,
+    private val fromString: (String) -> T?,
+    private val toString: (T) -> String
+) : KSerializer<T> {
+    override val descriptor = PrimitiveSerialDescriptor(enumName, PrimitiveKind.STRING)
+
+    override fun serialize(encoder: Encoder, value: T) {
+        encoder.encodeString(toString(value))
+    }
+
+    override fun deserialize(decoder: Decoder): T {
+        val stringValue = decoder.decodeString()
+        return fromString(stringValue)
+            ?: throw SerializationException("Unknown $enumName value: '$stringValue'")
+    }
+}
+
+// ==============================
+// EXPENSE ENUMS
+// ==============================
+
+/**
+ * Defines how an expense should be split among group members.
+ *
+ * - [EQUAL]: Split evenly among all participants
+ * - [CUSTOM]: Custom split with specified amounts or percentages
  */
 @Serializable(with = SplitTypeSerializer::class)
 enum class SplitType(val value: String) {
@@ -17,100 +51,189 @@ enum class SplitType(val value: String) {
     CUSTOM("custom");
 
     companion object {
-        fun fromString(value: String): SplitType? {
-            return entries.find { it.value.equals(value, ignoreCase = true) }
-        }
+        /**
+         * Parse string value to SplitType enum (case-insensitive).
+         * Returns null if the value doesn't match any enum constant.
+         */
+        fun fromString(value: String): SplitType? =
+            entries.find { it.value.equals(value, ignoreCase = true) }
     }
 }
 
-object SplitTypeSerializer : KSerializer<SplitType> {
-    override val descriptor = PrimitiveSerialDescriptor("SplitType", PrimitiveKind.STRING)
+object SplitTypeSerializer : StringEnumSerializer<SplitType>(
+    enumName = "SplitType",
+    fromString = SplitType::fromString,
+    toString = { it.value }
+)
 
-    override fun serialize(encoder: Encoder, value: SplitType) {
-        encoder.encodeString(value.value)
-    }
+/**
+ * Expense category for classification and reporting.
+ * Each category has a display name for the user interface.
+ */
+@Serializable(with = ExpenseCategorySerializer::class)
+enum class ExpenseCategory(val value: String, val displayName: String) {
+    FOOD("food", "Food and Dining"),
+    TRANSPORTATION("transportation", "Transportation"),
+    ACCOMMODATION("accommodation", "Accommodation"),
+    ENTERTAINMENT("entertainment", "Entertainment"),
+    SHOPPING("shopping", "Shopping"),
+    GROCERIES("groceries", "Groceries"),
+    UTILITIES("utilities", "Utilities"),
+    OTHER("other", "Other");
 
-    override fun deserialize(decoder: Decoder): SplitType {
-        return SplitType.fromString(decoder.decodeString())
-            ?: throw SerializationException("Unknown split type")
+    companion object {
+        /**
+         * Parse string value to ExpenseCategory enum (case-insensitive).
+         * Returns null if the value doesn't match any enum constant.
+         */
+        fun fromString(value: String): ExpenseCategory? =
+            entries.find { it.value.equals(value, ignoreCase = true) }
+
+        /**
+         * Returns the default expense category.
+         */
+        fun default(): ExpenseCategory = OTHER
     }
 }
 
+object ExpenseCategorySerializer : StringEnumSerializer<ExpenseCategory>(
+    enumName = "ExpenseCategory",
+    fromString = ExpenseCategory::fromString,
+    toString = { it.value }
+)
+
+// ==============================
+// CURRENCY ENUMS
+// ==============================
+
+/**
+ * Supported currencies in the application.
+ * Each currency has a code (ISO 4217) and a display symbol.
+ */
 @Serializable(with = CurrencySerializer::class)
 enum class Currency(val code: String, val symbol: String) {
     DKK("DKK", "kr"),
     EUR("EUR", "€");
 
     companion object {
-        fun fromCode(code: String): Currency? {
-            return entries.find { it.code.equals(code, ignoreCase = true) }
-        }
+        /**
+         * Parse currency code to Currency enum (case-insensitive).
+         * Returns null if the code doesn't match any enum constant.
+         */
+        fun fromCode(code: String): Currency? =
+            entries.find { it.code.equals(code, ignoreCase = true) }
     }
 }
 
-object CurrencySerializer : KSerializer<Currency> {
-    override val descriptor = PrimitiveSerialDescriptor("Currency", PrimitiveKind.STRING)
+object CurrencySerializer : StringEnumSerializer<Currency>(
+    enumName = "Currency",
+    fromString = Currency::fromCode,
+    toString = { it.code }
+)
 
-    override fun serialize(encoder: Encoder, value: Currency) {
-        encoder.encodeString(value.code)
-    }
+// ==============================
+// USER ENUMS
+// ==============================
 
-    override fun deserialize(decoder: Decoder): Currency {
-        return Currency.fromCode(decoder.decodeString())
-            ?: throw SerializationException("Unknown currency")
-    }
-}
-
+/**
+ * User account status.
+ *
+ * - [ACTIVE]: User can access the system normally
+ * - [INACTIVE]: User account is disabled
+ */
 @Serializable(with = UserStatusSerializer::class)
 enum class UserStatus(val value: String) {
     ACTIVE("active"),
     INACTIVE("inactive");
 
     companion object {
-        fun fromString(value: String): UserStatus? {
-            return entries.find { it.value.equals(value, ignoreCase = true) }
-        }
+        /**
+         * Parse string value to UserStatus enum (case-insensitive).
+         * Returns null if the value doesn't match any enum constant.
+         */
+        fun fromString(value: String): UserStatus? =
+            entries.find { it.value.equals(value, ignoreCase = true) }
     }
 }
 
-object UserStatusSerializer : KSerializer<UserStatus> {
-    override val descriptor = PrimitiveSerialDescriptor("UserStatus", PrimitiveKind.STRING)
+object UserStatusSerializer : StringEnumSerializer<UserStatus>(
+    enumName = "UserStatus",
+    fromString = UserStatus::fromString,
+    toString = { it.value }
+)
 
-    override fun serialize(encoder: Encoder, value: UserStatus) {
-        encoder.encodeString(value.value)
-    }
+// ==============================
+// GROUP ENUMS
+// ==============================
 
-    override fun deserialize(decoder: Decoder): UserStatus {
-        return UserStatus.fromString(decoder.decodeString())
-            ?: throw SerializationException("Unknown user status")
-    }
-}
-
+/**
+ * Role of a user within a group.
+ *
+ * - [OWNER]: Group creator with full permissions
+ * - [MEMBER]: Regular group member
+ */
 @Serializable(with = GroupRoleSerializer::class)
 enum class GroupRole(val value: String) {
     OWNER("owner"),
     MEMBER("member");
 
     companion object {
-        fun fromString(value: String): GroupRole? {
-            return entries.find { it.value.equals(value, ignoreCase = true) }
-        }
+        /**
+         * Parse string value to GroupRole enum (case-insensitive).
+         * Returns null if the value does not match any enum constant.
+         */
+        fun fromString(value: String): GroupRole? =
+            entries.find { it.value.equals(value, ignoreCase = true) }
     }
 }
 
-object GroupRoleSerializer : KSerializer<GroupRole> {
-    override val descriptor = PrimitiveSerialDescriptor("GroupRole", PrimitiveKind.STRING)
+object GroupRoleSerializer : StringEnumSerializer<GroupRole>(
+    enumName = "GroupRole",
+    fromString = GroupRole::fromString,
+    toString = { it.value }
+)
 
-    override fun serialize(encoder: Encoder, value: GroupRole) {
-        encoder.encodeString(value.value)
-    }
+// ==============================
+// SETTLEMENT ENUMS
+// ==============================
 
-    override fun deserialize(decoder: Decoder): GroupRole {
-        return GroupRole.fromString(decoder.decodeString())
-            ?: throw SerializationException("Unknown group role")
+/**
+ * Settlement transaction status.
+ *
+ * - [PENDING]: Settlement created but not yet completed
+ * - [COMPLETED]: Settlement has been paid
+ * - [CANCELLED]: Settlement was cancelled
+ */
+@Serializable(with = SettlementStatusSerializer::class)
+enum class SettlementStatus(val value: String) {
+    PENDING("pending"),
+    COMPLETED("completed"),
+    CANCELLED("cancelled");
+
+    companion object {
+        /**
+         * Parse string value to SettlementStatus enum (case-insensitive).
+         * Returns null if the value does not match any enum constant.
+         */
+        fun fromString(value: String): SettlementStatus? =
+            entries.find { it.value.equals(value, ignoreCase = true) }
     }
 }
 
+object SettlementStatusSerializer : StringEnumSerializer<SettlementStatus>(
+    enumName = "SettlementStatus",
+    fromString = SettlementStatus::fromString,
+    toString = { it.value }
+)
+
+// ==============================
+// ACTIVITY ENUMS
+// ==============================
+
+/**
+ * Type of activity for audit logging and activity feeds.
+ * Each type has a human-readable description.
+ */
 @Serializable(with = ActivityTypeSerializer::class)
 enum class ActivityType(val value: String, val description: String) {
     GROUP_CREATED("group_created", "Group created"),
@@ -124,105 +247,48 @@ enum class ActivityType(val value: String, val description: String) {
     RECEIPT_UPLOADED("receipt_uploaded", "Receipt uploaded");
 
     companion object {
-        fun fromString(value: String): ActivityType? {
-            return entries.find { it.value.equals(value, ignoreCase = true) }
-        }
+        /**
+         * Parse string value to ActivityType enum (case-insensitive).
+         * Returns null if the value does not match any enum constant.
+         */
+        fun fromString(value: String): ActivityType? =
+            entries.find { it.value.equals(value, ignoreCase = true) }
     }
 }
 
-object ActivityTypeSerializer : KSerializer<ActivityType> {
-    override val descriptor = PrimitiveSerialDescriptor("ActivityType", PrimitiveKind.STRING)
+object ActivityTypeSerializer : StringEnumSerializer<ActivityType>(
+    enumName = "ActivityType",
+    fromString = ActivityType::fromString,
+    toString = { it.value }
+)
 
-    override fun serialize(encoder: Encoder, value: ActivityType) {
-        encoder.encodeString(value.value)
-    }
+// ==============================
+// MESSAGE ENUMS
+// ==============================
 
-    override fun deserialize(decoder: Decoder): ActivityType {
-        return ActivityType.fromString(decoder.decodeString())
-            ?: throw SerializationException("Unknown activity type")
-    }
-}
-
-@Serializable(with = SettlementStatusSerializer::class)
-enum class SettlementStatus(val value: String) {
-    PENDING("pending"),
-    COMPLETED("completed"),
-    CANCELLED("cancelled");
-
-    companion object {
-        fun fromString(value: String): SettlementStatus? {
-            return entries.find { it.value.equals(value, ignoreCase = true) }
-        }
-    }
-}
-
-object SettlementStatusSerializer : KSerializer<SettlementStatus> {
-    override val descriptor = PrimitiveSerialDescriptor("SettlementStatus", PrimitiveKind.STRING)
-
-    override fun serialize(encoder: Encoder, value: SettlementStatus) {
-        encoder.encodeString(value.value)
-    }
-
-    override fun deserialize(decoder: Decoder): SettlementStatus {
-        return SettlementStatus.fromString(decoder.decodeString())
-            ?: throw SerializationException("Unknown settlement status")
-    }
-}
-
-@Serializable(with = ExpenseCategorySerializer::class)
-enum class ExpenseCategory(val value: String, val displayName: String) {
-    FOOD("food", "Food and Dining"),
-    TRANSPORTATION("transportation", "Transportation"),
-    ACCOMMODATION("accommodation", "Accommodation"),
-    ENTERTAINMENT("entertainment", "Entertainment"),
-    SHOPPING("shopping", "Shopping"),
-    GROCERIES("groceries", "Groceries"),
-    UTILITIES("utilities", "Utilities"),
-    OTHER("other", "Other");
-
-    companion object {
-        fun fromString(value: String): ExpenseCategory? {
-            return entries.find { it.value.equals(value, ignoreCase = true) }
-        }
-
-        fun default(): ExpenseCategory = OTHER
-    }
-}
-
-object ExpenseCategorySerializer : KSerializer<ExpenseCategory> {
-    override val descriptor = PrimitiveSerialDescriptor("ExpenseCategory", PrimitiveKind.STRING)
-
-    override fun serialize(encoder: Encoder, value: ExpenseCategory) {
-        encoder.encodeString(value.value)
-    }
-
-    override fun deserialize(decoder: Decoder): ExpenseCategory {
-        return ExpenseCategory.fromString(decoder.decodeString())
-            ?: throw SerializationException("Unknown expense category")
-    }
-}
-
+/**
+ * Type of message in group chat.
+ *
+ * - [USER]: Message sent by a user
+ * - [SYSTEM]: Automated system message (e.g. notifications)
+ */
 @Serializable(with = MessageTypeSerializer::class)
 enum class MessageType(val value: String) {
     USER("user"),
     SYSTEM("system");
 
     companion object {
-        fun fromString(value: String): MessageType? {
-            return entries.find { it.value.equals(value, ignoreCase = true) }
-        }
+        /**
+         * Parse string value to MessageType enum (case-insensitive).
+         * Returns null if the value does not match any enum constant.
+         */
+        fun fromString(value: String): MessageType? =
+            entries.find { it.value.equals(value, ignoreCase = true) }
     }
 }
 
-object MessageTypeSerializer : KSerializer<MessageType> {
-    override val descriptor = PrimitiveSerialDescriptor("MessageType", PrimitiveKind.STRING)
-
-    override fun serialize(encoder: Encoder, value: MessageType) {
-        encoder.encodeString(value.value)
-    }
-
-    override fun deserialize(decoder: Decoder): MessageType {
-        return MessageType.fromString(decoder.decodeString())
-            ?: throw SerializationException("Unknown message type")
-    }
-}
+object MessageTypeSerializer : StringEnumSerializer<MessageType>(
+    enumName = "MessageType",
+    fromString = MessageType::fromString,
+    toString = { it.value }
+)

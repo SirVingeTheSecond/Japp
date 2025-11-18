@@ -8,7 +8,6 @@ object ValidationConstants {
     object Regex {
         val EMAIL = "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$".toRegex()
         val USERNAME = "^[A-Za-z0-9_]+$".toRegex()
-        val BANNED_USERNAME = "^(?!(?i)rolf$)[A-Za-z0-9_]+$".toRegex()
     }
 
     // String length constraints
@@ -45,8 +44,13 @@ object ValidationConstants {
         val VALID_GROUP_ROLES = GroupRole.entries.map { it.value }
     }
 
-    object Banned {
-        val USERNAMES = setOf("rolf") // Case-insensitive
+    /**
+     * Reserved usernames that cannot be used for registration.
+     */
+    object Reserved {
+        val USERNAMES = setOf(
+            "rolf"
+        )
     }
 
     // Error messages
@@ -87,9 +91,9 @@ object ValidationConstants {
         const val PASSWORD_NEEDS_DIGIT = "Password must contain at least one digit"
         const val PASSWORD_NEEDS_LETTER = "Password must contain at least one letter"
 
-        // Business logic
+        // Other stuff
         const val USERNAME_TAKEN = "Username already taken"
-        const val BANNED_USERNAME_ROLF = "Yeah Rolf, you are not allowed in here"
+        const val RESERVED_USERNAME = "Yeah, you are not allowed in here with that username."
         const val AT_LEAST_ONE_FIELD = "At least one field must be provided for update"
         const val CUSTOM_SPLIT_NEEDS_DATA = "Custom split requires splits data"
         const val CANNOT_PAY_YOURSELF = "Cannot create settlement to yourself"

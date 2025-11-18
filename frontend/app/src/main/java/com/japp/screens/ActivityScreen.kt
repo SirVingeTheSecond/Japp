@@ -2,6 +2,7 @@ package com.japp.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -31,6 +32,7 @@ import androidx.navigation.NavController
 import com.japp.api.RetrofitClient
 import com.japp.api.responses.activity.ActivityDto
 import com.japp.api.responses.activity.GroupActivitiesDto
+import com.japp.composables.printableDatetime
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
@@ -39,27 +41,6 @@ import retrofit2.Response
 import java.time.Instant
 import java.time.ZoneId
 import java.time.ZoneOffset
-
-
-fun printableDatetime(time: LocalDateTime): String {
-
-    val minutes = ChronoUnit.MINUTES.between(time, LocalDateTime.now())
-    val weeks = ChronoUnit.WEEKS.between(time, LocalDateTime.now())
-    val years = ChronoUnit.YEARS.between(time, LocalDateTime.now())
-
-    if (minutes < 1) {
-        return "now"
-    } else if (years == 0L && time.dayOfYear == LocalDateTime.now().dayOfYear) {
-        return "today"
-    } else if (years == 0L && time.dayOfYear == (LocalDateTime.now().dayOfYear-1)) {
-        return "yesterday"
-    } else if (years == 0L && weeks == 0L) {
-        return time.dayOfWeek.name.lowercase()
-    } else {
-        val dateTimeFormatter = DateTimeFormatter.ofPattern("dd/MM/yy")
-        return time.format(dateTimeFormatter)
-    }
-}
 
 @Composable
 fun ActivityRow(
@@ -150,33 +131,26 @@ fun ActivityScreen(navController: NavController? = null) {
         getActivities(userActivity, isLoading)
     }
 
-    Scaffold (
-        modifier = Modifier
-            .background(MaterialTheme.colorScheme.primary)
-    ) { paddingValues -> Column (
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(paddingValues)
-            .padding(16.dp),
-        verticalArrangement = Arrangement.Top,
-        horizontalAlignment = Alignment.CenterHorizontally
-        ) {
+    Column (
+    modifier = Modifier
+        .fillMaxWidth()
+        .padding(16.dp),
+    verticalArrangement = Arrangement.Top,
+    horizontalAlignment = Alignment.CenterHorizontally
+    ) {
 
-            if (isLoading.value) {
-                CircularProgressIndicator()
-            } else {
+        if (isLoading.value) {
+            CircularProgressIndicator()
+        } else {
 
-                userActivity.value?.forEach {
-                    ActivityRow(
-                        Icons.Default.Circle, // todo, icon per actionType
-                        it.userName,
-                        it.actionType.description,
-                        LocalDateTime.ofInstant(Instant.ofEpochMilli(it.createdAt.toLong()), ZoneId.systemDefault())
-                    )
-                }
-
+            userActivity.value?.forEach {
+                ActivityRow(
+                    Icons.Default.Circle, // todo, icon per actionType
+                    it.userName,
+                    it.actionType.description,
+                    LocalDateTime.ofInstant(Instant.ofEpochMilli(it.createdAt.toLong()), ZoneId.systemDefault())
+                )
             }
-
 
         }
 

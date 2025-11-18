@@ -10,7 +10,16 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Circle
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Done
+import androidx.compose.material.icons.filled.Group
+import androidx.compose.material.icons.filled.GroupAdd
+import androidx.compose.material.icons.filled.Hardware
+import androidx.compose.material.icons.filled.JoinLeft
+import androidx.compose.material.icons.filled.Receipt
+import androidx.compose.material.icons.filled.Update
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -30,6 +39,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.japp.api.RetrofitClient
+import com.japp.api.responses.ActivityType
 import com.japp.api.responses.activity.ActivityDto
 import com.japp.api.responses.activity.GroupActivitiesDto
 import com.japp.composables.printableDatetime
@@ -120,6 +130,21 @@ fun getActivities(
     })
 }
 
+fun getActivityIcon(actionType: ActivityType): ImageVector {
+    return when (actionType) { // These icons are not final, just placeholders for now
+        ActivityType.MEMBER_LEFT -> Icons.Default.Circle
+        ActivityType.GROUP_CREATED -> Icons.Default.Group
+        ActivityType.MEMBER_JOINED -> Icons.Default.GroupAdd
+        ActivityType.EXPENSE_CREATED -> Icons.Default.Add
+        ActivityType.EXPENSE_DELETED -> Icons.Default.Delete
+        ActivityType.EXPENSE_UPDATED -> Icons.Default.Update
+        ActivityType.RECEIPT_UPLOADED -> Icons.Default.Receipt
+        ActivityType.SETTLEMENT_CREATED -> Icons.Default.Hardware
+        ActivityType.SETTLEMENT_COMPLETED -> Icons.Default.Done
+        else -> Icons.Default.Circle
+    }
+}
+
 @Preview(showSystemUi = true)
 @Composable
 fun ActivityScreen(navController: NavController? = null) {
@@ -145,7 +170,7 @@ fun ActivityScreen(navController: NavController? = null) {
 
             userActivity.value?.forEach {
                 ActivityRow(
-                    Icons.Default.Circle, // todo, icon per actionType
+                    getActivityIcon(it.actionType),
                     it.userName,
                     it.actionType.description,
                     LocalDateTime.ofInstant(Instant.ofEpochMilli(it.createdAt.toLong()), ZoneId.systemDefault())

@@ -2,25 +2,24 @@ package com.example.japp.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.paddingFrom
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Circle
-import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -28,12 +27,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.max
-import androidx.navigation.NavController
-import com.example.japp.AppDestinations
+import com.example.japp.api.RetrofitClient
+import com.example.japp.api.responses.activity.GroupActivitiesDto
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
+import retrofit2.Callback
+import retrofit2.Response
+
+
 
 
 fun printableDatetime(time: LocalDateTime): String {
@@ -49,7 +51,7 @@ fun printableDatetime(time: LocalDateTime): String {
     } else if (years == 0L && time.dayOfYear == (LocalDateTime.now().dayOfYear-1)) {
         return "yesterday"
     } else if (years == 0L && weeks == 0L) {
-        return time.dayOfWeek.name
+        return time.dayOfWeek.name.lowercase()
     } else {
         val dateTimeFormatter = DateTimeFormatter.ofPattern("dd/MM/yy")
         return time.format(dateTimeFormatter)
@@ -101,9 +103,50 @@ fun ActivityRow(
         }
 }
 
+
+fun getActivities(
+    groupActivity: MutableState<GroupActivitiesDto?>,
+    isLoading: MutableState<Boolean>
+) {
+    val call = RetrofitClient.activityService.get_group_activities(1)
+
+    call!!.enqueue(object: Callback<GroupActivitiesDto?> {
+
+        override fun onResponse(
+            call: retrofit2.Call<GroupActivitiesDto?>,
+            response: Response<GroupActivitiesDto?>
+        ) {
+            isLoading.value = false
+
+            val body = response.body()
+
+            if (body != null && response.isSuccessful) {
+                groupActivity.value = body
+            }
+
+        }
+
+        override fun onFailure(
+            call: retrofit2.Call<GroupActivitiesDto?>,
+            t: Throwable
+        ) {
+            isLoading.value = false
+            TODO("Not yet implemented")
+        }
+    })
+}
+
 @Preview(showSystemUi = true)
 @Composable
 fun ActivityScreen() {
+
+    val groupActivity = remember {  mutableStateOf<GroupActivitiesDto?>(null) }
+    val isLoading = remember { mutableStateOf<Boolean>(true) }
+
+    LaunchedEffect(Unit) {
+        getActivities(groupActivity, isLoading)
+    }
+
     Scaffold (
         modifier = Modifier
             .background(MaterialTheme.colorScheme.primary)
@@ -115,9 +158,23 @@ fun ActivityScreen() {
         verticalArrangement = Arrangement.Top,
         horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            ActivityRow(icon = Icons.Default.Circle, user = "Mikkel", action = "added a receipt for 10$ to test group", date = LocalDateTime.now() )
-            ActivityRow(icon = Icons.Default.Circle, user = "Mikkel", action = "added a receipt for 20$ to test group", date = LocalDateTime.of(2025,11,12,12,0) )
-            ActivityRow(icon = Icons.Default.Circle, user = "Mikkel", action = "added a receipt for 30$ to test group", date = LocalDateTime.of(2025, 10, 1, 12, 0) )
+
+            if (isLoading.value) {
+                CircularProgressIndicator()
+            } else {
+
+                groupActivity.value?.activities?.forEach {
+                    ActivityRow(
+                        Icons.Default.Circle, // todo, icon per actionType
+                        it.userName,
+                        it.actionType.name,
+                        LocalDateTime.now()
+                    )
+                }
+
+            }
+
+
         }
 
     }

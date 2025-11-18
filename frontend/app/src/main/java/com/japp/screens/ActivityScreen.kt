@@ -1,4 +1,4 @@
-package com.example.japp.screens
+package com.japp.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -27,8 +27,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.example.japp.api.RetrofitClient
-import com.example.japp.api.responses.activity.GroupActivitiesDto
+import androidx.navigation.NavController
+import com.japp.api.RetrofitClient
+import com.japp.api.responses.activity.GroupActivitiesDto
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
@@ -138,7 +139,7 @@ fun getActivities(
 
 @Preview(showSystemUi = true)
 @Composable
-fun ActivityScreen() {
+fun ActivityScreen(navController: NavController? = null) {
 
     val groupActivity = remember {  mutableStateOf<GroupActivitiesDto?>(null) }
     val isLoading = remember { mutableStateOf<Boolean>(true) }

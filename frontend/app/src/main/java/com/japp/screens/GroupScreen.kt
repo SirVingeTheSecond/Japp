@@ -66,7 +66,8 @@ fun GroupScreen(navController: NavController? = null) {
     var qrCode by remember { mutableStateOf<Bitmap?>(null) }
     var group_members by remember { mutableStateOf<List<GroupMemberDto>>(emptyList()) }
     var group_expense by remember { mutableStateOf<List<ExpenseDto>>(emptyList()) }
-    var group_balance by remember { mutableStateOf<List<GroupBalanceSummaryDto>>(emptyList()) }
+    var group_balance by remember { mutableStateOf<GroupBalanceSummaryDto?>(null) }
+
 
 
 
@@ -154,10 +155,10 @@ fun GroupScreen(navController: NavController? = null) {
     LaunchedEffect(GROUP_ID) {
         val call = RetrofitClient.expenseService.get_group_balances(GROUP_ID)
 
-        call?.enqueue(object : Callback<List<GroupBalanceSummaryDto>> {
+        call?.enqueue(object : Callback<GroupBalanceSummaryDto?> {
             override fun onResponse(
-                call: Call<List<GroupBalanceSummaryDto>?>,
-                response: Response<List<GroupBalanceSummaryDto>?>
+                call: Call<GroupBalanceSummaryDto?>,
+                response: Response<GroupBalanceSummaryDto?>
             ) {
                 val body = response.body()
                 Log.d("Tag", body.toString())
@@ -168,7 +169,7 @@ fun GroupScreen(navController: NavController? = null) {
             }
 
             override fun onFailure(
-                call: Call<List<GroupBalanceSummaryDto>?>,
+                call: Call<GroupBalanceSummaryDto?>,
                 t: Throwable
             ) {
                 Log.d("Tag", t.message ?: "Unknown error")
@@ -176,7 +177,8 @@ fun GroupScreen(navController: NavController? = null) {
         })
     }
 
-        LaunchedEffect(group) {
+
+    LaunchedEffect(group) {
         if (group != null) {
             // lav qr code
             qrCode = BarcodeEncoder().encodeBitmap(
@@ -226,7 +228,7 @@ fun GroupScreen(navController: NavController? = null) {
         }
         if (qrOpen) {
             Dialog(onDismissRequest = { qrOpen = false }) {
-                // Draw a rectangle shape with rounded corners inside the dialog
+
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -274,15 +276,16 @@ fun GroupScreen(navController: NavController? = null) {
 fun NavTab(
     groupMembers: List<GroupMemberDto>,
     groupExpenses: List<ExpenseDto>,
-    groupBalances: List<GroupBalanceSummaryDto>
+    groupBalance: GroupBalanceSummaryDto?
 ) {
     val navController = rememberNavController()
 
-    val balancesByUserId = remember(groupBalances) {
-        groupBalances
-            .flatMap { it.balances }
-            .associateBy { it.userId }
+    val balancesByUserId = remember(groupBalance) {
+        groupBalance?.balances
+            ?.associateBy { it.userId }
+            ?: emptyMap()
     }
+
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
@@ -328,9 +331,6 @@ fun NavTab(
                 ) {
                     groupMembers.forEach { memberDto ->
                         Text(memberDto.username)
-                        if (memberDto.joinedAt != null){
-                        Text("joined at: "+memberDto.joinedAt)
-                        }
 
                         val balance = balancesByUserId[memberDto.userId]
 
@@ -360,6 +360,7 @@ fun NavTab(
                     groupExpenses.forEach { expenseDto ->
                         Text("Expense id: "+expenseDto.id)
                         Text("Amount: "+expenseDto.amount+expenseDto.currency)
+                        Text("Description: "+expenseDto.description)
                         Text("Paid by: "+expenseDto.paidByName)
                         HorizontalDivider(
                             thickness = 1.dp,

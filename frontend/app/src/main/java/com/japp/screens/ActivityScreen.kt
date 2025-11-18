@@ -29,6 +29,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.japp.api.RetrofitClient
+import com.japp.api.responses.activity.ActivityDto
 import com.japp.api.responses.activity.GroupActivitiesDto
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -107,29 +108,29 @@ fun ActivityRow(
 
 
 fun getActivities(
-    groupActivity: MutableState<GroupActivitiesDto?>,
+    userActivity: MutableState<List<ActivityDto>?>,
     isLoading: MutableState<Boolean>
 ) {
-    val call = RetrofitClient.activityService.get_group_activities(2)
+    val call = RetrofitClient.activityService.get_user_activities()
 
-    call!!.enqueue(object: Callback<GroupActivitiesDto?> {
+    call.enqueue(object: Callback<List<ActivityDto>?> {
 
         override fun onResponse(
-            call: retrofit2.Call<GroupActivitiesDto?>,
-            response: Response<GroupActivitiesDto?>
+            call: retrofit2.Call<List<ActivityDto>?>,
+            response: Response<List<ActivityDto>?>
         ) {
             isLoading.value = false
 
             val body = response.body()
 
             if (body != null && response.isSuccessful) {
-                groupActivity.value = body
+                userActivity.value = body
             }
 
         }
 
         override fun onFailure(
-            call: retrofit2.Call<GroupActivitiesDto?>,
+            call: retrofit2.Call<List<ActivityDto>?>,
             t: Throwable
         ) {
             isLoading.value = false
@@ -142,11 +143,11 @@ fun getActivities(
 @Composable
 fun ActivityScreen(navController: NavController? = null) {
 
-    val groupActivity = remember {  mutableStateOf<GroupActivitiesDto?>(null) }
+    val userActivity = remember {  mutableStateOf<List<ActivityDto>?>(null) }
     val isLoading = remember { mutableStateOf<Boolean>(true) }
 
     LaunchedEffect(Unit) {
-        getActivities(groupActivity, isLoading)
+        getActivities(userActivity, isLoading)
     }
 
     Scaffold (
@@ -165,7 +166,7 @@ fun ActivityScreen(navController: NavController? = null) {
                 CircularProgressIndicator()
             } else {
 
-                groupActivity.value?.activities?.forEach {
+                userActivity.value?.forEach {
                     ActivityRow(
                         Icons.Default.Circle, // todo, icon per actionType
                         it.userName,

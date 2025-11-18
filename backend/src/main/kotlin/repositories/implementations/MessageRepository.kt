@@ -100,15 +100,33 @@ class MessageRepository : IMessageRepository {
 
         val timestamp = System.currentTimeMillis().toString()
 
-        MessageReadStatusTable.batchInsert(
-            messageIds,
-            ignore = true
-        ) { messageId ->
-            this[MessageReadStatusTable.messageId] = messageId
-            this[MessageReadStatusTable.userId] = userId
-            this[MessageReadStatusTable.readAt] = timestamp
+        // Exposed v1's insertIgnore() and batchInsert(ignore=true) rely on specific syntax (ON CONFLICT for PostgreSQL)
+        // which fails on H2 in default mode, breaking our test-production setup.
+        //
+        // We use H2 for tests and PostgreSQL for production which ensures identical behavior in both environments.
+        //
+        // Find which messages this user has already marked as read which prevents duplicate entries
+        // in the composite primary key (messageId, userId).
+        val existingMessageIds = MessageReadStatusTable.selectAll()
+            .where {
+                (MessageReadStatusTable.messageId inList messageIds) and
+                        (MessageReadStatusTable.userId eq userId)
+            }
+            .map { it[MessageReadStatusTable.messageId] }
+            .toSet()
+
+        // Filter to only messages that have not been marked as read yet
+        val newMessageIds = messageIds.filterNot { it in existingMessageIds }
+
+        if (newMessageIds.isNotEmpty()) {
+            MessageReadStatusTable.batchInsert(newMessageIds) { messageId ->
+                this[MessageReadStatusTable.messageId] = messageId
+                this[MessageReadStatusTable.userId] = userId
+                this[MessageReadStatusTable.readAt] = timestamp
+            }
         }
 
+        // Return all read statuses for the requested messages (both existing and newly inserted)
         return MessageReadStatusTable.selectAll()
             .where {
                 (MessageReadStatusTable.messageId inList messageIds) and

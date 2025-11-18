@@ -5,7 +5,6 @@ on:
     branches: [main]
   workflow_dispatch:
 
-
 jobs:
   test:
     name: Build and Test
@@ -29,11 +28,8 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x gradlew
 
-      - name: Build application
+      - name: Build and Test
         run: ./gradlew build --no-daemon
-
-      - name: Run tests
-        run: ./gradlew test --no-daemon
 
       - name: Upload test results
         if: always()

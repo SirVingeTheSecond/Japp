@@ -15,5 +15,6 @@ interface IActivityRepository {
     ): ActivityLog
 
     fun findByGroupId(groupId: Int, limit: Int = 50): List<ActivityLog>
+    fun findByUserId(userId: Int, limit: Int = 50): List<ActivityLog>
     fun findById(activityId: Int): ActivityLog?
 }

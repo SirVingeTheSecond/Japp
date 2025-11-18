@@ -5,13 +5,13 @@ plugins {
 }
 
 android {
-    namespace = "com.example.japp"
+    namespace = "com.japp"
     compileSdk {
         version = release(36)
     }
 
     defaultConfig {
-        applicationId = "com.example.japp"
+        applicationId = "com.japp"
         minSdk = 29
         targetSdk = 36
         versionCode = 1
@@ -59,6 +59,7 @@ dependencies {
     implementation (libs.converter.gson)
     implementation (libs.logging.interceptor)
     implementation(libs.androidx.datastore.preferences)
+    implementation(libs.zxing.android.embedded)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

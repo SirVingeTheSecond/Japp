@@ -5,6 +5,7 @@ import com.japp.database.tables.Groups
 import com.japp.models.domain.Group
 import com.japp.repositories.interfaces.IGroupRepository
 import org.jetbrains.exposed.v1.core.ResultRow
+import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.*
 import org.jetbrains.exposed.v1.core.and
@@ -68,6 +69,13 @@ class GroupRepository : IGroupRepository {
             .map { it[GroupMembers.userId] }
     }
 
+    override fun getMembersSortedByJoinDate(groupId: Int): List<Int> {
+        return GroupMembers.selectAll()
+            .where { GroupMembers.groupId eq groupId }
+            .orderBy(GroupMembers.joinedAt to SortOrder.ASC)
+            .map { it[GroupMembers.userId] }
+    }
+
     override fun isMember(groupId: Int, userId: Int): Boolean {
         return GroupMembers.selectAll()
             .where { (GroupMembers.groupId eq groupId) and (GroupMembers.userId eq userId) }
@@ -115,6 +123,14 @@ class GroupRepository : IGroupRepository {
             return true
         }
         return false
+    }
+
+    override fun transferOwnership(groupId: Int, newOwnerId: Int) {
+        val timestamp = System.currentTimeMillis().toString()
+        Groups.update({ Groups.id eq groupId }) {
+            it[createdBy] = newOwnerId
+            it[updatedAt] = timestamp
+        }
     }
 
     override fun updateTotalExpenses(groupId: Int, amount: Double) {

@@ -26,6 +26,16 @@
             android:name=".MainActivity"
             android:exported="true"
             android:theme="@style/Theme.Japp">
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+
+                <data
+                    android:scheme="japp"
+                    android:host="join" />
+            </intent-filter>
         </activity>
     </application>
 

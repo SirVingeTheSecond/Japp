@@ -16,9 +16,13 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SecondaryTabRow
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -45,6 +49,9 @@ import com.japp.api.RetrofitClient
 import com.japp.api.responses.group.GroupDto
 import com.japp.composables.GroupIcon
 import com.google.zxing.BarcodeFormat
+import com.japp.api.responses.expense.ExpenseDto
+import com.japp.api.responses.expense.GroupBalanceSummaryDto
+import com.japp.api.responses.group.GroupMemberDto
 import com.journeyapps.barcodescanner.BarcodeEncoder
 import retrofit2.Call
 import retrofit2.Callback
@@ -57,6 +64,11 @@ fun GroupScreen(navController: NavController? = null) {
     var qrOpen by remember { mutableStateOf(false) }
     var group by remember { mutableStateOf<GroupDto?>(null) }
     var qrCode by remember { mutableStateOf<Bitmap?>(null) }
+    var group_members by remember { mutableStateOf<List<GroupMemberDto>>(emptyList()) }
+    var group_expense by remember { mutableStateOf<List<ExpenseDto>>(emptyList()) }
+    var group_balance by remember { mutableStateOf<List<GroupBalanceSummaryDto>>(emptyList()) }
+
+
 
     LaunchedEffect(
         GROUP_ID
@@ -86,9 +98,85 @@ fun GroupScreen(navController: NavController? = null) {
                 TODO("Not yet implemented")
             }
         })
+
+
+    }
+    LaunchedEffect(GROUP_ID) {
+        val call = RetrofitClient.groupService.get_group_members(GROUP_ID)
+
+        call?.enqueue(object : Callback<List<GroupMemberDto>?> {
+            override fun onResponse(
+                call: Call<List<GroupMemberDto>?>,
+                response: Response<List<GroupMemberDto>?>
+            ) {
+                val body = response.body()
+                Log.d("Tag", body.toString())
+
+                if (body != null && response.isSuccessful) {
+                    group_members = body
+                }
+            }
+
+            override fun onFailure(
+                call: Call<List<GroupMemberDto>?>,
+                t: Throwable
+            ) {
+                Log.d("Tag", t.message ?: "Unknown error")
+            }
+        })
     }
 
-    LaunchedEffect(group) {
+    LaunchedEffect(GROUP_ID) {
+        val call = RetrofitClient.expenseService.get_group_expenses(GROUP_ID)
+
+        call?.enqueue(object : Callback<List<ExpenseDto>?> {
+            override fun onResponse(
+                call: Call<List<ExpenseDto>?>,
+                response: Response<List<ExpenseDto>?>
+            ) {
+                val body = response.body()
+                Log.d("Tag", body.toString())
+
+                if (body != null && response.isSuccessful) {
+                    group_expense = body
+                }
+            }
+
+            override fun onFailure(
+                call: Call<List<ExpenseDto>?>,
+                t: Throwable
+            ) {
+                Log.d("Tag", t.message ?: "Unknown error")
+            }
+        })
+    }
+
+    LaunchedEffect(GROUP_ID) {
+        val call = RetrofitClient.expenseService.get_group_balances(GROUP_ID)
+
+        call?.enqueue(object : Callback<List<GroupBalanceSummaryDto>> {
+            override fun onResponse(
+                call: Call<List<GroupBalanceSummaryDto>?>,
+                response: Response<List<GroupBalanceSummaryDto>?>
+            ) {
+                val body = response.body()
+                Log.d("Tag", body.toString())
+
+                if (body != null && response.isSuccessful) {
+                    group_balance = body
+                }
+            }
+
+            override fun onFailure(
+                call: Call<List<GroupBalanceSummaryDto>?>,
+                t: Throwable
+            ) {
+                Log.d("Tag", t.message ?: "Unknown error")
+            }
+        })
+    }
+
+        LaunchedEffect(group) {
         if (group != null) {
             // lav qr code
             qrCode = BarcodeEncoder().encodeBitmap(
@@ -134,7 +222,7 @@ fun GroupScreen(navController: NavController? = null) {
                 ) {
                 Text("Show QR!")
             }
-            NavTab()
+            NavTab(group_members, group_expense, group_balance)
         }
         if (qrOpen) {
             Dialog(onDismissRequest = { qrOpen = false }) {
@@ -184,10 +272,17 @@ fun GroupScreen(navController: NavController? = null) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NavTab(
-
+    groupMembers: List<GroupMemberDto>,
+    groupExpenses: List<ExpenseDto>,
+    groupBalances: List<GroupBalanceSummaryDto>
 ) {
     val navController = rememberNavController()
 
+    val balancesByUserId = remember(groupBalances) {
+        groupBalances
+            .flatMap { it.balances }
+            .associateBy { it.userId }
+    }
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
@@ -199,58 +294,124 @@ fun NavTab(
         else -> 0
     }
 
-    Column(
-
-    ) {
+    Column {
         SecondaryTabRow(
             selectedTabIndex = selectedDestination,
         ) {
             Tab(
-                selected = selectedDestination == 0, onClick = {
-                    navController.navigate("1")
-                }, Modifier.padding(10.dp)
+                selected = selectedDestination == 0,
+                onClick = { navController.navigate("1") },
+                modifier = Modifier.padding(10.dp)
             ) {
                 Text("Members")
             }
             Tab(
-                selected = selectedDestination == 1, onClick = {
-                    navController.navigate("2")
-                }) {
-                Text("Exspenses")
+                selected = selectedDestination == 1,
+                onClick = { navController.navigate("2") }
+            ) {
+                Text("Expenses")
             }
             Tab(
-                selected = selectedDestination == 2, onClick = {
-                    navController.navigate("3")
-                }) {
+                selected = selectedDestination == 2,
+                onClick = { navController.navigate("3") }
+            ) {
                 Text("Options")
             }
         }
         NavHost(
-            navController = navController, startDestination = "1"
+            navController = navController,
+            startDestination = "1"
         ) {
             composable("1") {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // LOAD MEMBERS
+                    groupMembers.forEach { memberDto ->
+                        Text(memberDto.username)
+                        if (memberDto.joinedAt != null){
+                        Text("joined at: "+memberDto.joinedAt)
+                        }
+
+                        val balance = balancesByUserId[memberDto.userId]
+
+                        if (balance != null) {
+                            if (balance.balance < 0){
+                                Text(
+                                    "Balance: ${balance.balance}",
+                                    color = Color.Red
+                                )
+                            } else {
+                                Text(
+                                    "Balance: ${balance.balance}",
+                                    color = Color.Green)
+                            }
+                        }
+                        HorizontalDivider(
+                            thickness = 1.dp,
+                            color = Color.LightGray,
+                            modifier = Modifier.padding(vertical = 4.dp)
+                        )
+                    }
                 }
             }
 
             composable("2") {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    // LOAD EXPENSES
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    groupExpenses.forEach { expenseDto ->
+                        Text("Expense id: "+expenseDto.id)
+                        Text("Amount: "+expenseDto.amount+expenseDto.currency)
+                        Text("Paid by: "+expenseDto.paidByName)
+                        HorizontalDivider(
+                            thickness = 1.dp,
+                            color = Color.LightGray,
+                            modifier = Modifier.padding(vertical = 4.dp)
+                        )
+                    }
                 }
             }
 
             composable("3") {
+                var notificationsEnabled by remember { mutableStateOf(false) } // need to use endpoint for backend logic
+
                 Column(
-                    horizontalAlignment = Alignment.CenterHorizontally
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.padding(16.dp)
                 ) {
-                    // LOAD options
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 16.dp)
+                    ) {
+                        Text(
+                            "Enable notifications",
+                            modifier = Modifier.weight(1f)
+                        )
+
+                        Switch(
+                            checked = notificationsEnabled,
+                            onCheckedChange = { notificationsEnabled = it }
+                        )
+                    }
+                    Button(
+                            onClick = { /* TODO */ },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color.Red,
+                        contentColor = Color.White
+                    ),
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier
+                        .padding(top = 24.dp)
+                    ) {
+                    Text("DELETE GROUP")
                 }
+                }
+
+
+
             }
+
         }
     }
 }
+

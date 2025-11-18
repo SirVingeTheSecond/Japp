@@ -1,7 +1,6 @@
 package com.example.japp.screens
 
 import android.util.Log
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.input.rememberTextFieldState
@@ -18,7 +18,6 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ListItem
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SearchBar
 import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.Text
@@ -50,7 +49,7 @@ import retrofit2.Response
 @Composable
 fun ShowGroupsScreen(navController: NavController? = null) {
 
-    var groups by remember {mutableStateOf<List<GroupDto>>(emptyList())}
+    var groups by remember { mutableStateOf<List<GroupDto>>(emptyList()) }
 
     fun get_my_groups() {
         val call = RetrofitClient.groupService.get_my_groups()
@@ -67,12 +66,13 @@ fun ShowGroupsScreen(navController: NavController? = null) {
                     groups = body
                 }
             }
+
             override fun onFailure(call: Call<List<GroupDto>>, t: Throwable) {
                 Log.d("Tag", t.message ?: "Unknown error")
             }
         })
     }
-    
+
 
 
     LaunchedEffect(Unit) {
@@ -103,8 +103,8 @@ fun ShowGroupsScreen(navController: NavController? = null) {
                 searchResults = searchResults,
                 modifier = Modifier,
                 groups = groups,
-                onGroupClick = {
-                    group -> GROUP_ID = group.id
+                onGroupClick = { group ->
+                    GROUP_ID = group.id
                     navController?.navigate(AppDestinations.GROUP.route)
                 }
             )
@@ -123,63 +123,61 @@ fun SimpleSearchBar(
     onGroupClick: (GroupDto) -> Unit
 ) {
     var expanded by rememberSaveable { mutableStateOf(false) }
+    SearchBar(
+        modifier = Modifier.fillMaxWidth(),
+        inputField = {
+            SearchBarDefaults.InputField(
+                query = textFieldState.text.toString(),
+                onQueryChange = { newText ->
+                    textFieldState.edit {
+                        replace(0, length, newText)
+                    }
+                },
+                onSearch = {
+                    onSearch(textFieldState.text.toString())
+                    expanded = false
+                },
+                expanded = expanded,
+                onExpandedChange = { expanded = it },
+                placeholder = { Text("Search") }
+            )
+        },
+        expanded = expanded,
+        onExpandedChange = { expanded = it },
 
+        ) {
+        Column(Modifier.verticalScroll(rememberScrollState())) {
+            searchResults.forEach { result ->
+                ListItem(
+                    headlineContent = { Text(result) },
+                    modifier = Modifier
+                        .clickable {
+                            textFieldState.edit {
+                                replace(0, length, result)
+                            }
+                            expanded = false
+                        }
+                        .fillMaxWidth()
+                )
+            }
+        }
+    }
     Box(
         modifier
             .fillMaxSize()
             .semantics { isTraversalGroup = true }
     ) {
-        Column {
-        SearchBar(
-            modifier = Modifier.fillMaxWidth(),
-            inputField = {
-                SearchBarDefaults.InputField(
-                    query = textFieldState.text.toString(),
-                    onQueryChange = { newText ->
-                        textFieldState.edit {
-                            replace(0, length, newText)
-                        }
-                    },
-                    onSearch = {
-                        onSearch(textFieldState.text.toString())
-                        expanded = false
-                    },
-                    expanded = expanded,
-                    onExpandedChange = { expanded = it },
-                    placeholder = { Text("Search") }
-                )
-            },
-            expanded = expanded,
-            onExpandedChange = { expanded = it },
 
+        Column(
+            Modifier.verticalScroll(rememberScrollState())
         ) {
-            Column(Modifier.verticalScroll(rememberScrollState())) {
-                searchResults.forEach { result ->
-                    ListItem(
-                        headlineContent = { Text(result) },
-                        modifier = Modifier
-                            .clickable {
-                                textFieldState.edit {
-                                    replace(0, length, result)
-                                }
-                                expanded = false
-                            }
-                            .fillMaxWidth()
-                    )
-                }
-            }
-            Box(
-                Modifier.background(MaterialTheme.colorScheme.surfaceContainer).padding(15.dp),
-                contentAlignment = Alignment.Center
-            ){
 
+            groups.forEach { group ->
+                GroupCard(
+                    group,
+                    onClick = { onGroupClick(group) })
             }
         }
-            groups.forEach { group ->
-                GroupCard(group,
-                    onClick = { onGroupClick(group)})
-            }
-    }
     }
 }
 
@@ -187,22 +185,30 @@ fun SimpleSearchBar(
 fun GroupCard(
     group: GroupDto,
     onClick: () -> Unit
-){
+) {
     ElevatedCard(
         elevation = CardDefaults.cardElevation(
             defaultElevation = 6.dp
         ),
-        modifier = Modifier.padding(15.dp).fillMaxWidth().height(100.dp),
+        modifier = Modifier
+            .padding(15.dp)
+            .fillMaxWidth()
+            .height(100.dp),
         onClick = {
             onClick()
         }
     ) {
         Row {
-            GroupIcon(group.name)
+            GroupIcon(
+                group.name,
+                Modifier.size(100.dp)
+            )
             Column {
-                Text(text = group.name,
+                Text(
+                    text = group.name,
                     modifier = Modifier.padding(15.dp),
-                    textAlign = TextAlign.Center)
+                    textAlign = TextAlign.Center
+                )
             }
         }
 

@@ -74,7 +74,9 @@ fun CreateGroupScreen(navController: NavController? = null) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(20.dp, Alignment.CenterVertically)
     ) {
-        GroupIcon(name)
+        GroupIcon(
+            name
+        )
         Box(
             Modifier
                 .background(MaterialTheme.colorScheme.surfaceContainer)

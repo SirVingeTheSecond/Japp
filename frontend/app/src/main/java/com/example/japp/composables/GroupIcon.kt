@@ -4,6 +4,8 @@ package com.example.japp.composables
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -22,7 +24,7 @@ import com.example.japp.ui.theme.JappTheme
 import java.util.Locale
 
 @Composable
-fun GroupIcon(content: String){
+fun GroupIcon(content: String, modifier: Modifier = Modifier){
     var label = ""
     var preChar = ""
     for (c in content.toCharArray()){
@@ -32,15 +34,17 @@ fun GroupIcon(content: String){
         preChar = c.toString()
     }
 
-    val color = MaterialTheme.colorScheme.tertiary
+    val color = MaterialTheme.colorScheme.onPrimaryContainer
 
     Box(
-        modifier = Modifier
+        modifier = modifier.then(Modifier
             .size(150.dp)
+            .aspectRatio(1f)
             .clip(RoundedCornerShape(150.dp))
             .border(2.dp, Color.Gray, RoundedCornerShape(150.dp))
-            .background(Color(0xFFEFEFEF))
+            .background(MaterialTheme.colorScheme.primaryContainer)
             .padding(15.dp),
+        ),
 
 
         contentAlignment = Alignment.Center

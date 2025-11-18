@@ -14,7 +14,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.navigation.NavController
-import com.example.japp.AppDestinations
 import com.example.japp.api.RetrofitClient
 import com.example.japp.api.responses.group.GroupDto
 import com.example.japp.composables.GroupIcon

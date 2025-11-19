@@ -125,7 +125,7 @@ fun QuickActivities(navController: NavController?) {
         ) {
             Text("Recent activities", style = MaterialTheme.typography.headlineSmall)
             TextButton(
-                onClick = { navController?.navigate(AppDestinations.ACTIVITY.route) }
+                onClick = { navController?.navigate(AppDestinations.Activity.route) }
             ) {
                 Text("Activities ->", textAlign = TextAlign.End)
             }

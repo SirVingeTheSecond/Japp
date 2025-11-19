@@ -20,7 +20,6 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SecondaryTabRow
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Tab
@@ -128,31 +127,6 @@ fun GroupScreen(navController: NavController? = null) {
     }
 
     LaunchedEffect(GROUP_ID) {
-        val call = RetrofitClient.expenseService.get_group_expenses(GROUP_ID)
-
-        call?.enqueue(object : Callback<List<ExpenseDto>?> {
-            override fun onResponse(
-                call: Call<List<ExpenseDto>?>,
-                response: Response<List<ExpenseDto>?>
-            ) {
-                val body = response.body()
-                Log.d("Tag", body.toString())
-
-                if (body != null && response.isSuccessful) {
-                    group_expense = body
-                }
-            }
-
-            override fun onFailure(
-                call: Call<List<ExpenseDto>?>,
-                t: Throwable
-            ) {
-                Log.d("Tag", t.message ?: "Unknown error")
-            }
-        })
-    }
-
-    LaunchedEffect(GROUP_ID) {
         val call = RetrofitClient.expenseService.get_group_balances(GROUP_ID)
 
         call?.enqueue(object : Callback<GroupBalanceSummaryDto?> {
@@ -176,6 +150,7 @@ fun GroupScreen(navController: NavController? = null) {
             }
         })
     }
+
 
 
     LaunchedEffect(group) {
@@ -204,9 +179,18 @@ fun GroupScreen(navController: NavController? = null) {
                         GroupIcon(
                             group!!.name
                         )
-                        Column {
+                        Column (
+                            modifier = Modifier.padding(15.dp)
+                        ){
                             Text(
-                                group!!.name, textAlign = TextAlign.Right
+                                group!!.name,
+                                textAlign = TextAlign.Right,
+
+                            )
+                            HorizontalDivider(
+                                thickness = 1.dp,
+                                color = Color.LightGray,
+                                modifier = Modifier.padding(vertical = 4.dp)
                             )
                             group!!.description?.let {
                                 Text(
@@ -359,7 +343,7 @@ fun NavTab(
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     groupExpenses.forEach { expenseDto ->
                         Text("Expense id: "+expenseDto.id)
-                        Text("Amount: "+expenseDto.amount+expenseDto.currency)
+                        Text("Amount: "+expenseDto.amount+expenseDto.currency.symbol)
                         Text("Description: "+expenseDto.description)
                         Text("Paid by: "+expenseDto.paidByName)
                         HorizontalDivider(

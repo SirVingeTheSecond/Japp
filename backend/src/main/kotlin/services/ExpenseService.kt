@@ -22,6 +22,7 @@ class ExpenseService(
     private val messageService: MessageService
 ) {
 
+    // There are most likely somewhere else that also need to apply this pattern
     suspend fun createExpense(
         request: CreateExpenseRequest,
         userId: Int
@@ -79,27 +80,34 @@ class ExpenseService(
 
                             groupRepository.updateTotalExpenses(request.groupId, request.amount)
 
-                            Result.Success(toExpenseDto(expense, userId))
-                        }
-
-                        if (result is Result.Success) {
-                            activityService.logExpenseCreated(
-                                groupId = request.groupId,
-                                userId = userId,
-                                expenseId = result.value.id,
-                                amount = request.amount,
-                                currency = request.currency.code,
-                                description = request.description
-                            )
-
                             val user = userRepository.findById(userId)
-                            messageService.createSystemMessage(
-                                groupId = request.groupId,
-                                content = "${user?.username ?: "Someone"} added expense: ${request.description} - ${request.amount} ${request.currency.code}"
-                            )
+                            val expenseDto = toExpenseDto(expense, userId)
+
+                            Result.Success(Pair(expenseDto, user))
                         }
 
-                        result
+                        when (result) {
+                            is Result.Success -> {
+                                val (expenseDto, user) = result.value
+
+                                activityService.logExpenseCreated(
+                                    groupId = request.groupId,
+                                    userId = userId,
+                                    expenseId = expenseDto.id,
+                                    amount = request.amount,
+                                    currency = request.currency.code,
+                                    description = request.description
+                                )
+
+                                messageService.createSystemMessage(
+                                    groupId = request.groupId,
+                                    content = "${user?.username ?: "Someone"} added expense: ${request.description} - ${request.amount} ${request.currency.code}"
+                                )
+
+                                Result.Success(expenseDto)
+                            }
+                            is Result.Failure -> result
+                        }
                     } catch (e: Exception) {
                         Result.Failure(
                             ExpenseError.InternalError(e.message ?: "Failed to create expense")
@@ -200,7 +208,7 @@ class ExpenseService(
 
                     Result.Success(Triple(expense.groupId, expense.description, expense.amount))
                 }
-                
+
                 when (result) {
                     is Result.Success -> {
                         val (groupId, description, amount) = result.value

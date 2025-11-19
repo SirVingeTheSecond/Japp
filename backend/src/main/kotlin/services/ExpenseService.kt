@@ -22,6 +22,7 @@ class ExpenseService(
     private val messageService: MessageService
 ) {
 
+    // There are most likely somewhere else that also need to apply this pattern
     suspend fun createExpense(
         request: CreateExpenseRequest,
         userId: Int
@@ -79,6 +80,7 @@ class ExpenseService(
 
                             groupRepository.updateTotalExpenses(request.groupId, request.amount)
 
+<<<<<<< HEAD
                             Result.Success(toExpenseDto(expense, userId))
                         }
 
@@ -97,6 +99,35 @@ class ExpenseService(
                                 groupId = request.groupId,
                                 content = "${user?.username ?: "Someone"} added expense: ${request.description} - ${request.amount} ${request.currency.code}"
                             )
+=======
+                            val user = userRepository.findById(userId)
+                            val expenseDto = toExpenseDto(expense, userId)
+
+                            Result.Success(Pair(expenseDto, user))
+                        }
+
+                        when (result) {
+                            is Result.Success -> {
+                                val (expenseDto, user) = result.value
+
+                                activityService.logExpenseCreated(
+                                    groupId = request.groupId,
+                                    userId = userId,
+                                    expenseId = expenseDto.id,
+                                    amount = request.amount,
+                                    currency = request.currency.code,
+                                    description = request.description
+                                )
+
+                                messageService.createSystemMessage(
+                                    groupId = request.groupId,
+                                    content = "${user?.username ?: "Someone"} added expense: ${request.description} - ${request.amount} ${request.currency.code}"
+                                )
+
+                                Result.Success(expenseDto)
+                            }
+                            is Result.Failure -> result
+>>>>>>> main
                         }
 
                         result
@@ -200,11 +231,19 @@ class ExpenseService(
 
                     Result.Success(Triple(expense.groupId, expense.description, expense.amount))
                 }
+<<<<<<< HEAD
                 
                 when (result) {
                     is Result.Success -> {
                         val (groupId, description, amount) = result.value
 
+=======
+
+                when (result) {
+                    is Result.Success -> {
+                        val (groupId, description, amount) = result.value
+
+>>>>>>> main
                         activityService.logExpenseDeleted(
                             groupId = groupId,
                             userId = userId,

@@ -21,7 +21,8 @@ object DatabaseSchema {
                 Settlements,
                 ActivityLogs,
                 Messages,
-                MessageReadStatus
+                MessageReadStatus,
+                Attachments
             )
         }
     }
@@ -32,6 +33,7 @@ object DatabaseSchema {
     fun dropTables() {
         transaction {
             SchemaUtils.drop(
+                Attachments,
                 MessageReadStatus,
                 Messages,
                 ActivityLogs,

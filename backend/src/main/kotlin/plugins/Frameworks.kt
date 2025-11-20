@@ -1,8 +1,10 @@
 package com.japp.plugins
 
 import com.japp.config.loadJwtConfig
+import com.japp.config.loadStorageConfig
 import com.japp.repositories.*
 import com.japp.repositories.implementations.ActivityRepository
+import com.japp.repositories.implementations.AttachmentRepository
 import com.japp.repositories.implementations.DebtHistoryRepository
 import com.japp.repositories.implementations.ExpenseRepository
 import com.japp.repositories.implementations.GroupRepository
@@ -10,6 +12,7 @@ import com.japp.repositories.implementations.MessageRepository
 import com.japp.repositories.implementations.SettlementRepository
 import com.japp.repositories.implementations.UserRepository
 import com.japp.repositories.interfaces.IActivityRepository
+import com.japp.repositories.interfaces.IAttachmentRepository
 import com.japp.repositories.interfaces.IDebtHistoryRepository
 import com.japp.repositories.interfaces.IExpenseRepository
 import com.japp.repositories.interfaces.IGroupRepository
@@ -46,6 +49,7 @@ fun appModule(application: Application) = module {
     single<ISettlementRepository> { SettlementRepository() }
     single<IActivityRepository> { ActivityRepository() }
     single<IMessageRepository> { MessageRepository() }
+    single<IAttachmentRepository> { AttachmentRepository() }
 
     single { PasswordHasher() }
     single { WebSocketManager() }
@@ -112,6 +116,18 @@ fun appModule(application: Application) = module {
             expenseRepository = get(),
             activityService = get(),
             messageService = get()
+        )
+    }
+
+    single {
+        val storageConfig = application.loadStorageConfig()
+        AttachmentService(
+            attachmentRepository = get(),
+            expenseRepository = get(),
+            groupRepository = get(),
+            userRepository = get(),
+            activityService = get(),
+            storageBasePath = storageConfig.attachmentsBasePath
         )
     }
 

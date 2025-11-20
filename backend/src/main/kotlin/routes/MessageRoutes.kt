@@ -1,5 +1,7 @@
 package com.japp.routes
 
+import com.japp.models.Result
+import com.japp.models.WebSocketMessageType
 import com.japp.models.dto.CreateMessageRequest
 import com.japp.models.dto.MarkMessageReadRequest
 import com.japp.models.dto.WebSocketMessage
@@ -56,10 +58,10 @@ fun Route.messageRoutes() {
 }
 
 fun Route.chatWebSocket() {
+    val messageService by inject<MessageService>()
     val webSocketManager by inject<WebSocketManager>()
 
-    webSocket("/ws/chat/{groupId}") {
-        val groupIdParam = call.parameters["groupId"]
+    webSocket("/ws/chat") {
         val userId = try {
             call.getUserId()
         } catch (e: Exception) {
@@ -67,22 +69,18 @@ fun Route.chatWebSocket() {
             return@webSocket
         }
 
-        val groupId = groupIdParam?.toIntOrNull()
-        if (groupId == null) {
-            close(CloseReason(CloseReason.Codes.VIOLATED_POLICY, "Invalid group ID"))
-            return@webSocket
-        }
-
-        webSocketManager.registerConnection(groupId, userId, this)
+        webSocketManager.registerSession(userId, this)
 
         try {
             send(Frame.Text(Json.encodeToString(
+                WebSocketMessage.serializer(),
                 WebSocketMessage(
-                    type = "connected",
-                    groupId = groupId,
+                    type = WebSocketMessageType.CONNECTED,
                     userId = userId
                 )
             )))
+
+            val heartbeatJob = webSocketManager.startHeartbeat(this, userId)
 
             for (frame in incoming) {
                 when (frame) {
@@ -92,33 +90,109 @@ fun Route.chatWebSocket() {
                             val message = Json.decodeFromString<WebSocketMessage>(text)
 
                             when (message.type) {
-                                "typing_start", "typing_stop" -> {
-                                    webSocketManager.broadcastToGroup(
-                                        groupId = groupId,
-                                        message = message.copy(userId = userId),
-                                        excludeUserId = userId
-                                    )
+                                WebSocketMessageType.SUBSCRIBE -> {
+                                    val groupId = message.groupId
+                                    if (groupId == null) {
+                                        send(Frame.Text(Json.encodeToString(
+                                            WebSocketMessage.serializer(),
+                                            WebSocketMessage(
+                                                type = WebSocketMessageType.ERROR,
+                                                error = "groupId required for subscribe"
+                                            )
+                                        )))
+                                        continue
+                                    }
+
+                                    val result = messageService.subscribeToGroup(groupId, userId, this)
+
+                                    when (result) {
+                                        is Result.Success -> {
+                                            send(Frame.Text(Json.encodeToString(
+                                                WebSocketMessage.serializer(),
+                                                WebSocketMessage(
+                                                    type = WebSocketMessageType.SUBSCRIBED,
+                                                    groupId = groupId
+                                                )
+                                            )))
+                                        }
+                                        is Result.Failure -> {
+                                            send(Frame.Text(Json.encodeToString(
+                                                WebSocketMessage.serializer(),
+                                                WebSocketMessage(
+                                                    type = WebSocketMessageType.ERROR,
+                                                    groupId = groupId,
+                                                    error = result.error.message
+                                                )
+                                            )))
+                                        }
+                                    }
                                 }
-                                "ping" -> {
+
+                                WebSocketMessageType.UNSUBSCRIBE -> {
+                                    val groupId = message.groupId
+                                    if (groupId == null) {
+                                        send(Frame.Text(Json.encodeToString(
+                                            WebSocketMessage.serializer(),
+                                            WebSocketMessage(
+                                                type = WebSocketMessageType.ERROR,
+                                                error = "groupId required for unsubscribe"
+                                            )
+                                        )))
+                                        continue
+                                    }
+
+                                    messageService.unsubscribeFromGroup(groupId, this)
+
                                     send(Frame.Text(Json.encodeToString(
+                                        WebSocketMessage.serializer(),
                                         WebSocketMessage(
-                                            type = "pong",
+                                            type = WebSocketMessageType.UNSUBSCRIBED,
                                             groupId = groupId
                                         )
                                     )))
                                 }
+
+                                WebSocketMessageType.TYPING_START, WebSocketMessageType.TYPING_STOP -> {
+                                    val groupId = message.groupId
+                                    if (groupId != null && webSocketManager.isSubscribed(this, groupId)) {
+                                        webSocketManager.broadcastToGroup(
+                                            groupId = groupId,
+                                            message = message.copy(userId = userId),
+                                            excludeUserId = userId
+                                        )
+                                    }
+                                }
+
+                                WebSocketMessageType.PING -> {
+                                    send(Frame.Text(Json.encodeToString(
+                                        WebSocketMessage.serializer(),
+                                        WebSocketMessage(type = WebSocketMessageType.PONG)
+                                    )))
+                                }
+
+                                else -> {
+                                    // Ignore other message types (NEW_MESSAGE, MESSAGE_READ, etc. are server -> client only)
+                                }
                             }
                         } catch (_: Exception) {
-                            // Invalid message format
+                            send(Frame.Text(Json.encodeToString(
+                                WebSocketMessage.serializer(),
+                                WebSocketMessage(
+                                    type = WebSocketMessageType.ERROR,
+                                    error = "invalid_message_format"
+                                )
+                            )))
                         }
                     }
                     else -> {}
                 }
             }
+
+            heartbeatJob.cancel()
         } catch (_: Exception) {
-            // Connection error
+            // Connection error - cleanup handled in finally
         } finally {
-            webSocketManager.unregisterConnection(groupId, userId, this)
+            webSocketManager.unregisterSession(this)
         }
     }
 }

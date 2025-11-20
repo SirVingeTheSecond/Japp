@@ -1,6 +1,7 @@
 package com.japp.models.dto
 
 import com.japp.models.MessageType
+import com.japp.models.WebSocketMessageType
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -37,10 +38,12 @@ data class MarkMessageReadRequest(
 
 @Serializable
 data class WebSocketMessage(
-    val type: String,
-    val groupId: Int,
+    val type: WebSocketMessageType,
+    val groupId: Int? = null,
     val userId: Int? = null,
-    val userName: String? = null,
+    val username: String? = null,
     val message: MessageDto? = null,
-    val messageIds: List<Int>? = null
+    val messageIds: List<Int>? = null,
+    val timestamp: Long = System.currentTimeMillis(),
+    val error: String? = null
 )

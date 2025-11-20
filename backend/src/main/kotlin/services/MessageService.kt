@@ -10,6 +10,7 @@ import com.japp.repositories.interfaces.IUserRepository
 import com.japp.utils.toDto
 import com.japp.validation.MessageValidator
 import com.japp.websocket.WebSocketManager
+import io.ktor.websocket.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
@@ -54,7 +55,7 @@ class MessageService(
                         webSocketManager.broadcastToGroup(
                             groupId = request.groupId,
                             message = WebSocketMessage(
-                                type = "new_message",
+                                type = WebSocketMessageType.NEW_MESSAGE,
                                 groupId = request.groupId,
                                 userId = userId,
                                 message = messageDto
@@ -92,7 +93,7 @@ class MessageService(
                 webSocketManager.broadcastToGroup(
                     groupId = groupId,
                     message = WebSocketMessage(
-                        type = "new_message",
+                        type = WebSocketMessageType.NEW_MESSAGE,
                         groupId = groupId,
                         message = messageDto
                     )
@@ -179,7 +180,7 @@ class MessageService(
                 webSocketManager.broadcastToGroup(
                     groupId = groupId,
                     message = WebSocketMessage(
-                        type = "message_read",
+                        type = WebSocketMessageType.MESSAGE_READ,
                         groupId = groupId,
                         userId = userId,
                         messageIds = messageIds
@@ -234,7 +235,7 @@ class MessageService(
                         webSocketManager.broadcastToGroup(
                             groupId = deletionResult.value,
                             message = WebSocketMessage(
-                                type = "message_deleted",
+                                type = WebSocketMessageType.MESSAGE_DELETED,
                                 groupId = deletionResult.value,
                                 userId = userId,
                                 messageIds = listOf(messageId)
@@ -246,6 +247,57 @@ class MessageService(
             } catch (e: Exception) {
                 Result.Failure(
                     MessageError.InternalError(e.message ?: "Failed to delete message")
+                )
+            }
+        }
+    }
+
+    /**
+     * Subscribe user's WebSocket session to a group's message channel
+     */
+    suspend fun subscribeToGroup(
+        groupId: Int,
+        userId: Int,
+        session: WebSocketSession
+    ): Result<Unit, MessageError> {
+        return withContext(Dispatchers.IO) {
+            try {
+                val validationResult = transaction {
+                    if (!groupRepository.isMember(groupId, userId)) {
+                        return@transaction Result.Failure(MessageError.NotMember(groupId))
+                    }
+                    Result.Success(Unit)
+                }
+
+                when (validationResult) {
+                    is Result.Failure -> validationResult
+                    is Result.Success -> {
+                        webSocketManager.subscribeToGroup(session, groupId)
+                        Result.Success(Unit)
+                    }
+                }
+            } catch (e: Exception) {
+                Result.Failure(
+                    MessageError.InternalError(e.message ?: "Failed to subscribe to group")
+                )
+            }
+        }
+    }
+
+    /**
+     * Unsubscribe user's WebSocket session from a group's message channel
+     */
+    suspend fun unsubscribeFromGroup(
+        groupId: Int,
+        session: WebSocketSession
+    ): Result<Unit, MessageError> {
+        return withContext(Dispatchers.IO) {
+            try {
+                webSocketManager.unsubscribeFromGroup(session, groupId)
+                Result.Success(Unit)
+            } catch (e: Exception) {
+                Result.Failure(
+                    MessageError.InternalError(e.message ?: "Failed to unsubscribe from group")
                 )
             }
         }

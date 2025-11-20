@@ -303,6 +303,57 @@ class MessageService(
         }
     }
 
+    /**
+     * Subscribe user's WebSocket session to a group's message channel
+     */
+    suspend fun subscribeToGroup(
+        groupId: Int,
+        userId: Int,
+        session: WebSocketSession
+    ): Result<Unit, MessageError> {
+        return withContext(Dispatchers.IO) {
+            try {
+                val validationResult = transaction {
+                    if (!groupRepository.isMember(groupId, userId)) {
+                        return@transaction Result.Failure(MessageError.NotMember(groupId))
+                    }
+                    Result.Success(Unit)
+                }
+
+                when (validationResult) {
+                    is Result.Failure -> validationResult
+                    is Result.Success -> {
+                        webSocketManager.subscribeToGroup(session, groupId)
+                        Result.Success(Unit)
+                    }
+                }
+            } catch (e: Exception) {
+                Result.Failure(
+                    MessageError.InternalError(e.message ?: "Failed to subscribe to group")
+                )
+            }
+        }
+    }
+
+    /**
+     * Unsubscribe user's WebSocket session from a group's message channel
+     */
+    suspend fun unsubscribeFromGroup(
+        groupId: Int,
+        session: WebSocketSession
+    ): Result<Unit, MessageError> {
+        return withContext(Dispatchers.IO) {
+            try {
+                webSocketManager.unsubscribeFromGroup(session, groupId)
+                Result.Success(Unit)
+            } catch (e: Exception) {
+                Result.Failure(
+                    MessageError.InternalError(e.message ?: "Failed to unsubscribe from group")
+                )
+            }
+        }
+    }
+
     private fun toMessageDto(message: Message, readByUserIds: List<Int> = emptyList()): MessageDto {
         val userName = message.userId?.let { userId ->
             userRepository.findById(userId)?.username

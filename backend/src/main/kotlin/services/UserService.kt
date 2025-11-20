@@ -45,8 +45,6 @@ class UserService(
         return when (val validation = UserValidator.validateUpdateProfile(request)) {
             is Result.Failure -> validation
             is Result.Success -> {
-                val validatedRequest = validation.value
-
                 withContext(Dispatchers.IO) {
                     try {
                         transaction {
@@ -55,10 +53,10 @@ class UserService(
 
                             // Create updated user with only changed fields
                             val updatedUser = existingUser.copy(
-                                firstname = validatedRequest.firstname ?: existingUser.firstname,
-                                lastname = validatedRequest.lastname ?: existingUser.lastname,
-                                phone = validatedRequest.phone ?: existingUser.phone,
-                                profilePicture = validatedRequest.profilePicture ?: existingUser.profilePicture
+                                firstname = request.firstname ?: existingUser.firstname,
+                                lastname = request.lastname ?: existingUser.lastname,
+                                phone = request.phone ?: existingUser.phone,
+                                profilePicture = request.profilePicture ?: existingUser.profilePicture
                             )
 
                             userRepository.update(userId, updatedUser)

@@ -34,27 +34,25 @@ class AuthService(
         return when (val validation = AuthValidator.validateSignup(request)) {
             is Result.Failure -> validation
             is Result.Success -> {
-                val validatedRequest = validation.value
-
                 withContext(Dispatchers.IO) {
                     try {
                         transaction {
                             when {
-                                userRepository.emailExists(validatedRequest.email) -> {
-                                    Result.Failure(AuthError.EmailAlreadyExists(validatedRequest.email))
+                                userRepository.emailExists(request.email) -> {
+                                    Result.Failure(AuthError.EmailAlreadyExists(request.email))
                                 }
-                                userRepository.usernameExists(validatedRequest.username) -> {
+                                userRepository.usernameExists(request.username) -> {
                                     Result.Failure(AuthError.ValidationError("Username already taken"))
                                 }
                                 else -> {
                                     val user = User(
                                         id = 0,
-                                        email = validatedRequest.email,
-                                        username = validatedRequest.username,
-                                        firstname = validatedRequest.firstname,
-                                        lastname = validatedRequest.lastname,
-                                        passwordHash = passwordHasher.hash(validatedRequest.password),
-                                        phone = validatedRequest.phone,
+                                        email = request.email,
+                                        username = request.username,
+                                        firstname = request.firstname,
+                                        lastname = request.lastname,
+                                        passwordHash = passwordHasher.hash(request.password),
+                                        phone = request.phone,
                                         profilePicture = null,
                                         createdAt = System.currentTimeMillis().toString()
                                     )
@@ -91,18 +89,16 @@ class AuthService(
         return when (val validation = AuthValidator.validateLogin(request)) {
             is Result.Failure -> validation
             is Result.Success -> {
-                val validatedRequest = validation.value
-
                 withContext(Dispatchers.IO) {
                     try {
                         transaction {
-                            val user = userRepository.findByEmailOrUsername(validatedRequest.emailOrUsername)
+                            val user = userRepository.findByEmailOrUsername(request.emailOrUsername)
 
                             when {
                                 user == null -> {
                                     Result.Failure(AuthError.InvalidCredentials())
                                 }
-                                !passwordHasher.verify(validatedRequest.password, user.passwordHash) -> {
+                                !passwordHasher.verify(request.password, user.passwordHash) -> {
                                     Result.Failure(AuthError.InvalidCredentials())
                                 }
                                 else -> {

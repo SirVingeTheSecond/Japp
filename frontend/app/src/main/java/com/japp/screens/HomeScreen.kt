@@ -1,16 +1,25 @@
 package com.japp.screens
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.sizeIn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -26,13 +35,26 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.ColorUtils
 import androidx.navigation.NavController
 import com.japp.AppDestinations
+import com.japp.api.RetrofitClient
+import com.japp.api.responses.activity.ActivityDto
+import com.japp.api.responses.auth.UserDto
+import com.japp.api.responses.expense.GroupBalanceSummaryDto
+import com.japp.api.responses.group.GroupDto
+import com.japp.api.responses.user.MeResponse
+import com.japp.composables.GroupIcon
+import com.japp.composables.TimeText
 import kotlinx.coroutines.delay
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
 import java.text.DateFormat
 import java.util.Date
 import kotlin.math.round
@@ -40,53 +62,163 @@ import kotlin.math.round
 @Preview(showSystemUi = true)
 @Composable
 fun HomeScreen(navController: NavController? = null) {
+    var activities by remember { mutableStateOf<List<ActivityDto>?>(null) }
+    var groups by remember { mutableStateOf<List<GroupDto>?>(null) }
+
+    LaunchedEffect(Unit) {
+        // Activity call
+        RetrofitClient.activityService.get_user_activities(4).enqueue(
+            object: Callback<List<ActivityDto>>{
+                override fun onResponse(
+                    call: Call<List<ActivityDto>?>,
+                    response: Response<List<ActivityDto>?>
+                ) {
+                    val body = response.body()
+                    if (body != null && response.isSuccessful) {
+                        activities = body
+                    }
+                }
+
+                override fun onFailure(
+                    call: Call<List<ActivityDto>?>,
+                    t: Throwable
+                ) {
+                    TODO("Not yet implemented")
+                }
+
+            }
+        )
+        // Group call
+        RetrofitClient.groupService.get_my_groups().enqueue(
+            object: Callback<List<GroupDto>?>{
+                override fun onResponse(
+                    call: Call<List<GroupDto>?>,
+                    response: Response<List<GroupDto>?>
+                ) {
+                    val body = response.body()
+                    if (body != null && response.isSuccessful) {
+                        groups = body
+                    }
+                }
+
+                override fun onFailure(
+                    call: Call<List<GroupDto>?>,
+                    t: Throwable
+                ) {
+                    TODO("Not yet implemented")
+                }
+
+            }
+        )
+    }
+
+    var owed by remember { mutableStateOf<Double?>(null) }
+    var owes by remember { mutableStateOf<Double?>(null) }
+
+    LaunchedEffect(groups) {
+        // Me call
+        val me = RetrofitClient.userService.get_my_user()
+        if (groups != null) {
+            for (group in groups) {
+                RetrofitClient.expenseService.get_group_balances(group.id)!!.enqueue(
+                    object: Callback<GroupBalanceSummaryDto?> {
+                        override fun onResponse(
+                            call: Call<GroupBalanceSummaryDto?>,
+                            response: Response<GroupBalanceSummaryDto?>
+                        ) {
+                            val body = response.body()
+                            if (body != null && response.isSuccessful) {
+                                if (owed == null || owes == null) {
+                                    owed = 0.0
+                                    owes = 0.0
+                                }
+                                val myBal = body.balances.find { (userId, _, _) ->  userId == me.id}
+                                if (myBal != null) {
+                                    if (myBal.balance < 0) owes = owes!! + myBal.balance else owed = owed!! + myBal.balance
+                                }
+                            }
+                        }
+
+                        override fun onFailure(
+                            call: Call<GroupBalanceSummaryDto?>,
+                            t: Throwable
+                        ) {
+                            TODO("Not yet implemented")
+                        }
+
+                    }
+                )
+            }
+        }
+    }
+
     Column(
-        Modifier.fillMaxSize().padding(10.dp),
+        Modifier
+            .fillMaxSize()
+            .padding(10.dp)
+            .verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        QuickStats()
+        QuickStats(owed, owes)
         HorizontalDivider(
-            Modifier.padding(10.dp).background(MaterialTheme.colorScheme.primary),
+            Modifier
+                .padding(10.dp)
+                .background(MaterialTheme.colorScheme.primary),
             thickness = 2.dp
         )
-        QuickActivities(navController)
+        QuickActivities(navController, activities)
         HorizontalDivider(
-            Modifier.padding(10.dp).background(MaterialTheme.colorScheme.primary),
+            Modifier
+                .padding(10.dp)
+                .background(MaterialTheme.colorScheme.primary),
             thickness = 2.dp
         )
-        QuickGroups(navController)
+        QuickGroups(navController, groups)
     }
 }
 
 
 @Composable
-fun QuickStats() {
-    var owed by remember { mutableStateOf<Int?>(null) }
-    var ratio by remember { mutableStateOf<Float?>(null) }
-    var owes by remember { mutableStateOf<Int?>(null) }
-
-    LaunchedEffect(Unit) {
-        // TODO: Get expenses
-        delay(2000)
-        owed = 300
-        owes = 50
-        ratio = round((owes!!.toFloat() / (owed!! + owes!!).toFloat()) * 100) / 100
-    }
-
-    var acceptColor = Color(0xFF20DF6C)
-    var errorColor = Color(0xFFDF2020)
-    var ratioColorInt = ratio?.let { ColorUtils.blendARGB(acceptColor.toArgb(), errorColor.toArgb(), it) }
-    var ratioColor = Color(ratioColorInt ?: Color.Yellow.toArgb())
-
-    Row (
-        Modifier.fillMaxWidth().height(80.dp),
+fun QuickStats(
+    owed: Double?,
+    owes: Double?
+) {
+    var ratio by remember { mutableStateOf<Double?>(null) }
+    var difference by remember { mutableStateOf<Double?>(null) }
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .height(80.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceAround
     ) {
-        if (owed != null && ratio != null && owes != null) {
-            Pill(owed.toString(), label = "Owed", color = acceptColor, textColor = MaterialTheme.colorScheme.onPrimaryContainer)
-            Pill((ratio!!*100f).toInt().toString() + "%", label = "Ratio", color = ratioColor, textColor = MaterialTheme.colorScheme.onTertiaryContainer)
-            Pill(owes.toString(), label = "Owes", color = errorColor, textColor = MaterialTheme.colorScheme.onSecondaryContainer)
+        if (owed != null && owes != null) {
+            ratio = round((owes / (owed + owes)) * 100) / 100
+            difference = owed - owes
+            var acceptColor = Color(0xFF20DF6C)
+            var errorColor = Color(0xFFDF2020)
+            var ratioColorInt =
+                ratio?.let { ColorUtils.blendARGB(acceptColor.toArgb(), errorColor.toArgb(), it.toFloat()) }
+            var ratioColor = Color(ratioColorInt ?: Color.Yellow.toArgb())
+
+            Pill(
+                owed.toString(),
+                label = "Owed",
+                color = acceptColor,
+                textColor = MaterialTheme.colorScheme.onPrimaryContainer
+            )
+            Pill(
+                difference.toString(),
+                label = "Ratio",
+                color = ratioColor,
+                textColor = MaterialTheme.colorScheme.onTertiaryContainer
+            )
+            Pill(
+                owes.toString(),
+                label = "Owes",
+                color = errorColor,
+                textColor = MaterialTheme.colorScheme.onSecondaryContainer
+                )
         } else {
             LinearProgressIndicator(
                 Modifier.align(Alignment.CenterVertically),
@@ -98,13 +230,21 @@ fun QuickStats() {
 }
 
 @Composable
-fun Pill(content: String = "Idk?", label: String? = null, color: Color? = null, textColor: Color? = null) {
-    Column (
+fun Pill(
+    content: String = "Idk?",
+    label: String? = null,
+    color: Color? = null,
+    textColor: Color? = null
+) {
+    Column(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         label?.let { Text(it) }
-        Box (
-            Modifier.clip(RoundedCornerShape(100.dp)).background(color ?: MaterialTheme.colorScheme.primaryContainer).padding(vertical = 6.dp, horizontal = 12.dp)
+        Box(
+            Modifier
+                .clip(RoundedCornerShape(100.dp))
+                .background(color ?: MaterialTheme.colorScheme.primaryContainer)
+                .padding(vertical = 6.dp, horizontal = 12.dp)
         ) {
             Text(content, color = textColor ?: MaterialTheme.colorScheme.onPrimaryContainer)
         }
@@ -112,9 +252,10 @@ fun Pill(content: String = "Idk?", label: String? = null, color: Color? = null, 
 }
 
 @Composable
-fun QuickActivities(navController: NavController?) {
-    //TODO: Fetch activities
-
+fun QuickActivities(
+    navController: NavController?,
+    activities: List<ActivityDto>?
+) {
     Column(
         horizontalAlignment = Alignment.Start
     ) {
@@ -130,35 +271,90 @@ fun QuickActivities(navController: NavController?) {
                 Text("Activities ->", textAlign = TextAlign.End)
             }
         }
-        Activity(Date()) {
-            Text("Someone")
-            Text("created an expense of 500", style = MaterialTheme.typography.bodySmall)
+        if (activities != null) {
+            for (activity in activities) {
+                Activity(activity)
+            }
+        } else {
+            LinearProgressIndicator(
+                Modifier.align(Alignment.CenterHorizontally),
+                color = MaterialTheme.colorScheme.secondary,
+                trackColor = MaterialTheme.colorScheme.surfaceVariant,
+            )
         }
     }
 }
 
 @Composable
-fun Activity(time: Date? = null, content: @Composable (() -> Unit)) {
+fun Activity(activity: ActivityDto) {
+    var group by remember { mutableStateOf<GroupDto?>(null) }
+
+    LaunchedEffect(Unit) {
+        RetrofitClient.groupService.get_group(activity.groupId)!!.enqueue(
+            object: Callback<GroupDto?>{
+                override fun onResponse(
+                    call: Call<GroupDto?>,
+                    response: Response<GroupDto?>
+                ) {
+                    val body = response.body()
+                    if (body != null && response.isSuccessful) {
+                        group = body
+                    }
+                }
+
+                override fun onFailure(
+                    call: Call<GroupDto?>,
+                    t: Throwable
+                ) {
+                    TODO("Not yet implemented")
+                }
+
+            }
+        )
+    }
+
     Row(
-        Modifier.fillMaxWidth().padding(horizontal = 10.dp),
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 10.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Row(
-            Modifier.fillMaxWidth(0.7f),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            Modifier.fillMaxWidth(1f),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            content()
+            Icon(
+                getActivityIcon(activity.actionType),
+                contentDescription = "Icon",
+            )
+            Text(activity.userName, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelLarge)
+            Text(activity.description, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.labelLarge)
+            Text(group?.name ?: "", style = MaterialTheme.typography.labelSmall)
+            TimeText(
+                Date(activity.createdAt.toLong()),
+                Modifier.fillMaxWidth(),
+                style = MaterialTheme.typography.labelSmall,
+                textAlign = TextAlign.End
+            )
         }
-        time?.let { Text(DateFormat.getDateInstance().format(it)) }
     }
 }
 
 @Composable
-fun QuickGroups(navController: NavController?) {
+fun QuickGroups(
+    navController: NavController?,
+    groups: List<GroupDto>?
+) {
+    var me by remember { mutableStateOf<UserDto?>(null) }
+    LaunchedEffect(Unit) {
+        me = RetrofitClient.userService.get_my_user()
+    }
+
     Column(
-        horizontalAlignment = Alignment.Start
+        horizontalAlignment = Alignment.Start,
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         Row(
             Modifier.fillMaxWidth(),
@@ -172,6 +368,83 @@ fun QuickGroups(navController: NavController?) {
                 Text("My Groups ->", textAlign = TextAlign.End)
             }
         }
-        //TODO: Use group card
+        if (groups != null && me != null) {
+            for (group in (if (groups.size <= 3) groups else groups.slice(IntRange(0, 2)))) {
+                Group(group, me!!, navController)
+            }
+        } else {
+            LinearProgressIndicator(
+                Modifier.align(Alignment.CenterHorizontally),
+                color = MaterialTheme.colorScheme.secondary,
+                trackColor = MaterialTheme.colorScheme.surfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
+fun Group(group: GroupDto, me: UserDto, navController: NavController? = null) {
+    var groupBalance by remember { mutableStateOf<Double?>(null) }
+
+    LaunchedEffect(Unit) {
+        RetrofitClient.expenseService.get_group_balances(group.id)!!.enqueue(
+            object: Callback<GroupBalanceSummaryDto?>{
+                override fun onResponse(
+                    call: Call<GroupBalanceSummaryDto?>,
+                    response: Response<GroupBalanceSummaryDto?>
+                ) {
+                    val body = response.body()
+                    if (body != null && response.isSuccessful) {
+                        val myBal = body.balances.find { (userId, username, balance) -> userId == me.id }
+                        groupBalance = myBal?.balance
+                    }
+                }
+
+                override fun onFailure(
+                    call: Call<GroupBalanceSummaryDto?>,
+                    t: Throwable
+                ) {
+                    TODO("Not yet implemented")
+                }
+
+            }
+        )
+    }
+
+    var colorTint = Color.Transparent
+    var cardColor = CardDefaults.cardColors()
+    if (groupBalance != null) {
+        colorTint = if (groupBalance!! >= 0) Color(0xFF20DF6C) else Color(0xFFDF2020)
+        cardColor = CardDefaults.cardColors(
+            Color(ColorUtils.blendARGB(cardColor.containerColor.toArgb(), colorTint.toArgb(), 0.1f))
+        )
+    }
+
+    Card(
+        onClick = { GROUP_ID = group.id; navController?.navigate(AppDestinations.GROUP.route) },
+        modifier = Modifier.height(100.dp),
+        colors = cardColor
+    ) {
+        Row (
+            Modifier.padding(10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Column(
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                GroupIcon(group.name, Modifier.size(60.dp))
+            }
+            Column {
+                Text(group.name, overflow = TextOverflow.Ellipsis)
+                HorizontalDivider()
+                if (group.description != null) {
+                    Text(group.description, style = MaterialTheme.typography.labelSmall)
+                    HorizontalDivider()
+                }
+                Text("Group members: ${group.memberCount}", style = MaterialTheme.typography.labelSmall)
+            }
+        }
     }
 }

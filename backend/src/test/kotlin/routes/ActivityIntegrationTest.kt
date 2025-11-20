@@ -120,7 +120,7 @@ class ActivityIntegrationTest : AnnotationSpec() {
     )
 
     @Test
-    fun `should get user activities across all groups`() = testApplication {
+    fun `should get user activities for all groups`() = testApplication {
         setupTestConfig()
         application { module() }
         val data = setupTestData()
@@ -149,5 +149,160 @@ class ActivityIntegrationTest : AnnotationSpec() {
         activities shouldHaveSize 3
         activities.map { it.actionType } shouldContain ActivityType.GROUP_CREATED
         activities.map { it.actionType } shouldContain ActivityType.EXPENSE_CREATED
+    }
+
+    @Test
+    fun `should get group activities successfully`() = testApplication {
+        setupTestConfig()
+        application { module() }
+        val data = setupTestData()
+
+        // Create an expense to generate more activities
+        client.post("/api/expenses") {
+            contentType(ContentType.Application.Json)
+            header("Authorization", "Bearer ${data.token1}")
+            setBody("""
+            {
+                "groupId": ${data.groupId},
+                "amount": 150.0,
+                "description": "Group dinner",
+                "splitType": "equal"
+            }
+        """.trimIndent())
+        }
+
+        val response = client.get("/api/activities/group/${data.groupId}") {
+            header("Authorization", "Bearer ${data.token1}")
+        }
+
+        response.status shouldBe HttpStatusCode.OK
+        val groupActivities = json.decodeFromString<GroupActivitiesDto>(response.bodyAsText())
+
+        groupActivities.groupId shouldBe data.groupId
+        groupActivities.groupName shouldBe "Test Group"
+        groupActivities.activities shouldHaveSize 3
+        groupActivities.activities.map { it.actionType } shouldContain ActivityType.GROUP_CREATED
+        groupActivities.activities.map { it.actionType } shouldContain ActivityType.MEMBER_JOINED
+        groupActivities.activities.map { it.actionType } shouldContain ActivityType.EXPENSE_CREATED
+    }
+
+    @Test
+    fun `should fail to get group activities when not a member`() = testApplication {
+        setupTestConfig()
+        application { module() }
+        val data = setupTestData()
+
+        // Create a third user who is NOT in the group
+        val user3Response = client.post("/api/auth/signup") {
+            contentType(ContentType.Application.Json)
+            setBody("""
+            {
+                "email": "user3@test.com",
+                "username": "user3",
+                "firstname": "Test",
+                "lastname": "User3",
+                "password": "Password123"
+            }
+        """.trimIndent())
+        }
+        val auth3 = json.decodeFromString<AuthResponse>(user3Response.bodyAsText())
+
+        val response = client.get("/api/activities/group/${data.groupId}") {
+            header("Authorization", "Bearer ${auth3.token}")
+        }
+
+        response.status shouldBe HttpStatusCode.Forbidden
+    }
+
+    @Test
+    fun `should fail with invalid group ID`() = testApplication {
+        setupTestConfig()
+        application { module() }
+        val data = setupTestData()
+
+        val response = client.get("/api/activities/group/99999") {
+            header("Authorization", "Bearer ${data.token1}")
+        }
+
+        response.status shouldBe HttpStatusCode.Forbidden
+    }
+
+    @Test
+    fun `should fail without authentication`() = testApplication {
+        setupTestConfig()
+        application { module() }
+        val data = setupTestData()
+
+        val response = client.get("/api/activities/group/${data.groupId}")
+
+        response.status shouldBe HttpStatusCode.Unauthorized
+    }
+
+    @Test
+    fun `should respect limit parameter for user activities`() = testApplication {
+        setupTestConfig()
+        application { module() }
+        val data = setupTestData()
+
+        // Create multiple expenses to generate more activities
+        repeat(5) { i ->
+            client.post("/api/expenses") {
+                contentType(ContentType.Application.Json)
+                header("Authorization", "Bearer ${data.token1}")
+                setBody("""
+                {
+                    "groupId": ${data.groupId},
+                    "amount": ${(i + 1) * 10.0},
+                    "description": "Expense $i",
+                    "splitType": "equal"
+                }
+            """.trimIndent())
+            }
+        }
+
+        // Total activities: 2 (setup) + 5 (expenses)
+        // Request only 3
+        val response = client.get("/api/activities?limit=3") {
+            header("Authorization", "Bearer ${data.token1}")
+        }
+
+        response.status shouldBe HttpStatusCode.OK
+        val activities = json.decodeFromString<List<ActivityDto>>(response.bodyAsText())
+
+        activities shouldHaveSize 3
+    }
+
+    @Test
+    fun `should respect limit parameter for group activities`() = testApplication {
+        setupTestConfig()
+        application { module() }
+        val data = setupTestData()
+
+        // Create multiple expenses
+        repeat(5) { i ->
+            client.post("/api/expenses") {
+                contentType(ContentType.Application.Json)
+                header("Authorization", "Bearer ${data.token1}")
+                setBody("""
+                {
+                    "groupId": ${data.groupId},
+                    "amount": ${(i + 1) * 10.0},
+                    "description": "Expense $i",
+                    "splitType": "equal"
+                }
+            """.trimIndent())
+            }
+        }
+
+        // Total activities: 2 (setup) + 5 (expenses)
+        // Request only 2
+        val response = client.get("/api/activities/group/${data.groupId}?limit=2") {
+            header("Authorization", "Bearer ${data.token1}")
+        }
+
+        response.status shouldBe HttpStatusCode.OK
+        val groupActivities = json.decodeFromString<GroupActivitiesDto>(response.bodyAsText())
+
+        groupActivities.activities shouldHaveSize 2
     }
 }

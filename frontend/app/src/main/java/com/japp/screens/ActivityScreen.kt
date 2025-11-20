@@ -42,7 +42,8 @@ import com.japp.api.RetrofitClient
 import com.japp.api.responses.ActivityType
 import com.japp.api.responses.activity.ActivityDto
 import com.japp.api.responses.activity.GroupActivitiesDto
-import com.japp.composables.printableDatetime
+import com.japp.composables.ActivityRow
+import com.japp.composables.PrintableDatetime
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
@@ -52,59 +53,15 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.ZoneOffset
 
-@Composable
-fun ActivityRow(
-    icon: ImageVector,
-    user: String,
-    action: String,
-    date: LocalDateTime
-) {
-    return Row (
-            modifier = Modifier
-                .padding(top = 10.dp),
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = "Activity type",
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier
-                    .size(24.dp)
-            )
-
-            Text(
-                text = user,
-                style = MaterialTheme.typography.bodySmall,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                fontWeight = FontWeight.Bold
-            )
-
-            Text(
-                text = action,
-                style = MaterialTheme.typography.bodySmall,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-
-            Spacer(modifier = Modifier.weight(1f))
-
-            Text(
-                text = printableDatetime(date),
-                style = MaterialTheme.typography.labelSmall
-            )
-        }
-}
-
 
 fun getActivities(
     userActivity: MutableState<List<ActivityDto>?>,
-    isLoading: MutableState<Boolean>
+    isLoading: MutableState<Boolean>,
+    limit: Int? = null
 ) {
-    val call = RetrofitClient.activityService.get_user_activities()
+    val call = RetrofitClient.activityService.get_user_activities(limit = limit)
 
-    call.enqueue(object: Callback<List<ActivityDto>?> {
+    call.enqueue(object : Callback<List<ActivityDto>?> {
 
         override fun onResponse(
             call: retrofit2.Call<List<ActivityDto>?>,
@@ -128,21 +85,6 @@ fun getActivities(
             TODO("Not yet implemented")
         }
     })
-}
-
-fun getActivityIcon(actionType: ActivityType): ImageVector {
-    return when (actionType) { // These icons are not final, just placeholders for now
-        ActivityType.MEMBER_LEFT -> Icons.Default.Circle
-        ActivityType.GROUP_CREATED -> Icons.Default.Group
-        ActivityType.MEMBER_JOINED -> Icons.Default.GroupAdd
-        ActivityType.EXPENSE_CREATED -> Icons.Default.Add
-        ActivityType.EXPENSE_DELETED -> Icons.Default.Delete
-        ActivityType.EXPENSE_UPDATED -> Icons.Default.Update
-        ActivityType.RECEIPT_UPLOADED -> Icons.Default.Receipt
-        ActivityType.SETTLEMENT_CREATED -> Icons.Default.Hardware
-        ActivityType.SETTLEMENT_COMPLETED -> Icons.Default.Done
-        else -> Icons.Default.Circle
-    }
 }
 
 @Preview(showSystemUi = true)
@@ -170,10 +112,7 @@ fun ActivityScreen(navController: NavController? = null) {
 
             userActivity.value?.forEach {
                 ActivityRow(
-                    getActivityIcon(it.actionType),
-                    it.userName,
-                    it.actionType.description,
-                    LocalDateTime.ofInstant(Instant.ofEpochMilli(it.createdAt.toLong()), ZoneId.systemDefault())
+                    it
                 )
             }
 

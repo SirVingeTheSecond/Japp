@@ -127,24 +127,29 @@ fun QuickActivities(navController: NavController?) {
 
     Column (
         modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp),
+            .fillMaxWidth(),
         verticalArrangement = Arrangement.Top,
-        horizontalAlignment = Alignment.CenterHorizontally
+        horizontalAlignment = Alignment.Start
     ) {
+        Text("Activities", style = MaterialTheme.typography.headlineSmall)
 
-        if (isLoading.value) {
-            CircularProgressIndicator()
-        } else {
+        Column (
+            modifier = Modifier
+                .padding(16.dp),
+            verticalArrangement = Arrangement.Top,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            if (isLoading.value) {
+                CircularProgressIndicator()
+            } else {
 
-            userActivity.value?.forEach {
-                ActivityRow(
-                    it
-                )
+                userActivity.value?.forEach {
+                    ActivityRow(
+                        it
+                    )
+                }
             }
-
         }
-
     }
 }
 

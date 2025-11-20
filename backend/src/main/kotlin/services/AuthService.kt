@@ -11,7 +11,7 @@ import com.japp.validation.AuthValidator
 import com.japp.utils.toDto
 import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
-import com.japp.models.error.AuthError
+import com.japp.models.error.AppError
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
@@ -30,7 +30,7 @@ class AuthService(
     /**
      * Register a new user
      */
-    suspend fun signup(request: SignupRequest): Result<AuthResponse, AuthError> {
+    suspend fun signup(request: SignupRequest): Result<AuthResponse, AppError> {
         return when (val validation = AuthValidator.validateSignup(request)) {
             is Result.Failure -> validation
             is Result.Success -> {
@@ -39,10 +39,10 @@ class AuthService(
                         transaction {
                             when {
                                 userRepository.emailExists(request.email) -> {
-                                    Result.Failure(AuthError.EmailAlreadyExists(request.email))
+                                    Result.Failure(AppError.EmailAlreadyExists(request.email))
                                 }
                                 userRepository.usernameExists(request.username) -> {
-                                    Result.Failure(AuthError.ValidationError("Username already taken"))
+                                    Result.Failure(AppError.Validation("Username already taken"))
                                 }
                                 else -> {
                                     val user = User(
@@ -69,13 +69,13 @@ class AuthService(
                                             )
                                         )
                                     } else {
-                                        Result.Failure(AuthError.InternalError("Failed to retrieve created user"))
+                                        Result.Failure(AppError.Internal("Failed to retrieve created user"))
                                     }
                                 }
                             }
                         }
                     } catch (e: Exception) {
-                        Result.Failure(AuthError.InternalError(e.message ?: "Unknown error"))
+                        Result.Failure(AppError.Internal(e.message ?: "Unknown error"))
                     }
                 }
             }
@@ -85,7 +85,7 @@ class AuthService(
     /**
      * Authenticate existing user
      */
-    suspend fun login(request: LoginRequest): Result<AuthResponse, AuthError> {
+    suspend fun login(request: LoginRequest): Result<AuthResponse, AppError> {
         return when (val validation = AuthValidator.validateLogin(request)) {
             is Result.Failure -> validation
             is Result.Success -> {
@@ -96,10 +96,10 @@ class AuthService(
 
                             when {
                                 user == null -> {
-                                    Result.Failure(AuthError.InvalidCredentials())
+                                    Result.Failure(AppError.InvalidCredentials())
                                 }
                                 !passwordHasher.verify(request.password, user.passwordHash) -> {
-                                    Result.Failure(AuthError.InvalidCredentials())
+                                    Result.Failure(AppError.InvalidCredentials())
                                 }
                                 else -> {
                                     val token = generateToken(user.id, user.email)
@@ -113,7 +113,7 @@ class AuthService(
                             }
                         }
                     } catch (e: Exception) {
-                        Result.Failure(AuthError.InternalError(e.message ?: "Unknown error"))
+                        Result.Failure(AppError.Internal(e.message ?: "Unknown error"))
                     }
                 }
             }

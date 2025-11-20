@@ -4,7 +4,7 @@ import com.japp.models.Result
 import com.japp.models.ActivityType
 import com.japp.models.dto.ActivityDto
 import com.japp.models.dto.GroupActivitiesDto
-import com.japp.models.error.ActivityError
+import com.japp.models.error.AppError
 import com.japp.repositories.interfaces.IActivityRepository
 import com.japp.repositories.interfaces.IGroupRepository
 import com.japp.repositories.interfaces.IUserRepository
@@ -252,17 +252,17 @@ class ActivityService(
         groupId: Int,
         userId: Int,
         limit: Int = 50
-    ): Result<GroupActivitiesDto, ActivityError> {
+    ): Result<GroupActivitiesDto, AppError> {
         return withContext(Dispatchers.IO) {
             try {
                 transaction {
                     if (!groupRepository.isMember(groupId, userId)) {
-                        return@transaction Result.Failure(ActivityError.NotMember(groupId))
+                        return@transaction Result.Failure(AppError.NotMember(groupId))
                     }
 
                     val group = groupRepository.findById(groupId)
                         ?: return@transaction Result.Failure(
-                            ActivityError.InternalError("Group not found")
+                            AppError.Internal("Group not found")
                         )
 
                     val activities = activityRepository.findByGroupId(groupId, limit)
@@ -287,7 +287,7 @@ class ActivityService(
                 }
             } catch (e: Exception) {
                 Result.Failure(
-                    ActivityError.InternalError(e.message ?: "Failed to retrieve activities")
+                    AppError.Internal(e.message ?: "Failed to retrieve activities")
                 )
             }
         }
@@ -296,7 +296,7 @@ class ActivityService(
     suspend fun getUserActivities(
         userId: Int,
         limit: Int = 50
-    ): Result<List<ActivityDto>, ActivityError> {
+    ): Result<List<ActivityDto>, AppError> {
         return withContext(Dispatchers.IO) {
             try {
                 transaction {
@@ -316,7 +316,7 @@ class ActivityService(
                 }
             } catch (e: Exception) {
                 Result.Failure(
-                    ActivityError.InternalError(e.message ?: "Failed to retrieve activities")
+                    AppError.Internal(e.message ?: "Failed to retrieve activities")
                 )
             }
         }

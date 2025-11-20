@@ -3,7 +3,7 @@ package com.japp.services
 import com.japp.models.*
 import com.japp.models.domain.Expense
 import com.japp.models.dto.*
-import com.japp.models.error.ExpenseError
+import com.japp.models.error.AppError
 import com.japp.repositories.interfaces.IExpenseRepository
 import com.japp.repositories.interfaces.IGroupRepository
 import com.japp.repositories.interfaces.IUserRepository
@@ -26,7 +26,7 @@ class ExpenseService(
     suspend fun createExpense(
         request: CreateExpenseRequest,
         userId: Int
-    ): Result<ExpenseDto, ExpenseError> {
+    ): Result<ExpenseDto, AppError> {
         return when (val validation = ExpenseValidator.validateCreateExpense(request)) {
             is Result.Failure -> validation
             is Result.Success -> {
@@ -35,7 +35,7 @@ class ExpenseService(
                         val result = transaction {
                             if (!groupRepository.isMember(request.groupId, userId)) {
                                 return@transaction Result.Failure(
-                                    ExpenseError.NotMember(request.groupId)
+                                    AppError.NotMember(request.groupId)
                                 )
                             }
 
@@ -110,7 +110,7 @@ class ExpenseService(
                         }
                     } catch (e: Exception) {
                         Result.Failure(
-                            ExpenseError.InternalError(e.message ?: "Failed to create expense")
+                            AppError.Internal(e.message ?: "Failed to create expense")
                         )
                     }
                 }
@@ -121,12 +121,12 @@ class ExpenseService(
     suspend fun getGroupExpenses(
         groupId: Int,
         userId: Int
-    ): Result<List<ExpenseDto>, ExpenseError> {
+    ): Result<List<ExpenseDto>, AppError> {
         return withContext(Dispatchers.IO) {
             try {
                 transaction {
                     if (!groupRepository.isMember(groupId, userId)) {
-                        return@transaction Result.Failure(ExpenseError.NotMember(groupId))
+                        return@transaction Result.Failure(AppError.NotMember(groupId))
                     }
 
                     val expenses = expenseRepository.findByGroupId(groupId)
@@ -138,7 +138,7 @@ class ExpenseService(
                 }
             } catch (e: Exception) {
                 Result.Failure(
-                    ExpenseError.InternalError(e.message ?: "Failed to retrieve expenses")
+                    AppError.Internal(e.message ?: "Failed to retrieve expenses")
                 )
             }
         }
@@ -147,17 +147,17 @@ class ExpenseService(
     suspend fun getGroupBalances(
         groupId: Int,
         userId: Int
-    ): Result<GroupBalanceSummaryDto, ExpenseError> {
+    ): Result<GroupBalanceSummaryDto, AppError> {
         return withContext(Dispatchers.IO) {
             try {
                 transaction {
                     if (!groupRepository.isMember(groupId, userId)) {
-                        return@transaction Result.Failure(ExpenseError.NotMember(groupId))
+                        return@transaction Result.Failure(AppError.NotMember(groupId))
                     }
 
                     val group = groupRepository.findById(groupId)
                         ?: return@transaction Result.Failure(
-                            ExpenseError.InternalError("Group not found")
+                            AppError.Internal("Group not found")
                         )
 
                     val balances = expenseRepository.calculateGroupBalances(groupId)
@@ -181,7 +181,7 @@ class ExpenseService(
                 }
             } catch (e: Exception) {
                 Result.Failure(
-                    ExpenseError.InternalError(e.message ?: "Failed to calculate balances")
+                    AppError.Internal(e.message ?: "Failed to calculate balances")
                 )
             }
         }
@@ -190,16 +190,16 @@ class ExpenseService(
     suspend fun deleteExpense(
         expenseId: Int,
         userId: Int
-    ): Result<Unit, ExpenseError> {
+    ): Result<Unit, AppError> {
         return withContext(Dispatchers.IO) {
             try {
                 val result = transaction {
                     val expense = expenseRepository.findById(expenseId)
-                        ?: return@transaction Result.Failure(ExpenseError.NotFound(expenseId))
+                        ?: return@transaction Result.Failure(AppError.NotFound("Expense", expenseId))
 
                     if (expense.paidBy != userId) {
                         return@transaction Result.Failure(
-                            ExpenseError.Unauthorized("Only the payer can delete this expense")
+                            AppError.Unauthorized("Only the payer can delete this expense")
                         )
                     }
 
@@ -233,7 +233,7 @@ class ExpenseService(
                 }
             } catch (e: Exception) {
                 Result.Failure(
-                    ExpenseError.InternalError(e.message ?: "Failed to delete expense")
+                    AppError.Internal(e.message ?: "Failed to delete expense")
                 )
             }
         }

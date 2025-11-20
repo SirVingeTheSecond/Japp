@@ -1,9 +1,9 @@
 package com.japp.services
 
 import com.japp.models.Result
-import com.japp.models.error.UserError
 import com.japp.models.dto.UpdateUserRequest
 import com.japp.models.dto.UserDto
+import com.japp.models.error.AppError
 import com.japp.repositories.interfaces.IUserRepository
 import com.japp.validation.UserValidator
 import com.japp.utils.toDto
@@ -18,18 +18,18 @@ class UserService(
     /**
      * Get user profile by ID
      */
-    suspend fun getUserProfile(userId: Int): Result<UserDto, UserError> {
+    suspend fun getUserProfile(userId: Int): Result<UserDto, AppError> {
         return withContext(Dispatchers.IO) {
             try {
                 transaction {
                     val user = userRepository.findById(userId)
-                        ?: return@transaction Result.Failure(UserError.NotFound(userId))
+                        ?: return@transaction Result.Failure(AppError.NotFound("User", userId))
 
                     Result.Success(user.toDto())
                 }
             } catch (e: Exception) {
                 Result.Failure(
-                    UserError.InternalError(e.message ?: "Failed to retrieve user profile")
+                    AppError.Internal(e.message ?: "Failed to retrieve user profile")
                 )
             }
         }
@@ -41,7 +41,7 @@ class UserService(
     suspend fun updateProfile(
         userId: Int,
         request: UpdateUserRequest
-    ): Result<UserDto, UserError> {
+    ): Result<UserDto, AppError> {
         return when (val validation = UserValidator.validateUpdateProfile(request)) {
             is Result.Failure -> validation
             is Result.Success -> {
@@ -49,7 +49,7 @@ class UserService(
                     try {
                         transaction {
                             val existingUser = userRepository.findById(userId)
-                                ?: return@transaction Result.Failure(UserError.NotFound(userId))
+                                ?: return@transaction Result.Failure(AppError.NotFound("User", userId))
 
                             // Create updated user with only changed fields
                             val updatedUser = existingUser.copy(
@@ -63,14 +63,14 @@ class UserService(
 
                             val savedUser = userRepository.findById(userId)
                                 ?: return@transaction Result.Failure(
-                                    UserError.InternalError("Failed to retrieve updated user")
+                                    AppError.Internal("Failed to retrieve updated user")
                                 )
 
                             Result.Success(savedUser.toDto())
                         }
                     } catch (e: Exception) {
                         Result.Failure(
-                            UserError.InternalError(e.message ?: "Failed to update profile")
+                            AppError.Internal(e.message ?: "Failed to update profile")
                         )
                     }
                 }

@@ -3,6 +3,7 @@ package com.japp.plugins
 import com.japp.models.dto.HealthResponse
 import com.japp.models.dto.MeResponse
 import com.japp.routes.activityRoutes
+import com.japp.routes.attachmentRoutes
 import com.japp.routes.authRoutes
 import com.japp.routes.chatWebSocket
 import com.japp.routes.groupRoutes
@@ -133,6 +134,8 @@ fun Application.configureRouting() {
                 activityRoutes()
 
                 messageRoutes()
+
+                attachmentRoutes()
 
                 chatWebSocket()
             }

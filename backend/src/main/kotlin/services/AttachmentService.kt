@@ -113,7 +113,47 @@ class AttachmentService(
         }
     }
 
-    suspend fun getExpenseAttachments(
+    suspend fun getAttachment(
+        attachmentId: Int,
+        userId: Int
+    ): Result<Pair<File, String>, AttachmentError> {
+        return withContext(Dispatchers.IO) {
+            try {
+                transaction {
+                    val attachment = attachmentRepository.findById(attachmentId)
+                        ?: return@transaction Result.Failure(
+                            AttachmentError.NotFound(attachmentId)
+                        )
+
+                    val expense = expenseRepository.findById(attachment.expenseId)
+                        ?: return@transaction Result.Failure(
+                            AttachmentError.ExpenseNotFound(attachment.expenseId)
+                        )
+
+                    if (!groupRepository.isMember(expense.groupId, userId)) {
+                        return@transaction Result.Failure(
+                            AttachmentError.NotMember(expense.groupId)
+                        )
+                    }
+
+                    val file = File(storageBasePath, attachment.storagePath)
+                    if (!file.exists()) {
+                        return@transaction Result.Failure(
+                            AttachmentError.InternalError("Attachment file not found on disk")
+                        )
+                    }
+
+                    Result.Success(Pair(file, attachment.mimeType))
+                }
+            } catch (e: Exception) {
+                Result.Failure(
+                    AttachmentError.InternalError(e.message ?: "Failed to retrieve attachment")
+                )
+            }
+        }
+    }
+
+    suspend fun getAttachments(
         expenseId: Int,
         userId: Int
     ): Result<AttachmentListDto, AttachmentError> {

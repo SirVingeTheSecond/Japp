@@ -1,16 +1,16 @@
 package com.japp.validation
 
-import com.japp.models.error.AuthError
 import com.japp.models.Result
 import com.japp.models.dto.LoginRequest
 import com.japp.models.dto.SignupRequest
+import com.japp.models.error.AppError
 
 object AuthValidator {
 
-    fun validateSignup(request: SignupRequest): Result<SignupRequest, AuthError> {
-        val errorFactory: (String) -> AuthError = { AuthError.ValidationError(it) }
+    fun validateSignup(request: SignupRequest): Result<SignupRequest, AppError> {
+        val errorFactory: (String) -> AppError = { AppError.Validation(it) }
 
-        // Validate email
+        // email
         ValidationHelpers.validateNotBlank(request.email, "Email", errorFactory)?.let {
             return Result.Failure(it)
         }
@@ -18,7 +18,7 @@ object AuthValidator {
             return Result.Failure(it)
         }
 
-        // Validate username
+        // username
         ValidationHelpers.validateNotBlank(request.username, "Username", errorFactory)?.let {
             return Result.Failure(it)
         }
@@ -35,7 +35,7 @@ object AuthValidator {
             return Result.Failure(it)
         }
 
-        // Validate firstname
+        // firstname
         ValidationHelpers.validateNotBlank(request.firstname, "First name", errorFactory)?.let {
             return Result.Failure(it)
         }
@@ -49,7 +49,7 @@ object AuthValidator {
             return Result.Failure(it)
         }
 
-        // Validate lastname
+        // lastname
         ValidationHelpers.validateNotBlank(request.lastname, "Last name", errorFactory)?.let {
             return Result.Failure(it)
         }
@@ -63,7 +63,7 @@ object AuthValidator {
             return Result.Failure(it)
         }
 
-        // Validate password
+        // password
         ValidationHelpers.validateNotBlank(request.password, "Password", errorFactory)?.let {
             return Result.Failure(it)
         }
@@ -79,7 +79,7 @@ object AuthValidator {
             return Result.Failure(it)
         }
 
-        // Validate phone (optional)
+        // phone (optional)
         ValidationHelpers.validateOptionalField(
             request.phone,
             "Phone",
@@ -91,8 +91,8 @@ object AuthValidator {
         return Result.Success(request)
     }
 
-    fun validateLogin(request: LoginRequest): Result<LoginRequest, AuthError> {
-        val errorFactory: (String) -> AuthError = { AuthError.ValidationError(it) }
+    fun validateLogin(request: LoginRequest): Result<LoginRequest, AppError> {
+        val errorFactory: (String) -> AppError = { AppError.Validation(it) }
 
         ValidationHelpers.validateNotBlank(
             request.emailOrUsername,

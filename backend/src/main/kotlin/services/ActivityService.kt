@@ -1,8 +1,10 @@
 package com.japp.services
 
+import com.japp.models.Result
 import com.japp.models.ActivityType
 import com.japp.models.dto.ActivityDto
 import com.japp.models.dto.GroupActivitiesDto
+import com.japp.models.error.AppError
 import com.japp.repositories.interfaces.IActivityRepository
 import com.japp.repositories.interfaces.IGroupRepository
 import com.japp.repositories.interfaces.IUserRepository
@@ -246,45 +248,76 @@ class ActivityService(
         }
     }
 
-    suspend fun getGroupActivities(groupId: Int, limit: Int = 50): GroupActivitiesDto {
+    suspend fun getGroupActivities(
+        groupId: Int,
+        userId: Int,
+        limit: Int = 50
+    ): Result<GroupActivitiesDto, AppError> {
         return withContext(Dispatchers.IO) {
-            transaction {
-                val group = groupRepository.findById(groupId)
-                val activities = activityRepository.findByGroupId(groupId, limit)
+            try {
+                transaction {
+                    if (!groupRepository.isMember(groupId, userId)) {
+                        return@transaction Result.Failure(AppError.NotMember(groupId))
+                    }
 
-                val activityDtos = activities.map { activity ->
-                    val user = userRepository.findById(activity.userId)
-                    val metadataMap = parseMetadata(activity.metadata)
+                    val group = groupRepository.findById(groupId)
+                        ?: return@transaction Result.Failure(
+                            AppError.Internal("Group not found")
+                        )
 
-                    activity.toDto(
-                        userName = user?.username ?: "Unknown",
-                        metadata = metadataMap
+                    val activities = activityRepository.findByGroupId(groupId, limit)
+
+                    val activityDtos = activities.map { activity ->
+                        val user = userRepository.findById(activity.userId)
+                        val metadataMap = parseMetadata(activity.metadata)
+
+                        activity.toDto(
+                            userName = user?.username ?: "Unknown",
+                            metadata = metadataMap
+                        )
+                    }
+
+                    Result.Success(
+                        GroupActivitiesDto(
+                            groupId = groupId,
+                            groupName = group.name,
+                            activities = activityDtos
+                        )
                     )
                 }
-
-                GroupActivitiesDto(
-                    groupId = groupId,
-                    groupName = group?.name ?: "Unknown",
-                    activities = activityDtos
+            } catch (e: Exception) {
+                Result.Failure(
+                    AppError.Internal(e.message ?: "Failed to retrieve activities")
                 )
             }
         }
     }
 
-    suspend fun getUserActivities(userId: Int, limit: Int = 50): List<ActivityDto> {
+    suspend fun getUserActivities(
+        userId: Int,
+        limit: Int = 50
+    ): Result<List<ActivityDto>, AppError> {
         return withContext(Dispatchers.IO) {
-            transaction {
-                val activities = activityRepository.findByUserId(userId, limit)
+            try {
+                transaction {
+                    val activities = activityRepository.findByUserId(userId, limit)
 
-                activities.map { activity ->
-                    val user = userRepository.findById(activity.userId)
-                    val metadataMap = parseMetadata(activity.metadata)
+                    val activityDtos = activities.map { activity ->
+                        val user = userRepository.findById(activity.userId)
+                        val metadataMap = parseMetadata(activity.metadata)
 
-                    activity.toDto(
-                        userName = user?.username ?: "Unknown",
-                        metadata = metadataMap
-                    )
+                        activity.toDto(
+                            userName = user?.username ?: "Unknown",
+                            metadata = metadataMap
+                        )
+                    }
+
+                    Result.Success(activityDtos)
                 }
+            } catch (e: Exception) {
+                Result.Failure(
+                    AppError.Internal(e.message ?: "Failed to retrieve activities")
+                )
             }
         }
     }

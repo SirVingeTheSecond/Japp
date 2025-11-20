@@ -1,14 +1,14 @@
 package com.japp.validation
 
-import com.japp.models.error.GroupError
 import com.japp.models.Result
 import com.japp.models.dto.CreateGroupRequest
 import com.japp.models.dto.JoinGroupRequest
+import com.japp.models.error.AppError
 
 object GroupValidator {
 
-    fun validateCreateGroup(request: CreateGroupRequest): Result<CreateGroupRequest, GroupError> {
-        val errorFactory: (String) -> GroupError = { GroupError.ValidationError(it) }
+    fun validateCreateGroup(request: CreateGroupRequest): Result<CreateGroupRequest, AppError> {
+        val errorFactory: (String) -> AppError = { AppError.Validation(it) }
 
         ValidationHelpers.validateNotBlank(request.name, "Group name", errorFactory)?.let {
             return Result.Failure(it)
@@ -26,8 +26,8 @@ object GroupValidator {
         return Result.Success(request)
     }
 
-    fun validateJoinGroup(request: JoinGroupRequest): Result<JoinGroupRequest, GroupError> {
-        val errorFactory: (String) -> GroupError = { GroupError.ValidationError(it) }
+    fun validateJoinGroup(request: JoinGroupRequest): Result<JoinGroupRequest, AppError> {
+        val errorFactory: (String) -> AppError = { AppError.Validation(it) }
 
         ValidationHelpers.validateNotBlank(
             request.inviteCode,
@@ -39,17 +39,17 @@ object GroupValidator {
 
         if (request.inviteCode.length != ValidationConstants.Length.INVITE_CODE_LENGTH) {
             return Result.Failure(
-                GroupError.ValidationError(ValidationConstants.Messages.INVALID_INVITE_CODE)
+                AppError.Validation(ValidationConstants.Messages.INVALID_INVITE_CODE)
             )
         }
 
         return Result.Success(request)
     }
 
-    fun validateAddMember(userId: Int): Result<Int, GroupError> {
+    fun validateAddMember(userId: Int): Result<Int, AppError> {
         if (userId <= 0) {
             return Result.Failure(
-                GroupError.ValidationError("Invalid user ID")
+                AppError.Validation("Invalid user ID")
             )
         }
 

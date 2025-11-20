@@ -1,13 +1,13 @@
 package com.japp.validation
 
 import com.japp.models.Result
-import com.japp.models.error.UserError
 import com.japp.models.dto.UpdateUserRequest
+import com.japp.models.error.AppError
 
 object UserValidator {
 
-    fun validateUpdateProfile(request: UpdateUserRequest): Result<UpdateUserRequest, UserError> {
-        val errorFactory: (String) -> UserError = { UserError.ValidationError(it) }
+    fun validateUpdateProfile(request: UpdateUserRequest): Result<UpdateUserRequest, AppError> {
+        val errorFactory: (String) -> AppError = { AppError.Validation(it) }
 
         // Validate firstname if provided
         ValidationHelpers.validateOptionalField(
@@ -55,7 +55,7 @@ object UserValidator {
             request.phone == null &&
             request.profilePicture == null) {
             return Result.Failure(
-                UserError.ValidationError(ValidationConstants.Messages.AT_LEAST_ONE_FIELD)
+                AppError.Validation(ValidationConstants.Messages.AT_LEAST_ONE_FIELD)
             )
         }
 

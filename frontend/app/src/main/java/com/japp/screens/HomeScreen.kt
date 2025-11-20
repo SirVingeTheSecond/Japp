@@ -56,6 +56,7 @@ import retrofit2.Callback
 import retrofit2.Response
 import java.text.SimpleDateFormat
 import java.util.Date
+import kotlin.math.absoluteValue
 import kotlin.math.round
 import kotlin.math.roundToInt
 
@@ -134,7 +135,7 @@ fun HomeScreen(navController: NavController? = null) {
                                 }
                                 val myBal = body.balances.find { (userId, _, _) ->  userId == me.id}
                                 if (myBal != null) {
-                                    if (myBal.balance < 0) owes = owes!! + myBal.balance else owed = owed!! + myBal.balance
+                                    if (myBal.balance < 0) owes = owes!! + myBal.balance.absoluteValue else owed = owed!! + myBal.balance.absoluteValue
                                 }
                             }
                         }
@@ -214,7 +215,7 @@ fun QuickStats(
                 textColor = MaterialTheme.colorScheme.onTertiaryContainer
             )
             Pill(
-                ((owes * 10).roundToInt() / 10.0).toString(),
+                ((-owes * 10).roundToInt() / 10.0).toString(),
                 label = "Owes",
                 color = errorColor,
                 textColor = MaterialTheme.colorScheme.onSecondaryContainer

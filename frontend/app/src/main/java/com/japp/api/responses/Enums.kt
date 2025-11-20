@@ -117,3 +117,8 @@ enum class MessageType(val value: String) {
         }
     }
 }
+
+enum class SplitInputMode {
+    AMOUNT,
+    PERCENTAGE
+}

@@ -213,7 +213,8 @@ fun GroupScreen(navController: NavController? = null) {
                 } else {
                     Row {
                         GroupIcon(
-                            group!!.name
+                            group!!.name,
+                            modifier = Modifier.padding(12.dp)
                         )
                         Column (
                             modifier = Modifier.padding(15.dp)
@@ -240,12 +241,29 @@ fun GroupScreen(navController: NavController? = null) {
 
                 }
             }
-            Button(
-                onClick = { qrOpen = true },
 
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Button(
+                    onClick = { qrOpen = true },
+                    modifier = Modifier.padding(horizontal = 8.dp)
                 ) {
-                Text("Show QR!")
+                    Text("Show QR!")
+                }
+
+                Button(
+                    onClick = { navController?.navigate("SettleGroup") },
+                    modifier = Modifier.padding(horizontal = 8.dp)
+                ) {
+                    Text("Settle Group")
+                }
             }
+
+
             NavTab(group_members, group_expense, group_balance)
         }
         if (qrOpen) {

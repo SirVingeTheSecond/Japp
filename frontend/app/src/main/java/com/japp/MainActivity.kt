@@ -54,6 +54,7 @@ import com.japp.screens.ActivityScreen
 import com.japp.screens.CreateGroupScreen
 import com.japp.screens.GroupScreen
 import com.japp.screens.JoinGroupScreen
+import com.japp.screens.SettleGroup
 import com.japp.screens.ShowGroupsScreen
 
 class MainActivity : ComponentActivity() {
@@ -190,7 +191,10 @@ enum class AppDestinations(
     CREATEGROUP("Create Group", Icons.Default.GroupAdd, { navController -> CreateGroupScreen(navController) }),
     MYGROUPS("My Groups", Icons.Default.Groups, { navController -> ShowGroupsScreen(navController) }),
     GROUP("Group", Icons.Default.Group, { navController -> GroupScreen(navController) }),
+    Settle("Settle group", Icons.Default.Group, {navController -> SettleGroup(navController)}),
+
     Activity("Activity", Icons.Default.Group, { navController -> ActivityScreen(navController) });
+
 
     val route: String
         get() = label.replace(" ", "") // Remove spaces for route

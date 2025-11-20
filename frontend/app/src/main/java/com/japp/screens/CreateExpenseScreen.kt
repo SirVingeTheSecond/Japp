@@ -1,6 +1,8 @@
 package com.japp.screens
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -10,13 +12,18 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.japp.api.RetrofitClient
 import com.japp.api.responses.Currency
+import com.japp.api.responses.SplitInputMode
 import com.japp.api.responses.SplitType
-import com.japp.api.responses.group.GroupDto
 import com.japp.api.responses.expense.CreateExpenseRequest
 import com.japp.api.responses.expense.ExpenseDto
+import com.japp.api.responses.expense.ExpenseSplitDto
+import com.japp.api.responses.expense.ExpenseSplitRequest
+import com.japp.api.responses.group.GroupDto
+import com.japp.api.responses.group.GroupMemberDto
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
+import kotlin.math.abs
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -33,6 +40,13 @@ fun CreateExpenseScreen(
     var isLoadingGroups by remember { mutableStateOf(true) }
     var isSubmitting by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    var splitType by remember { mutableStateOf(SplitType.EQUAL) }
+
+    var splitInputMode by remember { mutableStateOf(SplitInputMode.AMOUNT) }
+
+    var groupMembers by remember { mutableStateOf<List<GroupMemberDto>>(emptyList()) }
+    var memberShares by remember { mutableStateOf<Map<Int, String>>(emptyMap()) }
 
     LaunchedEffect(Unit) {
         val call = RetrofitClient.groupService.get_my_groups()
@@ -57,11 +71,34 @@ fun CreateExpenseScreen(
         })
     }
 
+    LaunchedEffect(selectedGroup?.id) {
+        val group = selectedGroup ?: return@LaunchedEffect
+
+        val call = RetrofitClient.groupService.get_group_members(group.id)
+        call?.enqueue(object : Callback<List<GroupMemberDto>?> {
+            override fun onResponse(
+                call: Call<List<GroupMemberDto>?>,
+                response: Response<List<GroupMemberDto>?>
+            ) {
+                if (response.isSuccessful && response.body() != null) {
+                    groupMembers = response.body()!!
+                    memberShares = groupMembers.associate { it.userId to "" }
+                }
+            }
+
+            override fun onFailure(call: Call<List<GroupMemberDto>?>, t: Throwable) {
+                errorMessage = "Failed to load group members: ${t.message}"
+            }
+        })
+    }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(16.dp),
-        horizontalAlignment = Alignment.Start
+            .padding(16.dp)
+            .verticalScroll(rememberScrollState()),
+        horizontalAlignment = Alignment.Start,
+
     ) {
         Text("Create Expense", style = MaterialTheme.typography.titleLarge)
 
@@ -107,6 +144,32 @@ fun CreateExpenseScreen(
 
         Spacer(Modifier.height(12.dp))
 
+        Text("Split type", style = MaterialTheme.typography.titleMedium)
+
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(top = 4.dp, bottom = 8.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                RadioButton(
+                    selected = splitType == SplitType.EQUAL,
+                    onClick = { splitType = SplitType.EQUAL }
+                )
+                Text("Equal")
+            }
+
+            Spacer(Modifier.width(16.dp))
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                RadioButton(
+                    selected = splitType == SplitType.CUSTOM,
+                    onClick = { splitType = SplitType.CUSTOM }
+                )
+                Text("Custom")
+            }
+        }
+
+        Spacer(Modifier.height(12.dp))
 
         OutlinedTextField(
             value = amount,
@@ -117,7 +180,6 @@ fun CreateExpenseScreen(
 
         Spacer(Modifier.height(8.dp))
 
-
         OutlinedTextField(
             value = description,
             onValueChange = { description = it },
@@ -126,7 +188,6 @@ fun CreateExpenseScreen(
         )
 
         Spacer(Modifier.height(8.dp))
-
 
         OutlinedTextField(
             value = category,
@@ -137,14 +198,67 @@ fun CreateExpenseScreen(
 
         Spacer(Modifier.height(16.dp))
 
+        if (splitType == SplitType.CUSTOM) {
+            if (groupMembers.isEmpty()) {
+                Text("Loading members or no members in group")
+            } else {
+                Text("Custom split mode", style = MaterialTheme.typography.titleMedium)
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(top = 4.dp, bottom = 8.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        RadioButton(
+                            selected = splitInputMode == SplitInputMode.AMOUNT,
+                            onClick = { splitInputMode = SplitInputMode.AMOUNT }
+                        )
+                        Text("Amount")
+                    }
+
+                    Spacer(Modifier.width(16.dp))
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        RadioButton(
+                            selected = splitInputMode == SplitInputMode.PERCENTAGE,
+                            onClick = { splitInputMode = SplitInputMode.PERCENTAGE }
+                        )
+                        Text("Percentage")
+                    }
+                }
+
+                groupMembers.forEach { member ->
+                    val currentValue = memberShares[member.userId] ?: ""
+
+                    OutlinedTextField(
+                        value = currentValue,
+                        onValueChange = { newValue ->
+                            memberShares = memberShares.toMutableMap().apply {
+                                put(member.userId, newValue)
+                            }
+                        },
+                        label = {
+                            Text(
+                                "${member.username} " +
+                                        if (splitInputMode == SplitInputMode.AMOUNT) "(amount)" else "(%)"
+                            )
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        singleLine = true
+                    )
+                }
+            }
+        }
+
+        Spacer(Modifier.height(16.dp))
 
         if (isSubmitting) {
             CircularProgressIndicator()
         } else {
             Button(
                 onClick = {
-                    errorMessage = null
-
                     val group = selectedGroup
                     if (group == null) {
                         errorMessage = "Please select a group"
@@ -157,14 +271,40 @@ fun CreateExpenseScreen(
                         return@Button
                     }
 
+                    val splitsForRequest: List<ExpenseSplitRequest>? =
+                        if (splitType == SplitType.CUSTOM) {
+                            groupMembers.mapNotNull { member ->
+                                val raw = memberShares[member.userId].orEmpty().trim()
+                                if (raw.isEmpty()) return@mapNotNull null
+
+                                val value = raw.toDoubleOrNull() ?: return@mapNotNull null
+
+                                when (splitInputMode) {
+                                    SplitInputMode.AMOUNT -> ExpenseSplitRequest(
+                                        userId = member.userId,
+                                        shareAmount = value,
+                                        sharePercentage = null
+                                    )
+                                    SplitInputMode.PERCENTAGE -> ExpenseSplitRequest(
+                                        userId = member.userId,
+                                        shareAmount = null,
+                                        sharePercentage = value
+                                    )
+                                }
+                            }
+                        } else {
+                            null
+                        }
+
+
                     val request = CreateExpenseRequest(
                         groupId = group.id,
                         amount = amountValue,
                         description = description,
                         category = category.ifBlank { null },
                         currency = Currency.DKK,
-                        splitType = SplitType.EQUAL,
-                        splits = null
+                        splitType = splitType,
+                        splits = splitsForRequest
                     )
 
                     isSubmitting = true
@@ -202,4 +342,3 @@ fun CreateExpenseScreen(
         }
     }
 }
-

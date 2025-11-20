@@ -292,6 +292,7 @@ class GroupService(
 
                             Result.Success(
                                 GroupPreviewDto(
+                                    id = group.id,
                                     name = group.name,
                                     description = group.description,
                                     memberCount = group.memberCount,

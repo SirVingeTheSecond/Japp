@@ -42,6 +42,7 @@ import com.japp.api.RetrofitClient
 import com.japp.api.responses.ActivityType
 import com.japp.api.responses.activity.ActivityDto
 import com.japp.api.responses.activity.GroupActivitiesDto
+import com.japp.composables.PrintableDatetime
 import com.japp.composables.printableDatetime
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -90,10 +91,10 @@ fun ActivityRow(
 
             Spacer(modifier = Modifier.weight(1f))
 
-            Text(
-                text = printableDatetime(date),
-                style = MaterialTheme.typography.labelSmall
+            PrintableDatetime(
+                time = date
             )
+        
         }
 }
 

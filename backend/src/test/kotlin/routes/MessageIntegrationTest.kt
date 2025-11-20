@@ -1,18 +1,25 @@
 package routes
 
-import com.japp.module
 import com.japp.database.DatabaseSchema
-import com.japp.models.dto.*
+import com.japp.models.ActivityType
 import com.japp.models.MessageType
+import com.japp.models.WebSocketMessageType
+import com.japp.models.dto.*
+import com.japp.module
 import io.kotest.core.spec.style.AnnotationSpec
+import io.kotest.matchers.collections.shouldContain
+import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
-import io.kotest.matchers.collections.shouldHaveSize
+import io.ktor.client.plugins.websocket.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.server.config.*
 import io.ktor.server.testing.*
+import io.ktor.websocket.*
+import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
 import kotlinx.serialization.json.Json
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
@@ -193,7 +200,7 @@ class MessageIntegrationTest : AnnotationSpec() {
         application { module() }
         val data = setupTestData()
 
-        val longContent = "a".repeat(2001) // Exceeds MAX_MESSAGE_LENGTH of 2000
+        val longContent = "a".repeat(2001)
 
         val response = client.post("/api/messages") {
             contentType(ContentType.Application.Json)
@@ -217,7 +224,7 @@ class MessageIntegrationTest : AnnotationSpec() {
 
         val response = client.post("/api/messages") {
             contentType(ContentType.Application.Json)
-            header("Authorization", "Bearer ${data.token3}") // User3 is not a member
+            header("Authorization", "Bearer ${data.token3}")
             setBody("""
                 {
                     "groupId": ${data.groupId},
@@ -235,7 +242,6 @@ class MessageIntegrationTest : AnnotationSpec() {
         application { module() }
         val data = setupTestData()
 
-        // Create multiple messages
         client.post("/api/messages") {
             contentType(ContentType.Application.Json)
             header("Authorization", "Bearer ${data.token1}")
@@ -261,12 +267,9 @@ class MessageIntegrationTest : AnnotationSpec() {
         response.status shouldBe HttpStatusCode.OK
         val messagePage = json.decodeFromString<MessagePageDto>(response.bodyAsText())
 
-        // This test focuses on messages created by users, so we filter out system messages.
-        // System messages have messageType=SYSTEM and userId=null.
         val userMessages = messagePage.messages.filter { it.messageType == MessageType.USER }
 
         userMessages shouldHaveSize 3
-        // Most recent is first
         userMessages[0].content shouldBe "Third message"
         userMessages[1].content shouldBe "Second message"
         userMessages[2].content shouldBe "First message"
@@ -279,7 +282,7 @@ class MessageIntegrationTest : AnnotationSpec() {
         val data = setupTestData()
 
         val response = client.get("/api/messages/group/${data.groupId}") {
-            header("Authorization", "Bearer ${data.token3}") // User3 is not a member
+            header("Authorization", "Bearer ${data.token3}")
         }
 
         response.status shouldBe HttpStatusCode.Forbidden
@@ -291,7 +294,6 @@ class MessageIntegrationTest : AnnotationSpec() {
         application { module() }
         val data = setupTestData()
 
-        // Create 5 messages
         repeat(5) { i ->
             client.post("/api/messages") {
                 contentType(ContentType.Application.Json)
@@ -300,7 +302,6 @@ class MessageIntegrationTest : AnnotationSpec() {
             }
         }
 
-        // Get first 2 messages
         val response1 = client.get("/api/messages/group/${data.groupId}?limit=2") {
             header("Authorization", "Bearer ${data.token1}")
         }
@@ -311,7 +312,6 @@ class MessageIntegrationTest : AnnotationSpec() {
         page1.hasMore shouldBe true
         page1.nextCursor shouldNotBe null
 
-        // Get next page using cursor
         val response2 = client.get("/api/messages/group/${data.groupId}?limit=2&before=${page1.nextCursor}") {
             header("Authorization", "Bearer ${data.token1}")
         }
@@ -319,7 +319,7 @@ class MessageIntegrationTest : AnnotationSpec() {
         response2.status shouldBe HttpStatusCode.OK
         val page2 = json.decodeFromString<MessagePageDto>(response2.bodyAsText())
         page2.messages shouldHaveSize 2
-        page2.messages[0].id shouldNotBe page1.messages[0].id // Different messages
+        page2.messages[0].id shouldNotBe page1.messages[0].id
     }
 
     @Test
@@ -328,7 +328,6 @@ class MessageIntegrationTest : AnnotationSpec() {
         application { module() }
         val data = setupTestData()
 
-        // User1 creates a message
         val createResponse = client.post("/api/messages") {
             contentType(ContentType.Application.Json)
             header("Authorization", "Bearer ${data.token1}")
@@ -336,7 +335,6 @@ class MessageIntegrationTest : AnnotationSpec() {
         }
         val message = json.decodeFromString<MessageDto>(createResponse.bodyAsText())
 
-        // User2 marks it as read
         val response = client.post("/api/messages/read?groupId=${data.groupId}") {
             contentType(ContentType.Application.Json)
             header("Authorization", "Bearer ${data.token2}")
@@ -345,7 +343,6 @@ class MessageIntegrationTest : AnnotationSpec() {
 
         response.status shouldBe HttpStatusCode.OK
 
-        // Verify the message is marked as read
         val getResponse = client.get("/api/messages/group/${data.groupId}") {
             header("Authorization", "Bearer ${data.token2}")
         }
@@ -370,7 +367,7 @@ class MessageIntegrationTest : AnnotationSpec() {
 
         val response = client.post("/api/messages/read?groupId=${data.groupId}") {
             contentType(ContentType.Application.Json)
-            header("Authorization", "Bearer ${data.token3}") // User3 is not a member
+            header("Authorization", "Bearer ${data.token3}")
             setBody("""{"messageIds": [${message.id}]}""")
         }
 
@@ -396,7 +393,6 @@ class MessageIntegrationTest : AnnotationSpec() {
 
         response.status shouldBe HttpStatusCode.OK
 
-        // Verify the message is marked as deleted
         val getResponse = client.get("/api/messages/group/${data.groupId}") {
             header("Authorization", "Bearer ${data.token1}")
         }
@@ -420,7 +416,7 @@ class MessageIntegrationTest : AnnotationSpec() {
         val message = json.decodeFromString<MessageDto>(createResponse.bodyAsText())
 
         val response = client.delete("/api/messages/${message.id}") {
-            header("Authorization", "Bearer ${data.token2}") // User2 is not the author
+            header("Authorization", "Bearer ${data.token2}")
         }
 
         response.status shouldBe HttpStatusCode.Forbidden
@@ -459,7 +455,6 @@ class MessageIntegrationTest : AnnotationSpec() {
         application { module() }
         val data = setupTestData()
 
-        // User1 creates a message
         val createResponse = client.post("/api/messages") {
             contentType(ContentType.Application.Json)
             header("Authorization", "Bearer ${data.token1}")
@@ -467,21 +462,18 @@ class MessageIntegrationTest : AnnotationSpec() {
         }
         val message = json.decodeFromString<MessageDto>(createResponse.bodyAsText())
 
-        // User2 marks as read
         client.post("/api/messages/read?groupId=${data.groupId}") {
             contentType(ContentType.Application.Json)
             header("Authorization", "Bearer ${data.token2}")
             setBody("""{"messageIds": [${message.id}]}""")
         }
 
-        // User1 marks as read
         client.post("/api/messages/read?groupId=${data.groupId}") {
             contentType(ContentType.Application.Json)
             header("Authorization", "Bearer ${data.token1}")
             setBody("""{"messageIds": [${message.id}]}""")
         }
 
-        // Verify both users are in readBy
         val getResponse = client.get("/api/messages/group/${data.groupId}") {
             header("Authorization", "Bearer ${data.token1}")
         }
@@ -492,4 +484,188 @@ class MessageIntegrationTest : AnnotationSpec() {
         readMessage.readBy.contains(data.user1Id) shouldBe true
         readMessage.readBy.contains(data.user2Id) shouldBe true
     }
+
+    @Test
+    fun `should connect to WebSocket and receive connected message`() = testApplication {
+        setupTestConfig()
+        application { module() }
+        val data = setupTestData()
+
+        val client = createClient {
+            install(WebSockets)
+        }
+
+        client.webSocket("/api/ws/chat", request = {
+            header("Authorization", "Bearer ${data.token1}")
+        }) {
+            val frame = incoming.receive() as Frame.Text
+            val message = json.decodeFromString<WebSocketMessage>(frame.readText())
+
+            message.type shouldBe WebSocketMessageType.CONNECTED
+            message.userId shouldBe data.user1Id
+        }
+    }
+
+    /*
+    @Test
+    fun `should subscribe to group successfully`() = testApplication {
+        setupTestConfig()
+        application { module() }
+        val data = setupTestData()
+
+        val client = createClient {
+            install(WebSockets)
+        }
+
+        client.webSocket("/api/ws/chat", request = {
+            header("Authorization", "Bearer ${data.token1}")
+        }) {
+            // Receive connected message
+            incoming.receive()
+
+            // Send subscribe message
+            send(Frame.Text(json.encodeToString(
+                WebSocketMessage.serializer(),
+                WebSocketMessage(
+                    type = WebSocketMessageType.SUBSCRIBE,
+                    groupId = data.groupId
+                )
+            )))
+
+            // Should receive subscribed confirmation
+            val frame = incoming.receive() as Frame.Text
+            val message = json.decodeFromString<WebSocketMessage>(frame.readText())
+
+            message.type shouldBe WebSocketMessageType.SUBSCRIBED
+            message.groupId shouldBe data.groupId
+        }
+    }
+    */
+
+    /*
+    @Test
+    fun `should fail to subscribe to group when not a member`() = testApplication {
+        setupTestConfig()
+        application { module() }
+        val data = setupTestData()
+
+        val client = createClient {
+            install(WebSockets)
+        }
+
+        client.webSocket("/api/ws/chat", request = {
+            header("Authorization", "Bearer ${data.token3}")
+        }) {
+            incoming.receive()
+
+            send(Frame.Text(json.encodeToString(
+                WebSocketMessage.serializer(),
+                WebSocketMessage(
+                    type = WebSocketMessageType.SUBSCRIBE,
+                    groupId = data.groupId
+                )
+            )))
+
+            val frame = incoming.receive() as Frame.Text
+            val message = json.decodeFromString<WebSocketMessage>(frame.readText())
+
+            message.type shouldBe WebSocketMessageType.ERROR
+            message.groupId shouldBe data.groupId
+            message.error shouldBe "Not a member of this group"
+        }
+    }
+    */
+
+    /*
+    @Test
+    fun `should unsubscribe from group successfully`() = testApplication {
+        setupTestConfig()
+        application { module() }
+        val data = setupTestData()
+
+        val client = createClient {
+            install(WebSockets)
+        }
+
+        client.webSocket("/api/ws/chat", request = {
+            header("Authorization", "Bearer ${data.token1}")
+        }) {
+            incoming.receive()
+
+            // Subscribe
+            send(Frame.Text(json.encodeToString(
+                WebSocketMessage.serializer(),
+                WebSocketMessage(
+                    type = WebSocketMessageType.SUBSCRIBE,
+                    groupId = data.groupId
+                )
+            )))
+            incoming.receive()
+
+            // Unsubscribe
+            send(Frame.Text(json.encodeToString(
+                WebSocketMessage.serializer(),
+                WebSocketMessage(
+                    type = WebSocketMessageType.UNSUBSCRIBE,
+                    groupId = data.groupId
+                )
+            )))
+
+            val frame = incoming.receive() as Frame.Text
+            val message = json.decodeFromString<WebSocketMessage>(frame.readText())
+
+            message.type shouldBe WebSocketMessageType.UNSUBSCRIBED
+            message.groupId shouldBe data.groupId
+        }
+    }
+    */
+
+    /*
+    @Test
+    fun `should receive new message via WebSocket when subscribed`() = testApplication {
+        setupTestConfig()
+        application { module() }
+        val data = setupTestData()
+
+        val client = createClient {
+            install(WebSockets)
+        }
+
+        client.webSocket("/api/ws/chat", request = {
+            header("Authorization", "Bearer ${data.token1}")
+        }) {
+            incoming.receive() // connected
+
+            // Subscribe to group
+            send(Frame.Text(json.encodeToString(
+                WebSocketMessage.serializer(),
+                WebSocketMessage(
+                    type = WebSocketMessageType.SUBSCRIBE,
+                    groupId = data.groupId
+                )
+            )))
+            incoming.receive() // subscribed
+
+            // Create message via HTTP in parallel
+            val messageJob = async {
+                delay(100)
+                this@testApplication.client.post("/api/messages") {
+                    contentType(ContentType.Application.Json)
+                    header("Authorization", "Bearer ${data.token2}")
+                    setBody("""{"groupId": ${data.groupId}, "content": "WebSocket test!"}""")
+                }
+            }
+
+            // Should receive the new message via WebSocket
+            val frame = incoming.receive() as Frame.Text
+            val wsMessage = json.decodeFromString<WebSocketMessage>(frame.readText())
+
+            wsMessage.type shouldBe WebSocketMessageType.NEW_MESSAGE
+            wsMessage.message shouldNotBe null
+            wsMessage.message!!.content shouldBe "WebSocket test!"
+
+            messageJob.await()
+        }
+    }
+    */
 }

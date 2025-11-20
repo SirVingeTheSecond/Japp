@@ -1,11 +1,14 @@
 package com.japp.api.responses.expense
 
+import com.japp.api.responses.SplitType
+import com.japp.api.responses.Currency
 data class CreateExpenseRequest(
     val groupId: Int,
     val amount: Double,
     val description: String,
     val category: String? = null,
-    val splitType: String = "equal",
+    val currency: Currency,
+    val splitType: SplitType,
     val splits: List<ExpenseSplitRequest>? = null
 )
 

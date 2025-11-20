@@ -21,6 +21,8 @@ interface ExpenseService {
     @GET("$BASE_ROUTE/group/{groupId}/balances")
     fun get_group_balances(@Path("groupId") groupId: Int): Call<GroupBalanceSummaryDto?>?
 
+
+
     @DELETE("$BASE_ROUTE/{id}")
     fun delete_expense(@Path("id") id: Int): Call<Unit?>?
 }

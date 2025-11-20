@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
@@ -37,7 +38,9 @@ fun ScanScreen(navController: NavController? = null) {
         }
     }
 
-    launcher.launch(android.Manifest.permission.CAMERA)
+    LaunchedEffect(Unit) {
+        launcher.launch(android.Manifest.permission.CAMERA)
+    }
 
 
     Box(

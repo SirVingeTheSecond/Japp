@@ -11,6 +11,7 @@ import java.time.temporal.ChronoUnit
 fun PrintableDatetime(time: LocalDateTime) {
 
     val minutes = ChronoUnit.MINUTES.between(time, LocalDateTime.now())
+    val hours = ChronoUnit.HOURS.between(time, LocalDateTime.now())
     val weeks = ChronoUnit.WEEKS.between(time, LocalDateTime.now())
     val years = ChronoUnit.YEARS.between(time, LocalDateTime.now())
 
@@ -18,8 +19,10 @@ fun PrintableDatetime(time: LocalDateTime) {
 
     if (minutes < 1) {
         res = "now"
-    } else if (years == 0L && time.dayOfYear == LocalDateTime.now().dayOfYear) {
-        res = "today"
+    } else if (minutes < 60) {
+        res = minutes.toString() + "m"
+    } else if (hours <= 24 && years == 0L && time.dayOfYear == LocalDateTime.now().dayOfYear) {
+        res = hours.toString() + "h"
     } else if (years == 0L && time.dayOfYear == (LocalDateTime.now().dayOfYear-1)) {
         res = "yesterday"
     } else if (years == 0L && weeks == 0L) {

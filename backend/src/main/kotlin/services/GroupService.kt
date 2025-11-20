@@ -97,21 +97,26 @@ class GroupService(
                                     GroupError.InternalError("Failed to retrieve group")
                                 )
 
-                            Result.Success(updatedGroup.toDto())
-                        }
-
-                        // Log activity and send message AFTER transaction completes
-                        if (result is Result.Success) {
-                            activityService.logMemberJoined(result.value.id, userId, userId)
-
                             val user = userRepository.findById(userId)
-                            messageService.createSystemMessage(
-                                groupId = result.value.id,
-                                content = "${user?.username ?: "Someone"} joined the group"
-                            )
+
+                            Result.Success(Pair(updatedGroup.toDto(), user))
                         }
 
-                        result
+                        when (result) {
+                            is Result.Success -> {
+                                val (groupDto, user) = result.value
+
+                                activityService.logMemberJoined(groupDto.id, userId, userId)
+
+                                messageService.createSystemMessage(
+                                    groupId = groupDto.id,
+                                    content = "${user?.username ?: "Someone"} joined the group"
+                                )
+
+                                Result.Success(groupDto)
+                            }
+                            is Result.Failure -> result
+                        }
                     } catch (e: Exception) {
                         Result.Failure(
                             GroupError.InternalError(e.message ?: "Failed to join group")

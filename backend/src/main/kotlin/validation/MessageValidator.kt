@@ -3,6 +3,7 @@ package com.japp.validation
 import com.japp.models.Result
 import com.japp.models.dto.CreateMessageRequest
 import com.japp.models.error.AppError
+import com.japp.utils.ValidationHelpers
 
 object MessageValidator {
 

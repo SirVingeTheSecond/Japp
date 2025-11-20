@@ -57,6 +57,7 @@ import retrofit2.Response
 import java.text.SimpleDateFormat
 import java.util.Date
 import kotlin.math.round
+import kotlin.math.roundToInt
 
 @Preview(showSystemUi = true)
 @Composable
@@ -201,19 +202,19 @@ fun QuickStats(
             var ratioColor = Color(ratioColorInt ?: Color.Yellow.toArgb())
 
             Pill(
-                owed.toString(),
+                ((owed * 10).roundToInt() / 10.0).toString(),
                 label = "Owed",
                 color = acceptColor,
                 textColor = MaterialTheme.colorScheme.onPrimaryContainer
             )
             Pill(
-                difference.toString(),
+                ((difference!! * 10).roundToInt() / 10.0).toString(),
                 label = "Ratio",
                 color = ratioColor,
                 textColor = MaterialTheme.colorScheme.onTertiaryContainer
             )
             Pill(
-                owes.toString(),
+                ((owes * 10).roundToInt() / 10.0).toString(),
                 label = "Owes",
                 color = errorColor,
                 textColor = MaterialTheme.colorScheme.onSecondaryContainer
@@ -320,7 +321,7 @@ fun Activity(activity: ActivityDto) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Row(
-            Modifier.fillMaxWidth(1f),
+            Modifier.fillMaxWidth(0.8f),
             horizontalArrangement = Arrangement.spacedBy(4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -329,15 +330,15 @@ fun Activity(activity: ActivityDto) {
                 contentDescription = "Icon",
             )
             Text(activity.userName, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelLarge)
-            Text(activity.description, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.labelLarge)
-            Text(group?.name ?: "", style = MaterialTheme.typography.labelSmall)
-            TimeText(
-                Date(activity.createdAt.toLong()),
-                Modifier.fillMaxWidth(),
-                style = MaterialTheme.typography.labelSmall,
-                textAlign = TextAlign.End
-            )
+            Text(activity.description, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.labelLarge, maxLines = 1)
+            Text(group?.name ?: "", overflow = TextOverflow.MiddleEllipsis, style = MaterialTheme.typography.labelSmall, maxLines = 1)
         }
+        TimeText(
+            Date(activity.createdAt.toLong()),
+            Modifier.fillMaxWidth(),
+            style = MaterialTheme.typography.labelSmall,
+            textAlign = TextAlign.End
+        )
     }
 }
 
@@ -435,7 +436,7 @@ fun Group(group: GroupDto, me: UserDto, navController: NavController? = null) {
                 GroupIcon(group.name, Modifier.size(75.dp))
             }
             Column {
-                Text(group.name, overflow = TextOverflow.Ellipsis)
+                Text(group.name, overflow = TextOverflow.Ellipsis, maxLines = 1)
                 HorizontalDivider()
                 if (group.description != null) {
                     Text(group.description, style = MaterialTheme.typography.labelSmall)

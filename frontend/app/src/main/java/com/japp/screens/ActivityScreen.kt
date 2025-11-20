@@ -56,9 +56,10 @@ import java.time.ZoneOffset
 
 fun getActivities(
     userActivity: MutableState<List<ActivityDto>?>,
-    isLoading: MutableState<Boolean>
+    isLoading: MutableState<Boolean>,
+    limit: Int? = null
 ) {
-    val call = RetrofitClient.activityService.get_user_activities()
+    val call = RetrofitClient.activityService.get_user_activities(limit = limit)
 
     call.enqueue(object : Callback<List<ActivityDto>?> {
 

@@ -100,7 +100,7 @@ fun JappApp() {
                     Text(currentDestination?.label ?: "")
                 },
                 navigationIcon = {
-                    IconButton(onClick = { navigate(AppDestinations.Activity.route) }) {
+                    IconButton(onClick = { navigate(AppDestinations.ACTIVITY.route) }) {
                         // Lil red dot on top left icon
                         BadgedBox(
                             badge = {
@@ -108,7 +108,7 @@ fun JappApp() {
                             }
                         ) {
                             Icon(
-                                imageVector = AppDestinations.Activity.icon,
+                                imageVector = AppDestinations.ACTIVITY.icon,
                                 contentDescription = "Activities",
                             )
                         }
@@ -187,13 +187,12 @@ enum class AppDestinations(
     HOME("Home", Icons.Default.Home, { navController -> HomeScreen(navController) }),
     SCAN("Scan", Icons.Default.Camera, { navController -> ScanScreen(navController) }),
     PROFILE("Profile", Icons.Default.Person, { navController -> ProfileScreen(navController) }),
-    CreateExpense("Add Expense", Icons.Default.Notifications, { navController -> CreateExpenseScreen(navController) }),
+    CREATEEXPENSE("Add Expense", Icons.Default.Notifications, { navController -> CreateExpenseScreen(navController) }),
     CREATEGROUP("Create Group", Icons.Default.GroupAdd, { navController -> CreateGroupScreen(navController) }),
     MYGROUPS("My Groups", Icons.Default.Groups, { navController -> ShowGroupsScreen(navController) }),
     GROUP("Group", Icons.Default.Group, { navController -> GroupScreen(navController) }),
-    Settle("Settle group", Icons.Default.Group, {navController -> SettleGroup(navController)}),
-
-    Activity("Activity", Icons.Default.Group, { navController -> ActivityScreen(navController) });
+    SETTLE("Settle group", Icons.Default.Group, {navController -> SettleGroup(navController)}),
+    ACTIVITY("Activity", Icons.Default.Notifications, { navController -> ActivityScreen(navController) });
 
 
     val route: String
@@ -207,7 +206,7 @@ enum class NavigationActionButtons(
 ) {
     DEFAULT("", null, AppDestinations.SCAN),
     // TODO: Make actual conditional buttons.
-    GROUPADD("Group", Icons.Default.Add, AppDestinations.CreateExpense);
+    GROUPADD("Group", Icons.Default.Add, AppDestinations.CREATEEXPENSE);
 
     val icon: ImageVector
         get() = buttonIcon ?: destination.icon // If buttonIcon is null defaults to AppDestination icon

@@ -200,7 +200,7 @@ fun CreateExpenseScreen(
 
         if (splitType == SplitType.CUSTOM) {
             if (groupMembers.isEmpty()) {
-                Text("Loading members or no members in group")
+                Text("No members in group")
             } else {
                 Text("Custom split mode", style = MaterialTheme.typography.titleMedium)
 
@@ -271,6 +271,28 @@ fun CreateExpenseScreen(
                         return@Button
                     }
 
+                    if (splitType == SplitType.CUSTOM && splitInputMode == SplitInputMode.PERCENTAGE) {
+                        var totalPercentage = 0.0
+
+                        for (member in groupMembers) {
+                            val raw = memberShares[member.userId].orEmpty().trim()
+                            if (raw.isEmpty()) continue
+
+                            val value = raw.toDoubleOrNull()
+                            if (value == null) {
+                                errorMessage = "Invalid percentage for ${member.username}"
+                                return@Button
+                            }
+
+                            totalPercentage += value
+                        }
+
+                        if (kotlin.math.abs(totalPercentage - 100.0) > 0.01) {
+                            errorMessage = "Percentages must add up to 100 (currently ${"%.2f".format(totalPercentage)})"
+                            return@Button
+                        }
+                    }
+
                     val splitsForRequest: List<ExpenseSplitRequest>? =
                         if (splitType == SplitType.CUSTOM) {
                             groupMembers.mapNotNull { member ->
@@ -295,7 +317,6 @@ fun CreateExpenseScreen(
                         } else {
                             null
                         }
-
 
                     val request = CreateExpenseRequest(
                         groupId = group.id,
@@ -333,6 +354,7 @@ fun CreateExpenseScreen(
             ) {
                 Text("Create Expense")
             }
+
         }
 
         Spacer(Modifier.height(8.dp))

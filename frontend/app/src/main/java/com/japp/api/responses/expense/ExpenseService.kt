@@ -12,7 +12,7 @@ interface ExpenseService {
         private const val BASE_ROUTE = "expenses"
     }
 
-    @POST("$BASE_ROUTE")
+    @POST(BASE_ROUTE)
     fun create_expense(@Body request: CreateExpenseRequest): Call<ExpenseDto?>?
 
     @GET("$BASE_ROUTE/group/{groupId}")

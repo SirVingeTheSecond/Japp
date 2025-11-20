@@ -55,4 +55,24 @@ object GroupValidator {
 
         return Result.Success(userId)
     }
+
+    fun validatePreviewInviteCode(inviteCode: String): Result<String, AppError> {
+        val errorFactory: (String) -> AppError = { AppError.Validation(it) }
+
+        ValidationHelpers.validateNotBlank(
+            inviteCode,
+            "Invite code",
+            errorFactory
+        )?.let {
+            return Result.Failure(it)
+        }
+
+        if (inviteCode.length != ValidationConstants.Length.INVITE_CODE_LENGTH) {
+            return Result.Failure(
+                AppError.Validation(ValidationConstants.Messages.INVALID_INVITE_CODE)
+            )
+        }
+
+        return Result.Success(inviteCode)
+    }
 }

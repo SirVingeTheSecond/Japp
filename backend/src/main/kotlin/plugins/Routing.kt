@@ -8,6 +8,7 @@ import com.japp.routes.chatWebSocket
 import com.japp.routes.groupRoutes
 import com.japp.routes.expenseRoutes
 import com.japp.routes.messageRoutes
+import com.japp.routes.publicGroupRoutes
 import com.japp.routes.settlementRoutes
 import com.japp.routes.userRoutes
 import com.japp.utils.ResponseFactory
@@ -119,6 +120,8 @@ fun Application.configureRouting() {
 
         route("/api") {
             authRoutes()
+
+            publicGroupRoutes()
 
             authenticate("auth-jwt") {
 

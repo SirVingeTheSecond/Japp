@@ -2,7 +2,7 @@ package com.japp.services
 
 import com.japp.models.*
 import com.japp.models.dto.*
-import com.japp.models.error.GroupError
+import com.japp.models.error.AppError
 import com.japp.repositories.interfaces.IDebtHistoryRepository
 import com.japp.repositories.interfaces.IExpenseRepository
 import com.japp.repositories.interfaces.IGroupRepository
@@ -30,7 +30,7 @@ class GroupService(
     suspend fun createGroup(
         request: CreateGroupRequest,
         userId: Int
-    ): Result<GroupDto, GroupError> {
+    ): Result<GroupDto, AppError> {
         return when (val validation = GroupValidator.validateCreateGroup(request)) {
             is Result.Failure -> validation
             is Result.Success -> {
@@ -39,7 +39,7 @@ class GroupService(
                         val result = transaction {
                             userRepository.findById(userId)
                                 ?: return@transaction Result.Failure(
-                                    GroupError.InternalError("User not found")
+                                    AppError.Internal("User not found")
                                 )
 
                             val group = groupRepository.create(
@@ -58,7 +58,7 @@ class GroupService(
                         result
                     } catch (e: Exception) {
                         Result.Failure(
-                            GroupError.InternalError(e.message ?: "Failed to create group")
+                            AppError.Internal(e.message ?: "Failed to create group")
                         )
                     }
                 }
@@ -72,7 +72,7 @@ class GroupService(
     suspend fun joinGroup(
         request: JoinGroupRequest,
         userId: Int
-    ): Result<GroupDto, GroupError> {
+    ): Result<GroupDto, AppError> {
         return when (val validation = GroupValidator.validateJoinGroup(request)) {
             is Result.Failure -> validation
             is Result.Success -> {
@@ -81,12 +81,12 @@ class GroupService(
                         val result = transaction {
                             val group = groupRepository.findByInviteCode(request.inviteCode)
                                 ?: return@transaction Result.Failure(
-                                    GroupError.InvalidInviteCode()
+                                    AppError.InvalidInviteCode()
                                 )
 
                             if (groupRepository.isMember(group.id, userId)) {
                                 return@transaction Result.Failure(
-                                    GroupError.AlreadyMember()
+                                    AppError.AlreadyMember()
                                 )
                             }
 
@@ -94,7 +94,7 @@ class GroupService(
 
                             val updatedGroup = groupRepository.findById(group.id)
                                 ?: return@transaction Result.Failure(
-                                    GroupError.InternalError("Failed to retrieve group")
+                                    AppError.Internal("Failed to retrieve group")
                                 )
 
                             val user = userRepository.findById(userId)
@@ -119,7 +119,7 @@ class GroupService(
                         }
                     } catch (e: Exception) {
                         Result.Failure(
-                            GroupError.InternalError(e.message ?: "Failed to join group")
+                            AppError.Internal(e.message ?: "Failed to join group")
                         )
                     }
                 }
@@ -134,7 +134,7 @@ class GroupService(
         groupId: Int,
         userIdToAdd: Int,
         requestingUserId: Int
-    ): Result<GroupMemberDto, GroupError> {
+    ): Result<GroupMemberDto, AppError> {
         return when (val validation = GroupValidator.validateAddMember(userIdToAdd)) {
             is Result.Failure -> validation
             is Result.Success -> {
@@ -144,24 +144,24 @@ class GroupService(
 
                         val memberDto = transaction {
                             groupRepository.findById(groupId)
-                                ?: return@transaction Result.Failure(GroupError.NotFound(groupId))
+                                ?: return@transaction Result.Failure(AppError.NotFound("Group", groupId))
 
                             if (!groupRepository.isOwner(groupId, requestingUserId)) {
                                 return@transaction Result.Failure(
-                                    GroupError.NotOwner(groupId)
+                                    AppError.NotOwner(groupId)
                                 )
                             }
 
                             val userToAdd = userRepository.findById(userIdToAdd)
                                 ?: return@transaction Result.Failure(
-                                    GroupError.ValidationError("User to add does not exist")
+                                    AppError.Validation("User to add does not exist")
                                 )
 
                             addedUsername = userToAdd.username
 
                             if (groupRepository.isMember(groupId, userIdToAdd)) {
                                 return@transaction Result.Failure(
-                                    GroupError.AlreadyMember()
+                                    AppError.AlreadyMember()
                                 )
                             }
 
@@ -188,7 +188,7 @@ class GroupService(
                         memberDto
                     } catch (e: Exception) {
                         Result.Failure(
-                            GroupError.InternalError(e.message ?: "Failed to add member")
+                            AppError.Internal(e.message ?: "Failed to add member")
                         )
                     }
                 }
@@ -199,7 +199,7 @@ class GroupService(
     /**
      * Get all groups for a user
      */
-    suspend fun getUserGroups(userId: Int): Result<List<GroupDto>, GroupError> {
+    suspend fun getUserGroups(userId: Int): Result<List<GroupDto>, AppError> {
         return withContext(Dispatchers.IO) {
             try {
                 transaction {
@@ -208,7 +208,7 @@ class GroupService(
                 }
             } catch (e: Exception) {
                 Result.Failure(
-                    GroupError.InternalError(e.message ?: "Failed to retrieve groups")
+                    AppError.Internal(e.message ?: "Failed to retrieve groups")
                 )
             }
         }
@@ -220,22 +220,22 @@ class GroupService(
     suspend fun getGroupById(
         groupId: Int,
         userId: Int
-    ): Result<GroupDto, GroupError> {
+    ): Result<GroupDto, AppError> {
         return withContext(Dispatchers.IO) {
             try {
                 transaction {
                     if (!groupRepository.isMember(groupId, userId)) {
-                        return@transaction Result.Failure(GroupError.NotMember(groupId))
+                        return@transaction Result.Failure(AppError.NotMember(groupId))
                     }
 
                     val group = groupRepository.findById(groupId)
-                        ?: return@transaction Result.Failure(GroupError.NotFound(groupId))
+                        ?: return@transaction Result.Failure(AppError.NotFound("Group", groupId))
 
                     Result.Success(group.toDto())
                 }
             } catch (e: Exception) {
                 Result.Failure(
-                    GroupError.InternalError(e.message ?: "Failed to retrieve group")
+                    AppError.Internal(e.message ?: "Failed to retrieve group")
                 )
             }
         }
@@ -244,21 +244,21 @@ class GroupService(
     suspend fun getGroupInviteDetails(
         groupId: Int,
         userId: Int
-    ): Result<GroupInviteDetailsDto, GroupError> {
+    ): Result<GroupInviteDetailsDto, AppError> {
         return withContext(Dispatchers.IO) {
             try {
                 transaction {
                     if (!groupRepository.isMember(groupId, userId)) {
-                        return@transaction Result.Failure(GroupError.NotMember(groupId))
+                        return@transaction Result.Failure(AppError.NotMember(groupId))
                     }
 
                     val group = groupRepository.findById(groupId)
-                        ?: return@transaction Result.Failure(GroupError.NotFound(groupId))
+                        ?: return@transaction Result.Failure(AppError.NotFound("Group", groupId))
 
                     Result.Success(
                         GroupInviteDetailsDto(
                             inviteCode = group.inviteCode,
-                            deepLink = "japp://join/${group.inviteCode}",
+                            deepLink = "japp://join/${group.inviteCode}", // Some hardcoded BS
                             groupId = group.id,
                             groupName = group.name,
                             memberCount = group.memberCount
@@ -267,7 +267,7 @@ class GroupService(
                 }
             } catch (e: Exception) {
                 Result.Failure(
-                    GroupError.InternalError(e.message ?: "Failed to get invite details")
+                    AppError.Internal(e.message ?: "Failed to get invite details")
                 )
             }
         }
@@ -279,17 +279,17 @@ class GroupService(
     suspend fun getGroupMembers(
         groupId: Int,
         userId: Int
-    ): Result<List<GroupMemberDto>, GroupError> {
+    ): Result<List<GroupMemberDto>, AppError> {
         return withContext(Dispatchers.IO) {
             try {
                 transaction {
                     if (!groupRepository.isMember(groupId, userId)) {
-                        return@transaction Result.Failure(GroupError.NotMember(groupId))
+                        return@transaction Result.Failure(AppError.NotMember(groupId))
                     }
 
                     val memberIds = groupRepository.getMembers(groupId)
                     val group = groupRepository.findById(groupId)
-                        ?: return@transaction Result.Failure(GroupError.NotFound(groupId))
+                        ?: return@transaction Result.Failure(AppError.NotFound("Group", groupId))
 
                     val members = memberIds.mapNotNull { memberId ->
                         userRepository.findById(memberId)?.let { user ->
@@ -305,7 +305,7 @@ class GroupService(
                 }
             } catch (e: Exception) {
                 Result.Failure(
-                    GroupError.InternalError(e.message ?: "Failed to retrieve members")
+                    AppError.Internal(e.message ?: "Failed to retrieve members")
                 )
             }
         }
@@ -317,7 +317,7 @@ class GroupService(
     suspend fun leaveGroup(
         groupId: Int,
         userId: Int
-    ): Result<Unit, GroupError> {
+    ): Result<Unit, AppError> {
         return withContext(Dispatchers.IO) {
             try {
                 var groupWasDeleted = false
@@ -325,11 +325,11 @@ class GroupService(
 
                 val leaveResult = transaction {
                     if (!groupRepository.isMember(groupId, userId)) {
-                        return@transaction Result.Failure(GroupError.NotMember(groupId))
+                        return@transaction Result.Failure(AppError.NotMember(groupId))
                     }
 
                     val group = groupRepository.findById(groupId)
-                        ?: return@transaction Result.Failure(GroupError.NotFound(groupId))
+                        ?: return@transaction Result.Failure(AppError.NotFound("Group", groupId))
 
                     val user = userRepository.findById(userId)
                     val username = user?.username ?: "Someone"
@@ -343,7 +343,7 @@ class GroupService(
                             val members = groupRepository.getMembersSortedByJoinDate(groupId)
                             val nextOwner = members.firstOrNull { it != userId }
                                 ?: return@transaction Result.Failure(
-                                    GroupError.InternalError("No eligible member to transfer ownership")
+                                    AppError.Internal("No eligible member to transfer ownership")
                                 )
                             groupRepository.transferOwnership(groupId, nextOwner)
                         }
@@ -380,7 +380,7 @@ class GroupService(
                 leaveResult
             } catch (e: Exception) {
                 Result.Failure(
-                    GroupError.InternalError(e.message ?: "Failed to leave group")
+                    AppError.Internal(e.message ?: "Failed to leave group")
                 )
             }
         }
@@ -392,27 +392,27 @@ class GroupService(
     suspend fun deleteGroup(
         groupId: Int,
         userId: Int
-    ): Result<Unit, GroupError> {
+    ): Result<Unit, AppError> {
         return withContext(Dispatchers.IO) {
             try {
                 transaction {
                     if (!groupRepository.isMember(groupId, userId)) {
-                        return@transaction Result.Failure(GroupError.NotMember(groupId))
+                        return@transaction Result.Failure(AppError.NotMember(groupId))
                     }
 
                     if (!groupRepository.isOwner(groupId, userId)) {
-                        return@transaction Result.Failure(GroupError.NotOwner(groupId))
+                        return@transaction Result.Failure(AppError.NotOwner(groupId))
                     }
 
                     groupRepository.findById(groupId)
-                        ?: return@transaction Result.Failure(GroupError.NotFound(groupId))
+                        ?: return@transaction Result.Failure(AppError.NotFound("Group", groupId))
 
                     val balances = expenseRepository.calculateGroupBalances(groupId)
                     val hasOutstandingDebts = balances.values.any { it != 0.0 }
 
                     if (hasOutstandingDebts) {
                         return@transaction Result.Failure(
-                            GroupError.ValidationError("Cannot delete group with outstanding debts. All balances must be settled first.")
+                            AppError.Validation("Cannot delete group with outstanding debts. All balances must be settled first.")
                         )
                     }
 
@@ -421,7 +421,7 @@ class GroupService(
                 }
             } catch (e: Exception) {
                 Result.Failure(
-                    GroupError.InternalError(e.message ?: "Failed to delete group")
+                    AppError.Internal(e.message ?: "Failed to delete group")
                 )
             }
         }
@@ -433,16 +433,16 @@ class GroupService(
     suspend fun getGroupDebtHistory(
         groupId: Int,
         userId: Int
-    ): Result<List<DebtHistoryDto>, GroupError> {
+    ): Result<List<DebtHistoryDto>, AppError> {
         return withContext(Dispatchers.IO) {
             try {
                 transaction {
                     if (!groupRepository.isMember(groupId, userId)) {
-                        return@transaction Result.Failure(GroupError.NotMember(groupId))
+                        return@transaction Result.Failure(AppError.NotMember(groupId))
                     }
 
-                    val group = groupRepository.findById(groupId)
-                        ?: return@transaction Result.Failure(GroupError.NotFound(groupId))
+                    groupRepository.findById(groupId)
+                        ?: return@transaction Result.Failure(AppError.NotFound("Group", groupId))
 
                     val debtRecords = debtHistoryRepository.findByGroupId(groupId)
 
@@ -458,7 +458,7 @@ class GroupService(
                 }
             } catch (e: Exception) {
                 Result.Failure(
-                    GroupError.InternalError(e.message ?: "Failed to retrieve debt history")
+                    AppError.Internal(e.message ?: "Failed to retrieve debt history")
                 )
             }
         }

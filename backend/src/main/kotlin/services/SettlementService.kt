@@ -2,7 +2,7 @@ package com.japp.services
 
 import com.japp.models.*
 import com.japp.models.dto.*
-import com.japp.models.error.SettlementError
+import com.japp.models.error.AppError
 import com.japp.repositories.interfaces.ISettlementRepository
 import com.japp.repositories.interfaces.IGroupRepository
 import com.japp.repositories.interfaces.IUserRepository
@@ -27,7 +27,7 @@ class SettlementService(
     suspend fun createSettlement(
         request: CreateSettlementRequest,
         userId: Int
-    ): Result<SettlementDto, SettlementError> {
+    ): Result<SettlementDto, AppError> {
         return when (val validation = SettlementValidator.validateCreateSettlement(request)) {
             is Result.Failure -> validation
             is Result.Success -> {
@@ -39,19 +39,19 @@ class SettlementService(
                         val settlementResult = transaction {
                             if (!groupRepository.isMember(request.groupId, userId)) {
                                 return@transaction Result.Failure(
-                                    SettlementError.NotMember(request.groupId)
+                                    AppError.NotMember(request.groupId)
                                 )
                             }
 
                             if (!groupRepository.isMember(request.groupId, request.toUserId)) {
                                 return@transaction Result.Failure(
-                                    SettlementError.ValidationError("Recipient is not a member of this group")
+                                    AppError.Validation("Recipient is not a member of this group")
                                 )
                             }
 
                             if (userId == request.toUserId) {
                                 return@transaction Result.Failure(
-                                    SettlementError.ValidationError("Cannot create settlement to yourself")
+                                    AppError.Validation("Cannot create settlement to yourself")
                                 )
                             }
 
@@ -91,7 +91,7 @@ class SettlementService(
                         settlementResult
                     } catch (e: Exception) {
                         Result.Failure(
-                            SettlementError.InternalError(e.message ?: "Failed to create settlement")
+                            AppError.Internal(e.message ?: "Failed to create settlement")
                         )
                     }
                 }
@@ -102,16 +102,16 @@ class SettlementService(
     suspend fun getSettlementSuggestions(
         groupId: Int,
         userId: Int
-    ): Result<GroupSettlementSuggestionsDto, SettlementError> {
+    ): Result<GroupSettlementSuggestionsDto, AppError> {
         return withContext(Dispatchers.IO) {
             try {
                 transaction {
                     if (!groupRepository.isMember(groupId, userId)) {
-                        return@transaction Result.Failure(SettlementError.NotMember(groupId))
+                        return@transaction Result.Failure(AppError.NotMember(groupId))
                     }
 
                     val group = groupRepository.findById(groupId) ?: return@transaction Result.Failure(
-                        SettlementError.InternalError("Group not found")
+                        AppError.Internal("Group not found")
                     )
 
                     val balances = expenseRepository.calculateGroupBalances(groupId)
@@ -140,7 +140,7 @@ class SettlementService(
                 }
             } catch (e: Exception) {
                 Result.Failure(
-                    SettlementError.InternalError(e.message ?: "Failed to calculate settlements")
+                    AppError.Internal(e.message ?: "Failed to calculate settlements")
                 )
             }
         }
@@ -149,7 +149,7 @@ class SettlementService(
     suspend fun markSettlementCompleted(
         settlementId: Int,
         userId: Int
-    ): Result<SettlementDto, SettlementError> {
+    ): Result<SettlementDto, AppError> {
         return withContext(Dispatchers.IO) {
             try {
                 var currentUsername: String? = null
@@ -159,29 +159,29 @@ class SettlementService(
 
                 val completionResult = transaction {
                     val settlement = settlementRepository.findById(settlementId)
-                        ?: return@transaction Result.Failure(SettlementError.NotFound(settlementId))
+                        ?: return@transaction Result.Failure(AppError.NotFound("Settlement", settlementId))
 
                     if (!groupRepository.isMember(settlement.groupId, userId)) {
                         return@transaction Result.Failure(
-                            SettlementError.NotMember(settlement.groupId)
+                            AppError.NotMember(settlement.groupId)
                         )
                     }
 
                     if (settlement.toUserId != userId) {
                         return@transaction Result.Failure(
-                            SettlementError.Unauthorized("Only the recipient can mark settlement as completed")
+                            AppError.Unauthorized("Only the recipient can mark settlement as completed")
                         )
                     }
 
                     if (settlement.status == SettlementStatus.COMPLETED) {
                         return@transaction Result.Failure(
-                            SettlementError.ValidationError("Settlement is already completed")
+                            AppError.Validation("Settlement is already completed")
                         )
                     }
 
                     val updatedSettlement = settlementRepository.markAsCompleted(settlementId)
                         ?: return@transaction Result.Failure(
-                            SettlementError.InternalError("Failed to update settlement")
+                            AppError.Internal("Failed to update settlement")
                         )
 
                     val currentUser = userRepository.findById(userId)
@@ -217,7 +217,7 @@ class SettlementService(
                 completionResult
             } catch (e: Exception) {
                 Result.Failure(
-                    SettlementError.InternalError(e.message ?: "Failed to complete settlement")
+                    AppError.Internal(e.message ?: "Failed to complete settlement")
                 )
             }
         }
@@ -227,12 +227,12 @@ class SettlementService(
         groupId: Int,
         userId: Int,
         pendingOnly: Boolean = false
-    ): Result<List<SettlementDto>, SettlementError> {
+    ): Result<List<SettlementDto>, AppError> {
         return withContext(Dispatchers.IO) {
             try {
                 transaction {
                     if (!groupRepository.isMember(groupId, userId)) {
-                        return@transaction Result.Failure(SettlementError.NotMember(groupId))
+                        return@transaction Result.Failure(AppError.NotMember(groupId))
                     }
 
                     val settlements = if (pendingOnly) {
@@ -254,7 +254,7 @@ class SettlementService(
                 }
             } catch (e: Exception) {
                 Result.Failure(
-                    SettlementError.InternalError(e.message ?: "Failed to retrieve settlements")
+                    AppError.Internal(e.message ?: "Failed to retrieve settlements")
                 )
             }
         }

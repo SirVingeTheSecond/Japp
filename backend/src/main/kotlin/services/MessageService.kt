@@ -3,7 +3,7 @@ package com.japp.services
 import com.japp.models.*
 import com.japp.models.domain.Message
 import com.japp.models.dto.*
-import com.japp.models.error.MessageError
+import com.japp.models.error.AppError
 import com.japp.repositories.interfaces.IGroupRepository
 import com.japp.repositories.interfaces.IMessageRepository
 import com.japp.repositories.interfaces.IUserRepository
@@ -25,7 +25,7 @@ class MessageService(
     suspend fun createMessage(
         request: CreateMessageRequest,
         userId: Int
-    ): Result<MessageDto, MessageError> {
+    ): Result<MessageDto, AppError> {
         return when (val validation = MessageValidator.validateCreateMessage(request)) {
             is Result.Failure -> validation
             is Result.Success -> {
@@ -48,7 +48,7 @@ class MessageService(
 
                         if (messageDto == null) {
                             return@withContext Result.Failure(
-                                MessageError.NotMember(request.groupId)
+                                AppError.NotMember(request.groupId)
                             )
                         }
 
@@ -65,7 +65,7 @@ class MessageService(
                         Result.Success(messageDto)
                     } catch (e: Exception) {
                         Result.Failure(
-                            MessageError.InternalError(e.message ?: "Failed to create message")
+                            AppError.Internal(e.message ?: "Failed to create message")
                         )
                     }
                 }
@@ -76,7 +76,7 @@ class MessageService(
     suspend fun createSystemMessage(
         groupId: Int,
         content: String
-    ): Result<MessageDto, MessageError> {
+    ): Result<MessageDto, AppError> {
         return withContext(Dispatchers.IO) {
             try {
                 val messageDto = transaction {
@@ -102,7 +102,7 @@ class MessageService(
                 Result.Success(messageDto)
             } catch (e: Exception) {
                 Result.Failure(
-                    MessageError.InternalError(e.message ?: "Failed to create system message")
+                    AppError.Internal(e.message ?: "Failed to create system message")
                 )
             }
         }
@@ -113,12 +113,12 @@ class MessageService(
         userId: Int,
         limit: Int = 50,
         beforeCursor: String? = null
-    ): Result<MessagePageDto, MessageError> {
+    ): Result<MessagePageDto, AppError> {
         return withContext(Dispatchers.IO) {
             try {
                 transaction {
                     if (!groupRepository.isMember(groupId, userId)) {
-                        return@transaction Result.Failure(MessageError.NotMember(groupId))
+                        return@transaction Result.Failure(AppError.NotMember(groupId))
                     }
 
                     val messages = messageRepository.findByGroupId(
@@ -150,7 +150,7 @@ class MessageService(
                 }
             } catch (e: Exception) {
                 Result.Failure(
-                    MessageError.InternalError(e.message ?: "Failed to retrieve messages")
+                    AppError.Internal(e.message ?: "Failed to retrieve messages")
                 )
             }
         }
@@ -160,7 +160,7 @@ class MessageService(
         messageIds: List<Int>,
         userId: Int,
         groupId: Int
-    ): Result<Unit, MessageError> {
+    ): Result<Unit, AppError> {
         return withContext(Dispatchers.IO) {
             try {
                 val isMember = transaction {
@@ -174,7 +174,7 @@ class MessageService(
                 }
 
                 if (!isMember) {
-                    return@withContext Result.Failure(MessageError.NotMember(groupId))
+                    return@withContext Result.Failure(AppError.NotMember(groupId))
                 }
 
                 webSocketManager.broadcastToGroup(
@@ -190,7 +190,7 @@ class MessageService(
                 Result.Success(Unit)
             } catch (e: Exception) {
                 Result.Failure(
-                    MessageError.InternalError(e.message ?: "Failed to mark messages as read")
+                    AppError.Internal(e.message ?: "Failed to mark messages as read")
                 )
             }
         }
@@ -199,28 +199,28 @@ class MessageService(
     suspend fun deleteMessage(
         messageId: Int,
         userId: Int
-    ): Result<Unit, MessageError> {
+    ): Result<Unit, AppError> {
         return withContext(Dispatchers.IO) {
             try {
                 val deletionResult = transaction {
                     val message = messageRepository.findById(messageId)
-                        ?: return@transaction Result.Failure(MessageError.NotFound(messageId))
+                        ?: return@transaction Result.Failure(AppError.NotFound("Message", messageId))
 
                     if (!groupRepository.isMember(message.groupId, userId)) {
                         return@transaction Result.Failure(
-                            MessageError.NotMember(message.groupId)
+                            AppError.NotMember(message.groupId)
                         )
                     }
 
                     if (message.userId != userId) {
                         return@transaction Result.Failure(
-                            MessageError.Unauthorized("You can only delete your own messages")
+                            AppError.Unauthorized("You can only delete your own messages")
                         )
                     }
 
                     if (message.messageType == MessageType.SYSTEM) {
                         return@transaction Result.Failure(
-                            MessageError.Unauthorized("System messages cannot be deleted")
+                            AppError.Unauthorized("System messages cannot be deleted")
                         )
                     }
 
@@ -246,7 +246,7 @@ class MessageService(
                 }
             } catch (e: Exception) {
                 Result.Failure(
-                    MessageError.InternalError(e.message ?: "Failed to delete message")
+                    AppError.Internal(e.message ?: "Failed to delete message")
                 )
             }
         }
@@ -259,12 +259,12 @@ class MessageService(
         groupId: Int,
         userId: Int,
         session: WebSocketSession
-    ): Result<Unit, MessageError> {
+    ): Result<Unit, AppError> {
         return withContext(Dispatchers.IO) {
             try {
                 val validationResult = transaction {
                     if (!groupRepository.isMember(groupId, userId)) {
-                        return@transaction Result.Failure(MessageError.NotMember(groupId))
+                        return@transaction Result.Failure(AppError.NotMember(groupId))
                     }
                     Result.Success(Unit)
                 }
@@ -278,7 +278,7 @@ class MessageService(
                 }
             } catch (e: Exception) {
                 Result.Failure(
-                    MessageError.InternalError(e.message ?: "Failed to subscribe to group")
+                    AppError.Internal(e.message ?: "Failed to subscribe to group")
                 )
             }
         }
@@ -290,14 +290,14 @@ class MessageService(
     suspend fun unsubscribeFromGroup(
         groupId: Int,
         session: WebSocketSession
-    ): Result<Unit, MessageError> {
+    ): Result<Unit, AppError> {
         return withContext(Dispatchers.IO) {
             try {
                 webSocketManager.unsubscribeFromGroup(session, groupId)
                 Result.Success(Unit)
             } catch (e: Exception) {
                 Result.Failure(
-                    MessageError.InternalError(e.message ?: "Failed to unsubscribe from group")
+                    AppError.Internal(e.message ?: "Failed to unsubscribe from group")
                 )
             }
         }

@@ -274,6 +274,42 @@ class GroupService(
     }
 
     /**
+     * Preview group details by invite code (accessible to non-members)
+     */
+    suspend fun previewGroupByInviteCode(
+        inviteCode: String
+    ): Result<GroupPreviewDto, AppError> {
+        return when (val validation = GroupValidator.validatePreviewInviteCode(inviteCode)) {
+            is Result.Failure -> validation
+            is Result.Success -> {
+                withContext(Dispatchers.IO) {
+                    try {
+                        transaction {
+                            val group = groupRepository.findByInviteCode(inviteCode)
+                                ?: return@transaction Result.Failure(
+                                    AppError.InvalidInviteCode()
+                                )
+
+                            Result.Success(
+                                GroupPreviewDto(
+                                    name = group.name,
+                                    description = group.description,
+                                    memberCount = group.memberCount,
+                                    createdAt = group.createdAt
+                                )
+                            )
+                        }
+                    } catch (e: Exception) {
+                        Result.Failure(
+                            AppError.Internal(e.message ?: "Failed to preview group")
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    /**
      * Get members of a group (only if user is member)
      */
     suspend fun getGroupMembers(

@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Button
@@ -161,24 +162,26 @@ fun ScanScreen(navController: NavController? = null) {
                     )
                 }
                 Dialog({showResult = false; scanFlag = false}) {
-                    Card(Modifier.padding(10.dp)) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Row() {
+                    Card() {
+                        Column(Modifier.padding(10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                                 if (group != null) {
-                                    GroupIcon(group!!.name, Modifier.size(110.dp))
-                                    Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                                    Box(Modifier.padding(10.dp), contentAlignment = Alignment.Center) {
+                                        GroupIcon(group!!.name, Modifier.size(90.dp))
+                                    }
+                                    Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                                         Text(group!!.name, style = MaterialTheme.typography.headlineMedium,
                                             fontWeight = FontWeight.SemiBold)
                                         HorizontalDivider(
                                             Modifier
-                                                .padding(10.dp)
+                                                .padding(5.dp)
                                                 .background(MaterialTheme.colorScheme.primary),
                                             thickness = 2.dp
                                         )
                                         Text(group!!.description ?: "No description")
                                         HorizontalDivider(
                                             Modifier
-                                                .padding(10.dp)
+                                                .padding(5.dp)
                                                 .background(MaterialTheme.colorScheme.primary),
                                             thickness = 2.dp
                                         )
@@ -186,12 +189,12 @@ fun ScanScreen(navController: NavController? = null) {
                                     }
                                 }
                             }
-                            Row() {
+                            Row(Modifier.fillMaxWidth().padding(top = 5.dp), horizontalArrangement = Arrangement.SpaceAround) {
                                 // on left cuz left handed people rule!
-                                Button({  }) {
+                                Button({JoinGroup(inviteCode)}) {
                                     Text("Join ${group?.name ?:"..."}")
                                 }
-                                Button({ }) {
+                                Button({showResult = false; scanFlag = false}) {
                                     Text("Cancel")
                                 }
                             }

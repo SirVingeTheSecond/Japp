@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -32,9 +33,12 @@ import androidx.compose.ui.unit.dp
 import androidx.core.graphics.ColorUtils
 import androidx.navigation.NavController
 import com.japp.AppDestinations
+import com.japp.api.responses.activity.ActivityDto
+import com.japp.composables.ActivityRow
 import kotlinx.coroutines.delay
 import java.text.DateFormat
 import java.util.Date
+import kotlin.collections.forEach
 import kotlin.math.round
 
 @Preview(showSystemUi = true)
@@ -113,45 +117,39 @@ fun Pill(content: String = "Idk?", label: String? = null, color: Color? = null, 
 
 @Composable
 fun QuickActivities(navController: NavController?) {
-    //TODO: Fetch activities
 
-    Column(
+    val userActivity = remember {  mutableStateOf<List<ActivityDto>?>(null) }
+    val isLoading = remember { mutableStateOf<Boolean>(true) }
+
+    LaunchedEffect(Unit) {
+        getActivities(userActivity, isLoading, 3)
+    }
+
+    Column (
+        modifier = Modifier
+            .fillMaxWidth(),
+        verticalArrangement = Arrangement.Top,
         horizontalAlignment = Alignment.Start
     ) {
-        Row(
-            Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+        Text("Activities", style = MaterialTheme.typography.headlineSmall)
+
+        Column (
+            modifier = Modifier
+                .padding(16.dp),
+            verticalArrangement = Arrangement.Top,
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text("Recent activities", style = MaterialTheme.typography.headlineSmall)
-            TextButton(
-                onClick = { navController?.navigate(AppDestinations.ACTIVITY.route) }
-            ) {
-                Text("Activities ->", textAlign = TextAlign.End)
+            if (isLoading.value) {
+                CircularProgressIndicator()
+            } else {
+
+                userActivity.value?.forEach {
+                    ActivityRow(
+                        it
+                    )
+                }
             }
         }
-        Activity(Date()) {
-            Text("Someone")
-            Text("created an expense of 500", style = MaterialTheme.typography.bodySmall)
-        }
-    }
-}
-
-@Composable
-fun Activity(time: Date? = null, content: @Composable (() -> Unit)) {
-    Row(
-        Modifier.fillMaxWidth().padding(horizontal = 10.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Row(
-            Modifier.fillMaxWidth(0.7f),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            content()
-        }
-        time?.let { Text(DateFormat.getDateInstance().format(it)) }
     }
 }
 

@@ -1,17 +1,17 @@
 package com.japp.validation
 
-import com.japp.models.error.ExpenseError
 import com.japp.models.Result
 import com.japp.models.SplitType
 import com.japp.models.dto.CreateExpenseRequest
+import com.japp.models.error.AppError
 import kotlin.math.abs
 
 object ExpenseValidator {
 
-    fun validateCreateExpense(request: CreateExpenseRequest): Result<CreateExpenseRequest, ExpenseError> {
-        val errorFactory: (String) -> ExpenseError = { ExpenseError.ValidationError(it) }
+    fun validateCreateExpense(request: CreateExpenseRequest): Result<CreateExpenseRequest, AppError> {
+        val errorFactory: (String) -> AppError = { AppError.Validation(it) }
 
-        // Validate amount
+        // amount
         ValidationHelpers.validatePositiveAmount(
             request.amount,
             "Amount",
@@ -20,7 +20,7 @@ object ExpenseValidator {
             return Result.Failure(it)
         }
 
-        // Validate description
+        // description
         ValidationHelpers.validateNotBlank(
             request.description,
             "Description",
@@ -38,31 +38,31 @@ object ExpenseValidator {
             return Result.Failure(it)
         }
 
-        // Validate custom split
+        // custom split
         if (request.splitType == SplitType.CUSTOM) {
             if (request.splits.isNullOrEmpty()) {
                 return Result.Failure(
-                    ExpenseError.ValidationError(ValidationConstants.Messages.CUSTOM_SPLIT_NEEDS_DATA)
+                    AppError.Validation(ValidationConstants.Messages.CUSTOM_SPLIT_NEEDS_DATA)
                 )
             }
 
             val totalSplitAmount = request.splits.sumOf { it.shareAmount ?: 0.0 }
             val totalSplitPercentage = request.splits.sumOf { it.sharePercentage ?: 0.0 }
 
-            // Validate amount-based splits
+            // amount splits
             if (request.splits.all { it.shareAmount != null }) {
                 if (abs(totalSplitAmount - request.amount) > ValidationConstants.Amount.COMPARISON_TOLERANCE) {
                     return Result.Failure(
-                        ExpenseError.ValidationError(ValidationConstants.Messages.SPLIT_AMOUNTS_MISMATCH)
+                        AppError.Validation(ValidationConstants.Messages.SPLIT_AMOUNTS_MISMATCH)
                     )
                 }
             }
 
-            // Validate percentage-based splits
+            // percentage splits
             if (request.splits.all { it.sharePercentage != null }) {
                 if (abs(totalSplitPercentage - ValidationConstants.Amount.PERCENTAGE_TOTAL) > ValidationConstants.Amount.COMPARISON_TOLERANCE) {
                     return Result.Failure(
-                        ExpenseError.ValidationError(ValidationConstants.Messages.SPLIT_PERCENTAGES_MISMATCH)
+                        AppError.Validation(ValidationConstants.Messages.SPLIT_PERCENTAGES_MISMATCH)
                     )
                 }
             }

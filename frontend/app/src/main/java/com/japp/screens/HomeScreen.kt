@@ -1,18 +1,16 @@
 package com.japp.screens
 
-import androidx.compose.foundation.Image
+import android.annotation.SuppressLint
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -35,6 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -48,14 +47,12 @@ import com.japp.api.responses.activity.ActivityDto
 import com.japp.api.responses.auth.UserDto
 import com.japp.api.responses.expense.GroupBalanceSummaryDto
 import com.japp.api.responses.group.GroupDto
-import com.japp.api.responses.user.MeResponse
 import com.japp.composables.GroupIcon
-import com.japp.composables.TimeText
-import kotlinx.coroutines.delay
+import com.japp.composables.getActivityIcon
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
-import java.text.DateFormat
+import java.text.SimpleDateFormat
 import java.util.Date
 import kotlin.math.round
 
@@ -447,4 +444,34 @@ fun Group(group: GroupDto, me: UserDto, navController: NavController? = null) {
             }
         }
     }
+}
+
+// Extra composables
+@SuppressLint("SimpleDateFormat")
+@Composable
+fun TimeText(date: Date, modifier: Modifier = Modifier, style: TextStyle = MaterialTheme.typography.bodySmall, textAlign: TextAlign = TextAlign.Start) {
+    val time = (Date().time - date.time) / 1000
+    var timeText = ""
+    val minute = 60
+    val hour = minute*60
+    val day = hour*24
+    val week = day*7
+    val biWeekly = week*2
+
+    if (time < minute) {
+        timeText = "${time}s ago"
+    } else if (time < hour) {
+        timeText = "${time/minute}m ago"
+    }else if (time < day) {
+        timeText = "${time/hour}h ago"
+    }else if (time < week) {
+        timeText = "${time/day}d ago"
+    }else if (time < biWeekly) {
+        timeText = "over a week ago"
+    }else {
+        timeText = SimpleDateFormat("dd/mm/yy").format(date)
+    }
+
+
+    Text(timeText, modifier = modifier.then(Modifier), style = style, textAlign = textAlign)
 }

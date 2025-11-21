@@ -119,7 +119,9 @@ class AuthInterceptor(val context: Context) : Interceptor {
     }
 }
 object RetrofitClient {
-    private const val BASE_URL = "https://japp-app-api.itnerd.net/api/"
+    // Not very smart
+    //private const val BASE_URL = "https://japp-app-api.itnerd.net/api/"
+    private const val BASE_URL = "http://10.0.2.2:8080/api/"
     var retrofit: Retrofit? = null
 
     fun init(context: Context) {

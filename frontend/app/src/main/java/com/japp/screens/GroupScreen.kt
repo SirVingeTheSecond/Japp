@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -54,6 +55,7 @@ import com.google.zxing.BarcodeFormat
 import com.japp.api.responses.expense.ExpenseDto
 import com.japp.api.responses.expense.GroupBalanceSummaryDto
 import com.japp.api.responses.group.GroupMemberDto
+import com.japp.composables.ExpenseDetailCard
 import com.journeyapps.barcodescanner.BarcodeEncoder
 import retrofit2.Call
 import retrofit2.Callback
@@ -330,36 +332,27 @@ fun NavTab(
             }
 
             composable("2") {
-                Column(horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.verticalScroll(
-                        state = rememberScrollState(),
-                        enabled = true,
-                    )
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier
+                        .verticalScroll(
+                            state = rememberScrollState(),
+                            enabled = true,
+                        )
+                        .padding(horizontal = 8.dp)
                 ) {
-                    groupExpenses.forEach { ExpenseDto ->
-
-
-                        Text("ID: "+ExpenseDto.id,
-                            Modifier.padding(10.dp)
+                    if (groupExpenses.isEmpty()) {
+                        Spacer(Modifier.height(32.dp))
+                        Text(
+                            "No expenses yet",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        Text("Description: "+ExpenseDto.description,
-                            Modifier.padding(10.dp)
-                        )
-                        Text("Amount: "+ExpenseDto.amount+" "+ExpenseDto.currency.symbol,
-                            Modifier.padding(10.dp)
-                        )
-                        Text("Paid by: "+ExpenseDto.paidByName,
-                            Modifier.padding(10.dp)
-                        )
-                        Text("Split type: "+ExpenseDto.splitType,
-                            Modifier.padding(10.dp)
-                        )
-                        HorizontalDivider(
-                            thickness = 1.dp,
-                            color = Color.LightGray,
-                            modifier = Modifier.padding(vertical = 4.dp))
+                    } else {
+                        groupExpenses.forEach { expense ->
+                            ExpenseDetailCard(expense = expense)
+                        }
                     }
-
                 }
             }
 

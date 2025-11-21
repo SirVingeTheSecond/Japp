@@ -149,7 +149,11 @@ fun LoginScreen(context: Context?, navController: NavController) {
             context.startActivity(intent)
         } else {
             val errorResponse = ErrorUtils.parseError(res)
-            error = "Login failed: ${errorResponse!!.message}"
+            error = if (errorResponse != null) {
+                "Login failed: ${errorResponse.message}"
+            } else {
+                "Login failed: ${res.code()} - ${res.message()}"
+            }
             isValid = true
         }
     }

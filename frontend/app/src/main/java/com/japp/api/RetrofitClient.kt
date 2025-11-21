@@ -12,6 +12,7 @@ import com.japp.api.responses.SettlementStatus
 import com.japp.api.responses.SplitType
 import com.japp.api.responses.UserStatus
 import com.japp.api.responses.activity.ActivityService
+import com.japp.api.responses.attachment.AttachmentService
 import com.japp.api.responses.auth.AuthService
 import com.japp.api.responses.expense.ExpenseService
 import com.japp.api.responses.group.GroupService
@@ -171,6 +172,9 @@ object RetrofitClient {
 
     val activityService: ActivityService
         get() = retrofit!!.create(ActivityService::class.java)
+
+    val attachmentService: AttachmentService
+        get() = retrofit!!.create(AttachmentService::class.java)
 
     val authService: AuthService
         get() = retrofit!!.create(AuthService::class.java)

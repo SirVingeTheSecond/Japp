@@ -27,6 +27,7 @@ import org.koin.core.qualifier.named
 import org.koin.dsl.module
 import org.koin.ktor.plugin.Koin
 import org.koin.logger.slf4jLogger
+import kotlin.time.Duration.Companion.seconds
 
 fun Application.configureFrameworks() {
     install(Koin) {
@@ -52,7 +53,26 @@ fun appModule(application: Application) = module {
     single<IAttachmentRepository> { AttachmentRepository() }
 
     single { PasswordHasher() }
-    single { WebSocketManager() }
+
+    single {
+        val heartbeatSeconds = application.environment.config
+            .propertyOrNull("websocket.heartbeatIntervalInSeconds")
+            ?.getString()
+            ?.toLongOrNull()
+            ?: 20L
+
+        println("DEBUG: heartbeatSeconds = $heartbeatSeconds")
+
+        val heartbeatInterval = if (heartbeatSeconds > 0) {
+            heartbeatSeconds.seconds
+        } else {
+            null
+        }
+
+        println("DEBUG: heartbeatInterval = $heartbeatInterval")
+
+        WebSocketManager(heartbeatInterval = heartbeatInterval)
+    }
 
     single {
         AuthService(

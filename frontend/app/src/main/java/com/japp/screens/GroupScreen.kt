@@ -317,11 +317,6 @@ fun NavTab(
                             )
                         }
 
-
-
-
-
-
                         HorizontalDivider(
                             thickness = 1.dp,
                             color = Color.LightGray,

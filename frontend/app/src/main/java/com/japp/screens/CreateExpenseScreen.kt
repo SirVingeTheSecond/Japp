@@ -461,8 +461,14 @@ fun CreateExpenseScreen(
                                         }
                                     }
 
-                                    // Create multipart request
-                                    val requestBody = file.asRequestBody("image/*".toMediaTypeOrNull())
+                                    // Create request
+                                    // Perhaps not the cleanest approach
+                                    val mimeType = when (file.extension.lowercase()) {
+                                        "png" -> "image/png"
+                                        "jpg", "jpeg" -> "image/jpeg"
+                                        else -> "image/jpeg"
+                                    }
+                                    val requestBody = file.asRequestBody(mimeType.toMediaTypeOrNull())
                                     val filePart = MultipartBody.Part.createFormData(
                                         "file",
                                         file.name,

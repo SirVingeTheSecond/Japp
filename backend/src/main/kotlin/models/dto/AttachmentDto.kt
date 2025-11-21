@@ -12,7 +12,8 @@ data class AttachmentDto(
     val fileSize: Long,
     val mimeType: String,
     val uploadedAt: String,
-    val downloadUrl: String
+    val downloadUrl: String,
+    val thumbnailUrl: String
 )
 
 @Serializable

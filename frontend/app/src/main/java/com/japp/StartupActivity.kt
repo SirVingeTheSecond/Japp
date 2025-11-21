@@ -33,6 +33,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -64,6 +65,7 @@ import com.japp.api.responses.auth.AuthResponse
 import com.japp.api.responses.auth.LoginRequest
 import com.japp.api.responses.auth.SignupRequest
 import com.japp.ui.theme.JappTheme
+import kotlinx.coroutines.launch
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
@@ -120,46 +122,36 @@ fun StartupPage(context: Context? = null) {
 
 @Composable
 fun LoginScreen(context: Context?, navController: NavController) {
+    val coroutineScope = rememberCoroutineScope()
+
     var emailOrUsername by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
     var isValid by remember { mutableStateOf(false) }
 
-    fun login() {
-        val call: Call<AuthResponse?>? = RetrofitClient.authService.login(
+    suspend fun login() {
+        val res = RetrofitClient.authService.login(
             LoginRequest(
                 emailOrUsername,
                 password
             )
         )
-        call!!.enqueue(object : Callback<AuthResponse?> {
-            override fun onResponse(
-                call: Call<AuthResponse?>,
-                response: Response<AuthResponse?>
-            ) {
-                val body = response.body()
-                Log.d("Tag", body.toString())
+        val body = res.body()
+        Log.d("Tag", body.toString())
 
-                if (body != null && response.isSuccessful) {
-                    val token = body.token ?: return
-                    val expiresAt =
-                        Date(System.currentTimeMillis() + (600 * 1000)) // 600 seconds as none is given with request?
-                    CredentialsStorage.save(context!!, Credentials(token, expiresAt))
+        if (body != null && res.isSuccessful) {
+            val token = body.token
+            val expiresAt =
+                Date(System.currentTimeMillis() + (600 * 1000)) // 600 seconds as none is given with request?
+            CredentialsStorage.save(context!!, Credentials(token, expiresAt))
 
-                    val intent = Intent(context, MainActivity::class.java)
-                    context.startActivity(intent)
-                } else {
-                    val errorResponse = ErrorUtils.parseError(response)
-                    error = "Login failed: ${errorResponse!!.message}"
-                    isValid = true
-                }
-            }
-
-            override fun onFailure(call: Call<AuthResponse?>, t: Throwable) {
-                Log.d("Tag", t.message!!)
-                isValid = true
-            }
-        })
+            val intent = Intent(context, MainActivity::class.java)
+            context.startActivity(intent)
+        } else {
+            val errorResponse = ErrorUtils.parseError(res)
+            error = "Login failed: ${errorResponse!!.message}"
+            isValid = true
+        }
     }
 
     Scaffold { innerPadding ->
@@ -194,7 +186,7 @@ fun LoginScreen(context: Context?, navController: NavController) {
                         )
                     }
                     error?.let { Text(it) }
-                    Button(onClick = { login() }) {
+                    Button(onClick = { coroutineScope.launch {login()} }) {
                         Text("Login!")
                     }
                     Column (
@@ -225,6 +217,8 @@ fun LoginScreen(context: Context?, navController: NavController) {
 
 @Composable
 fun SignupScreen(context: Context?, navController: NavController) {
+    val coroutineScope = rememberCoroutineScope()
+
     var email = remember { mutableStateOf("") }
     var username = remember { mutableStateOf("") }
     var firstname = remember { mutableStateOf("") }
@@ -237,10 +231,10 @@ fun SignupScreen(context: Context?, navController: NavController) {
 
     var error by remember { mutableStateOf<String?>(null) }
 
-    fun signup() {
+    suspend fun signup() {
         if (isValid.value) {
-            // Send request to sign up here?
-            val call: Call<AuthResponse?>? = RetrofitClient.authService.signup(SignupRequest(
+            val res = RetrofitClient.authService.signup(
+                SignupRequest(
                     email.value,
                     username.value,
                     firstname.value,
@@ -249,24 +243,15 @@ fun SignupScreen(context: Context?, navController: NavController) {
                     phone.intValue.toString()
                 )
             )
-            call!!.enqueue(object : Callback<AuthResponse?> {
-                override fun onResponse(call: Call<AuthResponse?>, response: Response<AuthResponse?>) {
-
-                    // we are getting response from our body
-                    // and passing it to our modal class.
-                    val body = response.body()
-                    if (body != null && response.isSuccessful) {
-                        navController.navigate(Screens.LOGIN.route)
-                    } else {
-                        val errorResponse = ErrorUtils.parseError(response)
-                        error = "Signup failed: ${errorResponse!!.message}"
-                    }
-                }
-
-                override fun onFailure(call: Call<AuthResponse?>, t: Throwable) {
-                    Log.d("Tag", t.message!!)
-                }
-            })
+            // we are getting response from our body
+            // and passing it to our modal class.
+            val body = res.body()
+            if (body != null && res.isSuccessful) {
+                navController.navigate(Screens.LOGIN.route)
+            } else {
+                val errorResponse = ErrorUtils.parseError(res)
+                error = "Signup failed: ${errorResponse!!.message}"
+            }
         } else {
             // Something went wrong
             // TODO: Show to user?
@@ -299,7 +284,7 @@ fun SignupScreen(context: Context?, navController: NavController) {
                         password,
                         repeatPassword,
                         isValid,
-                        { signup() },
+                        { coroutineScope.launch{signup()} },
                     )
                     error?.let { Text(it) }
                     Column (

@@ -49,26 +49,11 @@ import retrofit2.Response
 fun ShowGroupsScreen(navController: NavController? = null) {
     var groups by remember { mutableStateOf<List<GroupDto>>(emptyList()) }
 
-    fun get_my_groups() {
-        val call = RetrofitClient.groupService.get_my_groups()
-
-        call.enqueue(object : Callback<List<GroupDto>> {
-            override fun onResponse(
-                call: Call<List<GroupDto>>,
-                response: Response<List<GroupDto>>
-            ) {
-                val body = response.body()
-                Log.d("Tag", body.toString())
-
-                if (body != null && response.isSuccessful) {
-                    groups = body
-                }
-            }
-
-            override fun onFailure(call: Call<List<GroupDto>>, t: Throwable) {
-                Log.d("Tag", t.message ?: "Unknown error")
-            }
-        })
+    suspend fun get_my_groups() {
+        val res = RetrofitClient.groupService.getMyGroups()
+        if (res.isSuccessful && res.body() != null) {
+            groups = res.body()!!
+        }
     }
 
     LaunchedEffect(Unit) {

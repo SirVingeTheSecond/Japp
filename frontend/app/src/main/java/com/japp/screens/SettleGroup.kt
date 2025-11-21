@@ -1,8 +1,6 @@
 package com.japp.screens
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -15,6 +13,7 @@ import com.japp.api.responses.settlement.CreateSettlementRequest
 import com.japp.api.responses.settlement.GroupSettlementSuggestionsDto
 import com.japp.api.responses.settlement.SettlementDto
 import com.japp.api.responses.settlement.SettlementSuggestionDto
+import kotlinx.coroutines.launch
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
@@ -23,6 +22,8 @@ import retrofit2.Response
 fun SettleGroup(
     navController: NavController? = null
 ) {
+    val coroutineScope = rememberCoroutineScope()
+
     var isLoadingSuggestions by remember { mutableStateOf(true) }
     var isSubmitting by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
@@ -31,10 +32,11 @@ fun SettleGroup(
     var userId by remember { mutableStateOf<Int?>(null) }
 
     LaunchedEffect(Unit) {
-        try {
-            val user = RetrofitClient.userService.get_my_user()
+        val res = RetrofitClient.userService.getMyUser()
+        if (res.isSuccessful && res.body() != null) {
+            val user = res.body()!!
             userId = user.id
-        } catch (e: Exception) {
+        } else {
             errorMessage = "Failed to load user info"
         }
     }
@@ -42,27 +44,14 @@ fun SettleGroup(
     LaunchedEffect(GROUP_ID) {
         if (GROUP_ID == -1) return@LaunchedEffect
 
-        val suggestionsCall = RetrofitClient.settlementService
-            .get_group_settlement_suggestions(GROUP_ID)
-
-        suggestionsCall?.enqueue(object : Callback<GroupSettlementSuggestionsDto?> {
-            override fun onResponse(
-                call: Call<GroupSettlementSuggestionsDto?>,
-                response: Response<GroupSettlementSuggestionsDto?>
-            ) {
-                isLoadingSuggestions = false
-                if (response.isSuccessful && response.body() != null) {
-                    suggestionsData = response.body()
-                } else {
-                    errorMessage = "Failed to load settlement suggestions"
-                }
-            }
-
-            override fun onFailure(call: Call<GroupSettlementSuggestionsDto?>, t: Throwable) {
-                isLoadingSuggestions = false
-                errorMessage = "Network error: ${t.message}"
-            }
-        })
+        val res = RetrofitClient.settlementService
+            .getGroupSettlementSuggestions(GROUP_ID)
+        isLoadingSuggestions = false
+        if (res.isSuccessful && res.body() != null) {
+            suggestionsData = res.body()
+        } else {
+            errorMessage = "Failed to load settlement suggestions"
+        }
     }
 
     Box(
@@ -148,36 +137,18 @@ fun SettleGroup(
                                     toUserId = suggestion.toUserId,
                                     amount = suggestion.amount
                                 )
-
-                                val call = RetrofitClient.settlementService
-                                    .create_settlement(request, pendingOnly = true)
-
-                                call?.enqueue(object : Callback<SettlementDto?> {
-                                    override fun onResponse(
-                                        call: Call<SettlementDto?>,
-                                        response: Response<SettlementDto?>
-                                    ) {
-                                        remaining -= 1
-                                        if (!response.isSuccessful) {
-                                            errorMessage = "Failed to create a settlement"
-                                        }
-                                        if (remaining == 0) {
-                                            isSubmitting = false
-                                            navController?.navigateUp()
-                                        }
+                                coroutineScope.launch {
+                                    val res = RetrofitClient.settlementService
+                                        .createSettlement(request, pendingOnly = true)
+                                    remaining -= 1
+                                    if (!res.isSuccessful) {
+                                        errorMessage = "Failed to create a settlement"
                                     }
-
-                                    override fun onFailure(
-                                        call: Call<SettlementDto?>,
-                                        t: Throwable
-                                    ) {
-                                        remaining -= 1
-                                        errorMessage = "Network error: ${t.message}"
-                                        if (remaining == 0) {
-                                            isSubmitting = false
-                                        }
+                                    if (remaining == 0) {
+                                        isSubmitting = false
+                                        navController?.navigateUp()
                                     }
-                                })
+                                }
                             }
                         },
                         enabled = !isSubmitting,

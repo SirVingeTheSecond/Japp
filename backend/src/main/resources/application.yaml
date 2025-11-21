@@ -6,23 +6,30 @@ ktor:
     port: 8080
 
 jwt:
-  secret: ${JWT_SECRET:CHANGE-IN-PROD-BOZO}
+  secret: ${JWT_SECRET:lDK6GTJ5kxi6bvRGGfoe5g8TPZx9HhrQ3SsyWF+hyZs}
   issuer: ${JWT_ISSUER:japp-issuer}
   audience: ${JWT_AUDIENCE:japp-audience}
   realm: "Japp API"
-  expirationDays: 7
+  expirationDays: ${JWT_EXPIRATION_DAYS:7}
 
 database:
-  url: ${POSTGRES_URL:jdbc:postgresql://localhost:5432/japp}
-  driver: org.postgresql.Driver
-  user: ${POSTGRES_USER:japp}
-  password: ${POSTGRES_PASSWORD:japper}
+  url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/japp}
+  driver: ${DATABASE_DRIVER:org.postgresql.Driver}
+  user: ${DATABASE_USER:japp}
+  password: ${DATABASE_PASSWORD:japper}
   pool:
-    maximumPoolSize: 10
-    minimumIdle: 2
-    connectionTimeout: 30000
-    idleTimeout: 600000
-    maxLifetime: 1800000
+    maximumPoolSize: ${DB_POOL_MAX_SIZE:10}
+    minimumIdle: ${DB_POOL_MIN_IDLE:2}
+    connectionTimeout: ${DB_POOL_CONNECTION_TIMEOUT:30000}
+    idleTimeout: ${DB_POOL_IDLE_TIMEOUT:600000}
+    maxLifetime: ${DB_POOL_MAX_LIFETIME:1800000}
+
+websocket:
+  heartbeatIntervalInSeconds: ${WS_HEARTBEAT_INTERVAL:20}
+
+storage:
+  attachments:
+    basePath: /var/japp/attachments
 
 websocket:
   heartbeatIntervalInSeconds: 20
@@ -33,3 +40,4 @@ storage:
 
 app:
   version: 1.0.0
+  environment: ${APP_ENV:development}

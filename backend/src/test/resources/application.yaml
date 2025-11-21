@@ -6,7 +6,7 @@ ktor:
     port: 8080
 
 jwt:
-  secret: test-secret-do-not-use-in-prod
+  secret: test-secret-key-min-32-chars-long
   issuer: test-issuer
   audience: test-audience
   realm: "Japp API Test"
@@ -33,3 +33,4 @@ storage:
 
 app:
   version: 1.0.0-test
+  environment: test

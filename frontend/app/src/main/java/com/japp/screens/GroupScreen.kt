@@ -2,12 +2,9 @@ package com.japp.screens
 
 
 import android.graphics.Bitmap
-import android.graphics.Paint
 import android.util.Log
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.OverscrollEffect
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.FlingBehavior
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -42,7 +39,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
@@ -55,7 +51,6 @@ import com.japp.api.RetrofitClient
 import com.japp.api.responses.group.GroupDto
 import com.japp.composables.GroupIcon
 import com.google.zxing.BarcodeFormat
-import com.japp.api.responses.expense.BalanceDto
 import com.japp.api.responses.expense.ExpenseDto
 import com.japp.api.responses.expense.GroupBalanceSummaryDto
 import com.japp.api.responses.group.GroupMemberDto
@@ -83,107 +78,32 @@ fun GroupScreen(navController: NavController? = null) {
         GROUP_ID
     ) {
         if (GROUP_ID == -1) return@LaunchedEffect
-
-        val call = RetrofitClient.groupService.get_group(GROUP_ID)
-
-        call!!.enqueue(object : Callback<GroupDto?> {
-            override fun onResponse(
-                call: Call<GroupDto?>, response: Response<GroupDto?>
-            ) {
-                val body = response.body()
-                Log.d("Tag", body.toString())
-
-                if (body != null && response.isSuccessful) {
-                    group = body
-                } else {
-                    GROUP_ID = -1
-                    navController?.navigateUp()
-                }
-            }
-
-            override fun onFailure(
-                call: Call<GroupDto?>, t: Throwable
-            ) {
-                TODO("Not yet implemented")
-            }
-        })
-
-
+        val res = RetrofitClient.groupService.getGroup(GROUP_ID)
+        if (res.isSuccessful && res.body() != null) {
+            group = res.body()
+        }
     }
     LaunchedEffect(GROUP_ID) {
-        val call = RetrofitClient.groupService.get_group_members(GROUP_ID)
-
-        call?.enqueue(object : Callback<List<GroupMemberDto>?> {
-            override fun onResponse(
-                call: Call<List<GroupMemberDto>?>,
-                response: Response<List<GroupMemberDto>?>
-            ) {
-                val body = response.body()
-                Log.d("Tag", body.toString())
-
-                if (body != null && response.isSuccessful) {
-                    group_members = body
-                }
-            }
-
-            override fun onFailure(
-                call: Call<List<GroupMemberDto>?>,
-                t: Throwable
-            ) {
-                Log.d("Tag", t.message ?: "Unknown error")
-            }
-        })
+        val res = RetrofitClient.groupService.getGroupMembers(GROUP_ID)
+        val body = res.body()
+        if (body != null && res.isSuccessful) {
+            group_members = body
+        }
     }
 
 
     LaunchedEffect(GROUP_ID) {
-        val call = RetrofitClient.expenseService.get_group_balances(GROUP_ID)
-
-        call?.enqueue(object : Callback<GroupBalanceSummaryDto?> {
-            override fun onResponse(
-                call: Call<GroupBalanceSummaryDto?>,
-                response: Response<GroupBalanceSummaryDto?>
-            ) {
-                val body = response.body()
-                Log.d("Tag", body.toString())
-
-                if (body != null && response.isSuccessful) {
-                    group_balance = body
-                }
-            }
-
-            override fun onFailure(
-                call: Call<GroupBalanceSummaryDto?>,
-                t: Throwable
-            ) {
-                Log.d("Tag", t.message ?: "Unknown error")
-            }
-        })
+        val res = RetrofitClient.expenseService.getGroupBalances(GROUP_ID)
+        if (res.isSuccessful && res.body() != null) {
+            group_balance = res.body()!!
+        }
     }
 
     LaunchedEffect(GROUP_ID) {
-        val call = RetrofitClient.expenseService.get_group_expenses(GROUP_ID)
-
-        call?.enqueue(object : Callback<List<ExpenseDto>?> {
-            override fun onResponse(
-                call: Call<List<ExpenseDto>?>,
-                response: Response<List<ExpenseDto>?>
-            ) {
-                val body = response.body()
-                Log.d("Tag", body.toString())
-
-                if (body != null && response.isSuccessful) {
-                    group_expense = body
-                }
-            }
-
-            override fun onFailure(
-                call: Call<List<ExpenseDto>?>,
-                t: Throwable
-            ) {
-                Log.d("Tag", t.message ?: "Unknown error")
-            }
-        })
+        val res = RetrofitClient.expenseService.getGroupExpenses(GROUP_ID)
+        if (res.isSuccessful && res.body() != null) {
+            group_expense = res.body()!!
+        }
     }
 
 

@@ -1,6 +1,7 @@
 package com.japp.api.responses.group
 
 import retrofit2.Call
+import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
@@ -12,31 +13,48 @@ interface GroupService {
         private const val BASE_ROUTE = "groups"
     }
 
+    // Public methods
+    /**
+     * Get a group from an invite code.
+     *
+     * JWT token is not required here.
+     *
+     * @param inviteCode String from the GroupDto
+     */
+    @GET("$BASE_ROUTE/preview/{inviteCode}")
+    suspend fun getGroup(@Path("inviteCode") inviteCode: String): Response<GroupPreviewDto>
+
+    // Private methods (logged in)
     @POST(BASE_ROUTE)
-    fun create_group(@Body request: CreateGroupRequest): Call<GroupDto?>?
+    suspend fun createGroup(@Body request: CreateGroupRequest): Response<GroupDto>
 
     @GET(BASE_ROUTE)
-    fun get_my_groups(): Call<List<GroupDto>>
+    suspend fun getMyGroups(): Response<List<GroupDto>>
 
     @POST("$BASE_ROUTE/join")
-    fun join_group(@Body request: JoinGroupRequest): Call<GroupDto?>?
+    suspend fun joinGroup(@Body request: JoinGroupRequest): Response<GroupDto>
 
     @GET("$BASE_ROUTE/{id}")
-    fun get_group(@Path("id") id: Int): Call<GroupDto?>?
+    suspend fun getGroup(@Path("id") id: Int): Response<GroupDto>
 
     @GET("$BASE_ROUTE/{id}/members")
-    fun get_group_members(@Path("id") id: Int): Call<List<GroupMemberDto>?>?
+    suspend fun getGroupMembers(@Path("id") id: Int): Response<List<GroupMemberDto>>
 
     @POST("$BASE_ROUTE/{id}/members")
-    fun add_group_member(
+    suspend fun addGroupMember(
         @Path("id") id: Int,
         @Body request: AddMemberRequest
-    ): Call<List<GroupMemberDto>?>?
+    ): Response<List<GroupMemberDto>>
 
     @DELETE("$BASE_ROUTE/{id}/leave")
-    fun leave_group(@Path("id") id: Int): Call<Unit?>?
+    suspend fun leaveGroup(@Path("id") id: Int): Response<Unit>
+
+    @DELETE("$BASE_ROUTE/{id}")
+    suspend fun deleteGroup(@Path("id") id: Int): Response<Unit>
 
     @GET("$BASE_ROUTE/{id}/invite")
-    fun get_group_invite(@Path("id") id: Int): Call<GroupInviteDetailsDto?>?
+    suspend fun getGroupInvite(@Path("id") id: Int): Response<GroupInviteDetailsDto>
 
+    @GET("$BASE_ROUTE/{id}/debt-history")
+    suspend fun getGroupDebtHistory(@Path("id") id: Int): Response<List<DebtHistoryDto>>
 }

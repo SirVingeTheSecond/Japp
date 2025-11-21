@@ -36,7 +36,3 @@ data class GroupBalanceSummaryDto(
     val groupName: String,
     val balances: List<BalanceDto>
 )
-
-data class CurrencyDto(
-    val code: String
-)

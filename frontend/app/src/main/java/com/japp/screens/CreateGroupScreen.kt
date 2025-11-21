@@ -15,6 +15,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -26,6 +27,7 @@ import com.japp.api.RetrofitClient
 import com.japp.api.responses.group.CreateGroupRequest
 import com.japp.api.responses.group.GroupDto
 import com.japp.composables.GroupIcon
+import kotlinx.coroutines.launch
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
@@ -34,38 +36,28 @@ import retrofit2.Response
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun CreateGroupScreen(navController: NavController? = null) {
+    val coroutineScope = rememberCoroutineScope()
+
     var name by remember { mutableStateOf("") }
     var descript by remember { mutableStateOf("") }
     var nameValid by remember { mutableStateOf(true) }
     var descriptValid by remember { mutableStateOf(true) }
 
-    fun createGroup(){
+    suspend fun createGroup(){
         if (!nameValid && !descriptValid) return
-        val call = RetrofitClient.groupService.create_group(
+        val res = RetrofitClient.groupService.createGroup(
             CreateGroupRequest(
                 name,
                 descript
             )
         )
 
-        call!!.enqueue(object : Callback<GroupDto?> {
-            override fun onResponse(
-                call: Call<GroupDto?>,
-                response: Response<GroupDto?>
-            ) {
-                val body = response.body()
-                Log.d("Tag", body.toString())
+        val body = res.body()
+        Log.d("Tag", body.toString())
 
-                if (body != null && response.isSuccessful) {
-                    navController?.navigate(AppDestinations.HOME.route)
-                }
-
-            }
-
-            override fun onFailure(call: Call<GroupDto?>, t: Throwable) {
-                Log.d("Tag", t.message!!)
-            }
-        })
+        if (body != null && res.isSuccessful) {
+            navController?.navigate(AppDestinations.HOME.route)
+        }
     }
 
     Column(
@@ -120,7 +112,7 @@ fun CreateGroupScreen(navController: NavController? = null) {
                     }
                 )
                 Button(onClick = {
-                    createGroup()
+                    coroutineScope.launch {createGroup()}
                 }) {
                     Text("Submit")
 

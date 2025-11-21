@@ -2,12 +2,14 @@ package com.japp.screens
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.japp.api.RetrofitClient
@@ -154,9 +156,21 @@ fun CreateExpenseScreen(
 
         OutlinedTextField(
             value = amount,
-            onValueChange = { amount = it },
+            onValueChange = {
+                // Check if the new input contains any wordlike in it.
+                if (!it.contains("\\w")) {
+                    // Only if it doesn't contain letters, set it.
+                    // Ensure it can be converted to a double.
+                    val newVal = it.toDoubleOrNull()
+                    if (newVal != null) {
+                        amount = it
+                    }
+                }
+            },
             label = { Text("Amount") },
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            maxLines = 1,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
         )
 
         Spacer(Modifier.height(8.dp))

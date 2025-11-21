@@ -144,5 +144,6 @@ fun Attachment.toDto(
     fileSize = fileSize,
     mimeType = mimeType,
     uploadedAt = uploadedAt,
-    downloadUrl = downloadUrl
+    downloadUrl = downloadUrl,
+    thumbnailUrl = "/api/attachments/$id/thumbnail"
 )

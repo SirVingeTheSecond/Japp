@@ -50,3 +50,13 @@ fun Application.loadDatabaseConfig(): DatabaseConfig {
         maxLifetime = environment.config.property("database.pool.maxLifetime").getString().toLong()
     )
 }
+
+data class StorageConfig(
+    val attachmentsBasePath: String
+)
+
+fun Application.loadStorageConfig(): StorageConfig {
+    return StorageConfig(
+        attachmentsBasePath = environment.config.property("storage.attachments.basePath").getString()
+    )
+}

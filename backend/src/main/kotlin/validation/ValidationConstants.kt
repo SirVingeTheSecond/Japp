@@ -53,6 +53,17 @@ object ValidationConstants {
         )
     }
 
+    // Attachment constraints
+    object Attachment {
+        const val MAX_FILE_SIZE = 8L * 1024 * 1024 // 8MB in bytes
+        val ALLOWED_MIME_TYPES = setOf(
+            "image/png",
+            "image/jpeg",
+            "image/jpg"
+        )
+        val ALLOWED_EXTENSIONS = setOf("png", "jpg", "jpeg")
+    }
+
     // Error messages
     object Messages {
         // Required fields

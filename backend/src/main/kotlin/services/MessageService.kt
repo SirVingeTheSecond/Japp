@@ -52,6 +52,8 @@ class MessageService(
                             )
                         }
 
+                        // Exclude sender from broadcast since they receive MESSAGE_SENT acknowledge
+                        // ToDo: For multi-device support, we should only exclude the sending session, not all user sessions
                         webSocketManager.broadcastToGroup(
                             groupId = request.groupId,
                             message = WebSocketMessage(
@@ -59,7 +61,8 @@ class MessageService(
                                 groupId = request.groupId,
                                 userId = userId,
                                 message = messageDto
-                            )
+                            ),
+                            excludeUserId = userId
                         )
 
                         Result.Success(messageDto)

@@ -4,6 +4,7 @@ import com.japp.models.Result
 import com.japp.models.dto.CreateGroupRequest
 import com.japp.models.dto.JoinGroupRequest
 import com.japp.models.error.AppError
+import com.japp.utils.ValidationHelpers
 
 object GroupValidator {
 

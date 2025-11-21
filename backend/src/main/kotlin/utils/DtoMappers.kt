@@ -3,6 +3,30 @@ package com.japp.utils
 import com.japp.models.domain.*
 import com.japp.models.dto.*
 
+fun createGroupMemberDto(
+    user: User,
+    joinedAt: String,
+    isOwner: Boolean
+) = GroupMemberDto(
+    userId = user.id,
+    username = user.username,
+    userEmail = user.email,
+    joinedAt = joinedAt,
+    isOwner = isOwner
+)
+
+fun createDebtHistoryDto(
+    debtHistory: DebtHistory,
+    username: String
+) = DebtHistoryDto(
+    id = debtHistory.id,
+    groupId = debtHistory.groupId,
+    userId = debtHistory.userId,
+    username = username,
+    amountOwed = debtHistory.amountOwed,
+    leftAt = debtHistory.leftAt
+)
+
 fun User.toDto() = UserDto(
     id = id,
     email = email,
@@ -90,17 +114,7 @@ fun createBalanceDto(
     balance = balance
 )
 
-fun createGroupMemberDto(
-    user: User,
-    joinedAt: String,
-    isOwner: Boolean
-) = GroupMemberDto(
-    userId = user.id,
-    username = user.username,
-    userEmail = user.email,
-    joinedAt = joinedAt,
-    isOwner = isOwner
-)
+
 
 fun Message.toDto(
     userName: String?,
@@ -118,14 +132,17 @@ fun Message.toDto(
     readBy = readByUserIds
 )
 
-fun createDebtHistoryDto(
-    debtHistory: DebtHistory,
-    username: String
-) = DebtHistoryDto(
-    id = debtHistory.id,
-    groupId = debtHistory.groupId,
-    userId = debtHistory.userId,
-    username = username,
-    amountOwed = debtHistory.amountOwed,
-    leftAt = debtHistory.leftAt
+fun Attachment.toDto(
+    uploaderName: String,
+    downloadUrl: String
+) = AttachmentDto(
+    id = id,
+    expenseId = expenseId,
+    uploadedBy = uploadedBy,
+    uploaderName = uploaderName,
+    fileName = fileName,
+    fileSize = fileSize,
+    mimeType = mimeType,
+    uploadedAt = uploadedAt,
+    downloadUrl = downloadUrl
 )

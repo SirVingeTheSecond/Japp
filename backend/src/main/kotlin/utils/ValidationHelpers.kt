@@ -1,7 +1,8 @@
-package com.japp.validation
+package com.japp.utils
 
-import com.japp.models.*
+import com.japp.models.Result
 import com.japp.models.error.IAppError
+import com.japp.validation.ValidationConstants
 
 object ValidationHelpers {
 

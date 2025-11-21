@@ -3,27 +3,10 @@ import com.japp.models.Currency
 import com.japp.models.Result
 import com.japp.models.SplitType
 import com.japp.models.domain.User
-import com.japp.models.dto.CreateExpenseRequest
-import com.japp.models.dto.CreateGroupRequest
-import com.japp.models.dto.CreateSettlementRequest
-import com.japp.models.dto.GroupSettlementSuggestionsDto
-import com.japp.models.dto.JoinGroupRequest
-import com.japp.models.dto.LoginRequest
-import com.japp.models.dto.SignupRequest
-import com.japp.repositories.implementations.ActivityRepository
-import com.japp.repositories.implementations.DebtHistoryRepository
-import com.japp.repositories.implementations.ExpenseRepository
-import com.japp.repositories.implementations.GroupRepository
-import com.japp.repositories.implementations.MessageRepository
-import com.japp.repositories.implementations.SettlementRepository
-import com.japp.repositories.implementations.UserRepository
+import com.japp.models.dto.*
+import com.japp.repositories.implementations.*
 import com.japp.security.PasswordHasher
-import com.japp.services.ActivityService
-import com.japp.services.AuthService
-import com.japp.services.ExpenseService
-import com.japp.services.GroupService
-import com.japp.services.MessageService
-import com.japp.services.SettlementService
+import com.japp.services.*
 import com.japp.websocket.WebSocketManager
 import io.kotest.core.spec.style.AnnotationSpec
 import io.kotest.matchers.shouldBe
@@ -548,5 +531,4 @@ class ApplicationTest : AnnotationSpec() {
         // assert you get a suggestion
         suggestion.shouldBeInstanceOf<Result.Success<GroupSettlementSuggestionsDto>>()
     }
-
 }

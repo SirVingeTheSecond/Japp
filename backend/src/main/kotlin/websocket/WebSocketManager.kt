@@ -11,7 +11,7 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
 class WebSocketManager(
-    private val heartbeatInterval: Duration = 20.seconds
+    private val heartbeatInterval: Duration? = 20.seconds
 ) {
     private val logger = LoggerFactory.getLogger(WebSocketManager::class.java)
 
@@ -79,10 +79,14 @@ class WebSocketManager(
         userId: Int
     ): Job = coroutineScope {
         launch {
+            if (heartbeatInterval == null) {
+                logger.debug("Heartbeat disabled for User: $userId")
+                return@launch
+            }
+
             try {
                 while (isActive) {
                     delay(heartbeatInterval)
-
                     try {
                         val pingMessage = Json.encodeToString(
                             WebSocketMessage.serializer(),

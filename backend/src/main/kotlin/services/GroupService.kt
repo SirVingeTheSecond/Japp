@@ -403,7 +403,7 @@ class GroupService(
 
                     Result.Success(Unit)
                 }
-                
+
                 if (leaveResult is Result.Success) {
                     activityService.logMemberLeft(groupId, userId)
 

@@ -3,7 +3,7 @@ ktor:
     modules:
       - com.japp.ApplicationKt.module
   deployment:
-    port: ${PORT:8080}
+    port: 8080
 
 jwt:
   secret: ${JWT_SECRET:lDK6GTJ5kxi6bvRGGfoe5g8TPZx9HhrQ3SsyWF+hyZs}

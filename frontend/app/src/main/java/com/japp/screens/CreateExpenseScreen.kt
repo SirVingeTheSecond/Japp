@@ -17,14 +17,10 @@ import com.japp.api.responses.Currency
 import com.japp.api.responses.ExpenseCategory
 import com.japp.api.responses.SplitType
 import com.japp.api.responses.expense.CreateExpenseRequest
-import com.japp.api.responses.expense.ExpenseDto
 import com.japp.api.responses.expense.ExpenseSplitRequest
 import com.japp.api.responses.group.GroupDto
 import com.japp.api.responses.group.GroupMemberDto
 import kotlinx.coroutines.launch
-import retrofit2.Call
-import retrofit2.Callback
-import retrofit2.Response
 
 enum class SplitInputMode {
     AMOUNT,
@@ -44,7 +40,7 @@ fun CreateExpenseScreen(
 
     var amount by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
-    var category by remember { mutableStateOf("") }
+    var category by remember { mutableStateOf<ExpenseCategory?>(null) }
 
     var isLoadingGroups by remember { mutableStateOf(true) }
     var isSubmitting by remember { mutableStateOf(false) }
@@ -188,12 +184,44 @@ fun CreateExpenseScreen(
 
         Spacer(Modifier.height(8.dp))
 
-        OutlinedTextField(
-            value = category,
-            onValueChange = { category = it },
-            label = { Text("Category (optional)") },
-            modifier = Modifier.fillMaxWidth()
-        )
+        var categoryExpanded by remember { mutableStateOf(false) }
+
+        ExposedDropdownMenuBox(
+            expanded = categoryExpanded,
+            onExpandedChange = { categoryExpanded = !categoryExpanded }
+        ) {
+            OutlinedTextField(
+                value = category?.displayName ?: "No category",
+                onValueChange = {},
+                readOnly = true,
+                label = { Text("Category (optional)") },
+                modifier = Modifier
+                    .menuAnchor()
+                    .fillMaxWidth()
+            )
+
+            ExposedDropdownMenu(
+                expanded = categoryExpanded,
+                onDismissRequest = { categoryExpanded = false }
+            ) {
+                DropdownMenuItem(
+                    { Text("No category") },
+                    onClick = {
+                        category = null
+                        categoryExpanded = false
+                    }
+                )
+                ExpenseCategory.entries.forEach { _category ->
+                    DropdownMenuItem(
+                        text = { Text(_category.displayName) },
+                        onClick = {
+                            category = _category
+                            categoryExpanded = false
+                        }
+                    )
+                }
+            }
+        }
 
         Spacer(Modifier.height(16.dp))
 
@@ -321,7 +349,7 @@ fun CreateExpenseScreen(
                         groupId = group.id,
                         amount = amountValue,
                         description = description,
-                        category = ExpenseCategory.fromString(category),
+                        category = category,
                         currency = Currency.DKK,
                         splitType = splitType,
                         splits = splitsForRequest

@@ -78,6 +78,8 @@ class GroupService(
             is Result.Success -> {
                 withContext(Dispatchers.IO) {
                     try {
+                        var username: String? = null
+
                         val result = transaction {
                             val group = groupRepository.findByInviteCode(request.inviteCode)
                                 ?: return@transaction Result.Failure(
@@ -98,22 +100,21 @@ class GroupService(
                                 )
 
                             val user = userRepository.findById(userId)
+                            username = user?.username
 
-                            Result.Success(Pair(updatedGroup.toDto(), user))
+                            Result.Success(updatedGroup.toDto())
                         }
 
                         when (result) {
                             is Result.Success -> {
-                                val (groupDto, user) = result.value
-
-                                activityService.logMemberJoined(groupDto.id, userId, userId)
+                                activityService.logMemberJoined(result.value.id, userId, userId)
 
                                 messageService.createSystemMessage(
-                                    groupId = groupDto.id,
-                                    content = "${user?.username ?: "Someone"} joined the group"
+                                    groupId = result.value.id,
+                                    content = "${username ?: "Someone"} joined the group"
                                 )
 
-                                Result.Success(groupDto)
+                                Result.Success(result.value)
                             }
                             is Result.Failure -> result
                         }

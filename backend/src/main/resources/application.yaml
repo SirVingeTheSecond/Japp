@@ -25,13 +25,6 @@ database:
     maxLifetime: ${DB_POOL_MAX_LIFETIME:1800000}
 
 websocket:
-  heartbeatIntervalInSeconds: ${WS_HEARTBEAT_INTERVAL:20}
-
-storage:
-  attachments:
-    basePath: /var/japp/attachments
-
-websocket:
   heartbeatIntervalInSeconds: 20
 
 storage:

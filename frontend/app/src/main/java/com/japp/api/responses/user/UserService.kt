@@ -2,6 +2,7 @@ package com.japp.api.responses.user
 
 import com.japp.api.responses.auth.UserDto
 import retrofit2.Call
+import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.PATCH
@@ -13,11 +14,11 @@ interface UserService {
     }
 
     @GET("${BASE_ROUTE}/me")
-    suspend fun get_my_user(): UserDto
+    suspend fun getMyUser(): Response<UserDto>
 
     @PATCH("${BASE_ROUTE}/me")
-    fun update_my_user(@Body request: UpdateUserRequest): Call<UserDto?>?
+    suspend fun updateMyUser(@Body request: UpdateUserRequest): Response<UserDto>
 
     @GET("${BASE_ROUTE}/{id}")
-    fun get_user(@Path("id") id: Int): Call<UserDto?>?
+    suspend fun getUser(@Path("id") id: Int): Response<UserDto>
 }

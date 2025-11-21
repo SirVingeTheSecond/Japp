@@ -26,3 +26,20 @@ data class GroupInviteDetailsDto(
     val groupName: String,
     val memberCount: Int
 )
+
+data class GroupPreviewDto(
+    val id: Int,
+    val name: String,
+    val description: String?,
+    val memberCount: Int,
+    val createdAt: String
+)
+
+data class DebtHistoryDto(
+    val id: Int,
+    val groupId: Int,
+    val userId: Int,
+    val username: String,
+    val amountOwed: Double,
+    val leftAt: String
+)

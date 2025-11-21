@@ -12,6 +12,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -23,8 +24,10 @@ import androidx.navigation.NavController
 import com.japp.AppDestinations
 import com.japp.api.RetrofitClient
 import com.japp.api.responses.group.GroupDto
+import com.japp.api.responses.group.GroupPreviewDto
 import com.japp.api.responses.group.JoinGroupRequest
 import com.japp.composables.GroupIcon
+import kotlinx.coroutines.launch
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
@@ -39,53 +42,24 @@ fun JoinGroupScreen(navController: NavController? = null, inviteCode: String?) {
     val code = inviteCode.split("-").last()
 
     // Fetch group!
-    var group by remember { mutableStateOf<GroupDto?>(null) }
+    var group by remember { mutableStateOf<GroupPreviewDto?>(null) }
     LaunchedEffect(Unit) {
-        val call = RetrofitClient.groupService.get_group(groupId.toInt())
-        call!!.enqueue(object: Callback<GroupDto?>{
-            override fun onResponse(
-                call: Call<GroupDto?>,
-                response: Response<GroupDto?>
-            ) {
-                val body = response.body()
-                if (body != null && response.isSuccessful) {
-                    group = body
-                }
-            }
-
-            override fun onFailure(
-                call: Call<GroupDto?>,
-                t: Throwable
-            ) {
-                TODO("Not yet implemented")
-            }
-
-        })
+        val res = RetrofitClient.groupService.getGroup(inviteCode)
+        if (res.isSuccessful && res.body() != null) {
+            group = res.body()
+        }
     }
 
-    fun join_group() {
-        val call = RetrofitClient.groupService.join_group(JoinGroupRequest(code))
+    val coroutineScope = rememberCoroutineScope()
 
-        call!!.enqueue(object: Callback<GroupDto?>{
-            override fun onResponse(
-                call: Call<GroupDto?>,
-                response: Response<GroupDto?>
-            ) {
-                val body = response.body()
-                if (body != null && response.isSuccessful) {
-                    GROUP_ID = body.id
-                    navController?.navigate(AppDestinations.GROUP.route)
-                }
-            }
+    suspend fun join_group() {
+        val res = RetrofitClient.groupService.joinGroup(JoinGroupRequest(code))
 
-            override fun onFailure(
-                call: Call<GroupDto?>,
-                t: Throwable
-            ) {
-                TODO("Not yet implemented")
-            }
-
-        })
+        val body = res.body()
+        if (body != null && res.isSuccessful) {
+            GROUP_ID = body.id
+            navController?.navigate(AppDestinations.GROUP.route)
+        }
     }
 
     Box (
@@ -116,7 +90,7 @@ fun JoinGroupScreen(navController: NavController? = null, inviteCode: String?) {
                     Text("Member count: ${group.memberCount}")
                 }
             }
-            Button({ join_group() }) {
+            Button({ coroutineScope.launch {join_group()} }) {
                 Text("Join group!")
             }
         }

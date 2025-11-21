@@ -1,6 +1,7 @@
 package com.japp.api.responses.message
 
 import retrofit2.Call
+import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
@@ -14,22 +15,24 @@ interface MessageService {
     }
 
     @POST(BASE_ROUTE)
-    fun create_message(@Body request: CreateMessageRequest): Call<MessageDto?>?
+    suspend fun createMessage(
+        @Body request: CreateMessageRequest
+    ): Response<MessageDto>
 
 
     //TODO: ISSUE: Backend has no info on what the before should be formatted as, other than string. Therefore not implemented.
     @GET("${BASE_ROUTE}/group/{groupId}")
-    fun get_group_messages(
+    suspend fun getGroupMessages(
         @Path("groupId") groupId: Int,
         @Query("limit") limit: Int? = null
-    ): Call<MessagePageDto?>?
+    ): Response<MessagePageDto>
 
     @POST("${BASE_ROUTE}/read")
-    fun read_message(
+    suspend fun readMessage(
         @Body request: MarkMessageReadRequest,
         @Query("groupId") groupId: Int
-    ): Call<Unit?>?
+    ): Response<Unit>
 
     @DELETE("${BASE_ROUTE}/{id}")
-    fun delete_message(@Path("id") id: Int): Call<Unit?>?
+    suspend fun deleteMessage(@Path("id") id: Int): Response<Unit>
 }

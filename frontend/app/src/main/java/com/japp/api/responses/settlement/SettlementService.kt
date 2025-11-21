@@ -1,6 +1,7 @@
 package com.japp.api.responses.settlement
 
 import retrofit2.Call
+import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.PATCH
@@ -14,17 +15,24 @@ interface SettlementService {
     }
 
     @POST(BASE_ROUTE)
-    fun create_settlement(
+    suspend fun createSettlement(
         @Body request: CreateSettlementRequest,
         @Query("pending") pendingOnly: Boolean? = null
-    ): Call<SettlementDto?>?
+    ): Response<SettlementDto>
 
     @GET("${BASE_ROUTE}/group/{groupId}")
-    fun get_group_settlements(@Path("groupId") groupId: Int, @Query("pending") pendingOnly: Boolean? = null): Call<List<SettlementDto>?>?
+    suspend fun getGroupSettlements(
+        @Path("groupId") groupId: Int,
+        @Query("pending") pendingOnly: Boolean? = null
+    ): Response<List<SettlementDto>>
 
     @GET("${BASE_ROUTE}/group/{groupId}/suggestions")
-    fun get_group_settlement_suggestions(@Path("groupId") groupId: Int): Call<GroupSettlementSuggestionsDto?>?
+    suspend fun getGroupSettlementSuggestions(
+        @Path("groupId") groupId: Int
+    ): Response<GroupSettlementSuggestionsDto>
 
     @PATCH("${BASE_ROUTE}/{id}/complete")
-    fun complete_settlement(@Path("id") id: Int): Call<SettlementDto?>?
+    suspend fun completeSettlement(
+        @Path("id") id: Int
+    ): Response<SettlementDto>
 }

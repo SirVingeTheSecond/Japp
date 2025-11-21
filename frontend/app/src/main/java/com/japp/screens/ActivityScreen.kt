@@ -19,41 +19,18 @@ import androidx.navigation.NavController
 import com.japp.api.RetrofitClient
 import com.japp.api.responses.activity.ActivityDto
 import com.japp.composables.ActivityRow
-import retrofit2.Callback
-import retrofit2.Response
 
 
-fun getActivities(
+suspend fun getActivities(
     userActivity: MutableState<List<ActivityDto>?>,
     isLoading: MutableState<Boolean>,
     limit: Int? = null
 ) {
-    val call = RetrofitClient.activityService.get_user_activities(limit = limit)
-
-    call.enqueue(object : Callback<List<ActivityDto>?> {
-
-        override fun onResponse(
-            call: retrofit2.Call<List<ActivityDto>?>,
-            response: Response<List<ActivityDto>?>
-        ) {
-            isLoading.value = false
-
-            val body = response.body()
-
-            if (body != null && response.isSuccessful) {
-                userActivity.value = body
-            }
-
-        }
-
-        override fun onFailure(
-            call: retrofit2.Call<List<ActivityDto>?>,
-            t: Throwable
-        ) {
-            isLoading.value = false
-            TODO("Not yet implemented")
-        }
-    })
+    val res = RetrofitClient.activityService.getUserActivities(limit = limit)
+    if (res.isSuccessful && res.body() != null) {
+        userActivity.value = res.body()
+        isLoading.value = false
+    }
 }
 
 @Preview(showSystemUi = true)

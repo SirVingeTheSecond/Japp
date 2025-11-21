@@ -20,6 +20,7 @@ import com.japp.api.responses.settlement.SettlementService
 import com.japp.api.responses.user.UserService
 import com.google.gson.GsonBuilder
 import com.google.gson.JsonDeserializer
+import com.japp.api.responses.WebSocketMessageType
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import okhttp3.Response
@@ -134,13 +135,14 @@ object RetrofitClient {
 
         val enums = listOf(
             SplitType::class.java,
+            ExpenseCategory::class.java,
             Currency::class.java,
             UserStatus::class.java,
             GroupRole::class.java,
-            ActivityType::class.java,
             SettlementStatus::class.java,
-            ExpenseCategory::class.java,
-            MessageType::class.java
+            ActivityType::class.java,
+            MessageType::class.java,
+            WebSocketMessageType::class.java,
         )
 
         val builder = GsonBuilder()

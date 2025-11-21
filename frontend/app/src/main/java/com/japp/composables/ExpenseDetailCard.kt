@@ -164,6 +164,8 @@ fun ExpenseDetailCard(
                 if (attachments.isNotEmpty()) {
                     Spacer(Modifier.height(8.dp))
 
+                    var selectedImageAttachment by remember { mutableStateOf<AttachmentDto?>(null) }
+
                     AttachmentThumbnailGrid(
                         attachments = attachments,
                         onAttachmentClick = { attachment ->
@@ -189,8 +191,18 @@ fun ExpenseDetailCard(
                                     ).show()
                                 }
                             }
+                        },
+                        onImageAttachmentClick = { attachment ->
+                            selectedImageAttachment = attachment
                         }
                     )
+
+                    selectedImageAttachment?.let { attachment ->
+                        ImagePreviewDialog(
+                            attachment = attachment,
+                            onDismiss = { selectedImageAttachment = null }
+                        )
+                    }
                 }
             }
         }

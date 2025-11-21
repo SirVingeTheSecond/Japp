@@ -106,6 +106,7 @@ fun AttachmentPreview(
 fun AttachmentThumbnailGrid(
     attachments: List<AttachmentDto>,
     onAttachmentClick: (AttachmentDto) -> Unit,
+    onImageAttachmentClick: ((AttachmentDto) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     if (attachments.isEmpty()) return
@@ -129,7 +130,14 @@ fun AttachmentThumbnailGrid(
                 rowAttachments.forEach { attachment ->
                     AttachmentPreview(
                         attachment = attachment,
-                        onClick = { onAttachmentClick(attachment) }
+                        onClick = {
+                            val isImage = attachment.mimeType.startsWith("image/")
+                            if (isImage && onImageAttachmentClick != null) {
+                                onImageAttachmentClick(attachment)
+                            } else {
+                                onAttachmentClick(attachment)
+                            }
+                        }
                     )
                 }
             }

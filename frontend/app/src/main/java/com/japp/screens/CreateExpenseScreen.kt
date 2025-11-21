@@ -19,7 +19,6 @@ import com.japp.api.responses.expense.ExpenseDto
 import com.japp.api.responses.expense.ExpenseSplitRequest
 import com.japp.api.responses.group.GroupDto
 import com.japp.api.responses.group.GroupMemberDto
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import retrofit2.Call
 import retrofit2.Callback
@@ -35,6 +34,8 @@ enum class SplitInputMode {
 fun CreateExpenseScreen(
     navController: NavController? = null
 ) {
+    val coroutineScope = rememberCoroutineScope()
+
     var groups by remember { mutableStateOf<List<GroupDto>>(emptyList()) }
     var selectedGroup by remember { mutableStateOf<GroupDto?>(null) }
 
@@ -309,7 +310,7 @@ fun CreateExpenseScreen(
                     )
 
                     isSubmitting = true
-                    GlobalScope.launch {
+                    coroutineScope.launch {
                         val res = RetrofitClient.expenseService.createExpense(request)
                         isSubmitting = false
                         if (res.isSuccessful && res.body() != null) {

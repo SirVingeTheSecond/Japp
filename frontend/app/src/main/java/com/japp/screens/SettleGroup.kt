@@ -13,7 +13,6 @@ import com.japp.api.responses.settlement.CreateSettlementRequest
 import com.japp.api.responses.settlement.GroupSettlementSuggestionsDto
 import com.japp.api.responses.settlement.SettlementDto
 import com.japp.api.responses.settlement.SettlementSuggestionDto
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import retrofit2.Call
 import retrofit2.Callback
@@ -23,6 +22,8 @@ import retrofit2.Response
 fun SettleGroup(
     navController: NavController? = null
 ) {
+    val coroutineScope = rememberCoroutineScope()
+
     var isLoadingSuggestions by remember { mutableStateOf(true) }
     var isSubmitting by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
@@ -136,7 +137,7 @@ fun SettleGroup(
                                     toUserId = suggestion.toUserId,
                                     amount = suggestion.amount
                                 )
-                                GlobalScope.launch {
+                                coroutineScope.launch {
                                     val res = RetrofitClient.settlementService
                                         .createSettlement(request, pendingOnly = true)
                                     remaining -= 1

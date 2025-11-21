@@ -1,7 +1,12 @@
 package com.japp.repositories.implementations
 
+import com.japp.database.tables.ActivityLogs
+import com.japp.database.tables.ExpenseSplits
+import com.japp.database.tables.Expenses
 import com.japp.database.tables.GroupMembers
 import com.japp.database.tables.Groups
+import com.japp.database.tables.Messages
+import com.japp.database.tables.Settlements
 import com.japp.models.domain.Group
 import com.japp.repositories.interfaces.IGroupRepository
 import org.jetbrains.exposed.v1.core.ResultRow
@@ -9,6 +14,7 @@ import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.*
 import org.jetbrains.exposed.v1.core.and
+import org.jetbrains.exposed.v1.core.inSubQuery
 import org.jetbrains.exposed.v1.core.minus
 import org.jetbrains.exposed.v1.core.plus
 import java.util.UUID
@@ -142,7 +148,20 @@ class GroupRepository : IGroupRepository {
     }
 
     override fun delete(groupId: Int) {
+        ExpenseSplits.deleteWhere {
+            expenseId inSubQuery Expenses.select(Expenses.id).where { Expenses.groupId eq groupId }
+        }
+
+        Expenses.deleteWhere { Expenses.groupId eq groupId }
+
+        Settlements.deleteWhere { Settlements.groupId eq groupId }
+
+        Messages.deleteWhere { Messages.groupId eq groupId }
+
+        ActivityLogs.deleteWhere { ActivityLogs.groupId eq groupId }
+
         GroupMembers.deleteWhere { GroupMembers.groupId eq groupId }
+
         Groups.deleteWhere { Groups.id eq groupId }
     }
 

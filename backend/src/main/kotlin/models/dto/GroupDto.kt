@@ -49,6 +49,15 @@ data class GroupInviteDetailsDto(
 )
 
 @Serializable
+data class GroupPreviewDto(
+    val id: Int,
+    val name: String,
+    val description: String?,
+    val memberCount: Int,
+    val createdAt: String
+)
+
+@Serializable
 data class DebtHistoryDto(
     val id: Int,
     val groupId: Int,

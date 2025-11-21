@@ -78,6 +78,8 @@ class GroupService(
             is Result.Success -> {
                 withContext(Dispatchers.IO) {
                     try {
+                        var username: String? = null
+
                         val result = transaction {
                             val group = groupRepository.findByInviteCode(request.inviteCode)
                                 ?: return@transaction Result.Failure(
@@ -97,21 +99,25 @@ class GroupService(
                                     AppError.Internal("Failed to retrieve group")
                                 )
 
+                            val user = userRepository.findById(userId)
+                            username = user?.username
+
                             Result.Success(updatedGroup.toDto())
                         }
 
-                        // Log activity and send message AFTER transaction completes
-                        if (result is Result.Success) {
-                            activityService.logMemberJoined(result.value.id, userId, userId)
+                        when (result) {
+                            is Result.Success -> {
+                                activityService.logMemberJoined(result.value.id, userId, userId)
 
-                            val user = userRepository.findById(userId)
-                            messageService.createSystemMessage(
-                                groupId = result.value.id,
-                                content = "${user?.username ?: "Someone"} joined the group"
-                            )
+                                messageService.createSystemMessage(
+                                    groupId = result.value.id,
+                                    content = "${username ?: "Someone"} joined the group"
+                                )
+
+                                Result.Success(result.value)
+                            }
+                            is Result.Failure -> result
                         }
-
-                        result
                     } catch (e: Exception) {
                         Result.Failure(
                             AppError.Internal(e.message ?: "Failed to join group")
@@ -264,6 +270,43 @@ class GroupService(
                 Result.Failure(
                     AppError.Internal(e.message ?: "Failed to get invite details")
                 )
+            }
+        }
+    }
+
+    /**
+     * Preview group details by invite code (accessible to non-members)
+     */
+    suspend fun previewGroupByInviteCode(
+        inviteCode: String
+    ): Result<GroupPreviewDto, AppError> {
+        return when (val validation = GroupValidator.validatePreviewInviteCode(inviteCode)) {
+            is Result.Failure -> validation
+            is Result.Success -> {
+                withContext(Dispatchers.IO) {
+                    try {
+                        transaction {
+                            val group = groupRepository.findByInviteCode(inviteCode)
+                                ?: return@transaction Result.Failure(
+                                    AppError.InvalidInviteCode()
+                                )
+
+                            Result.Success(
+                                GroupPreviewDto(
+                                    id = group.id,
+                                    name = group.name,
+                                    description = group.description,
+                                    memberCount = group.memberCount,
+                                    createdAt = group.createdAt
+                                )
+                            )
+                        }
+                    } catch (e: Exception) {
+                        Result.Failure(
+                            AppError.Internal(e.message ?: "Failed to preview group")
+                        )
+                    }
+                }
             }
         }
     }

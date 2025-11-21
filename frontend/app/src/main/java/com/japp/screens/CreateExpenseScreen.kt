@@ -34,7 +34,8 @@ enum class SplitInputMode {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CreateExpenseScreen(
-    navController: NavController? = null
+    navController: NavController? = null,
+    groupId: Int? = null,
 ) {
     val coroutineScope = rememberCoroutineScope()
 
@@ -60,6 +61,9 @@ fun CreateExpenseScreen(
         val res = RetrofitClient.groupService.getMyGroups()
         if (res.isSuccessful && res.body() != null) {
             groups = res.body()!!
+            if (groupId != null) {
+                selectedGroup = groups.find { groupDto -> groupDto.id == groupId }
+            }
             isLoadingGroups = false
         } else {
             errorMessage = "Could not load groups (${res.code()})"

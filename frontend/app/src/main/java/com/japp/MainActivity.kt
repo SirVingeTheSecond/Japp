@@ -29,6 +29,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -38,7 +39,10 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.PreviewScreenSizes
 import androidx.compose.ui.unit.dp
+import androidx.navigation.NamedNavArgument
+import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavController
+import androidx.navigation.NavDeepLink
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -66,6 +70,32 @@ class MainActivity : ComponentActivity() {
                 JappApp()
             }
         }
+    }
+}
+
+// Fab stuff
+data class FabState(
+    val icon: ImageVector? = null,
+    val onClick: (() -> Unit)? = null,
+    val visible: Boolean = true
+)
+
+object FabController {
+    var state by mutableStateOf(FabState())
+}
+
+@Composable
+fun rememberFabButton(
+    icon: ImageVector? = null,
+    visible: Boolean = true,
+    onClick: (() -> Unit)? = null
+) {
+    SideEffect {
+        FabController.state = FabState(
+            icon = icon,
+            onClick = onClick,
+            visible = visible
+        )
     }
 }
 
@@ -135,13 +165,18 @@ fun JappApp() {
                     },
                     alwaysShowLabel = false,
                 )
-                val actionButton = NavigationActionButtons.entries.find { it.route == currentDestination?.route } ?: NavigationActionButtons.DEFAULT
+                val fab = FabController.state
+                val actionButton = NavigationActionButtons.entries
+                    .find { it.route == currentDestination?.route }
+                    ?: NavigationActionButtons.DEFAULT
                 FloatingActionButton (
-                    onClick = { navigate(actionButton.destination.route) },
+                    onClick = {
+                        fab.onClick?.invoke() ?: navigate(actionButton.destination.route)
+                    },
                     // Tendency to hit home or profile instead of scan, but moves them far apart. TODO: Better solution
                     Modifier.padding(24.dp, 0.dp)
                 ) {
-                    Icon(actionButton.icon, actionButton.destination.route)
+                    Icon(fab.icon ?: actionButton.icon, null)
                 }
                 NavigationBarItem(
                     selected = AppDestinations.PROFILE.route == currentDestination?.route,
@@ -165,15 +200,14 @@ fun JappApp() {
             for (destination in AppDestinations.entries) {
                 composable(destination.route) { destination.screen(navController) }
             }
-            composable(
-                route = "join/{code}",
-                arguments = listOf(navArgument("code") { type = NavType.StringType }),
-                deepLinks = listOf(navDeepLink {
-                    uriPattern = "japp://join/{code}"
-                })
-            ) {
-                val code = it.arguments?.getString("code")
-                JoinGroupScreen(navController, code)
+            for (destination in AppDestinations.CustomRoutes.entries) {
+                composable(
+                    route = destination.route,
+                    arguments = destination.arguments,
+                    deepLinks = destination.deepLinks
+                ) {
+                    destination.screen(navController, it)
+                }
             }
         }
     }
@@ -187,7 +221,7 @@ enum class AppDestinations(
     HOME("Home", Icons.Default.Home, { navController -> HomeScreen(navController) }),
     SCAN("Scan", Icons.Default.Camera, { navController -> ScanScreen(navController) }),
     PROFILE("Profile", Icons.Default.Person, { navController -> ProfileScreen(navController) }),
-    CREATEEXPENSE("Add Expense", Icons.Default.Notifications, { navController -> CreateExpenseScreen(navController) }),
+    // CREATEEXPENSE("Add Expense", Icons.Default.Notifications, { navController -> CreateExpenseScreen(navController) }),
     CREATEGROUP("Create Group", Icons.Default.GroupAdd, { navController -> CreateGroupScreen(navController) }),
     MYGROUPS("My Groups", Icons.Default.Groups, { navController -> ShowGroupsScreen(navController) }),
     GROUP("Group", Icons.Default.Group, { navController -> GroupScreen(navController) }),
@@ -197,16 +231,53 @@ enum class AppDestinations(
 
     val route: String
         get() = label.replace(" ", "") // Remove spaces for route
+
+    enum class CustomRoutes(
+        val label: String,
+        val route: String,
+        val buildRoute: ((List<Any>) -> String)? = null,
+        val arguments: List<NamedNavArgument> = emptyList(),
+        val deepLinks: List<NavDeepLink> = emptyList(),
+        val screen: @Composable (NavController, NavBackStackEntry) -> Unit
+    ) {
+        JOINGROUP(
+            "Join Group",
+            route = "join/{code}",
+            arguments =listOf(navArgument("code") { type = NavType.StringType }),
+            deepLinks =listOf(navDeepLink {
+                            uriPattern = "japp://join/{code}"
+                        }),
+            screen = { navController, backStackEntry ->
+                val code = backStackEntry.arguments?.getString("code")
+                JoinGroupScreen(navController, code)
+            }
+        ),
+        CREATE_EXPENSE(
+            "Add Expense",
+            route = "expense/create/{groupId}",
+            buildRoute = { args ->
+                "expense/create/${args[0]}"
+            },
+            arguments = listOf(navArgument("groupId") { type = NavType.IntType }),
+            screen = { navController, backStackEntry ->
+                CreateExpenseScreen(navController, backStackEntry.arguments?.getInt("groupId"))
+            }
+        );
+
+        fun withArgs(vararg args: Any): String {
+            return buildRoute?.invoke(args.toList()) ?: route
+        }
+    }
 }
 
 enum class NavigationActionButtons(
     val route: String, // Route to match
     val buttonIcon: ImageVector?,
-    val destination: AppDestinations
+    val destination: AppDestinations,
 ) {
     DEFAULT("", null, AppDestinations.SCAN),
     // TODO: Make actual conditional buttons.
-    GROUPADD("Group", Icons.Default.Add, AppDestinations.CREATEEXPENSE);
+    GROUPADD(AppDestinations.GROUP.route, Icons.Default.Add, AppDestinations.GROUP);
 
     val icon: ImageVector
         get() = buttonIcon ?: destination.icon // If buttonIcon is null defaults to AppDestination icon

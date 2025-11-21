@@ -193,6 +193,8 @@ class ExpenseService(
     ): Result<Unit, AppError> {
         return withContext(Dispatchers.IO) {
             try {
+                var username: String? = null
+
                 val result = transaction {
                     val expense = expenseRepository.findById(expenseId)
                         ?: return@transaction Result.Failure(AppError.NotFound("Expense", expenseId))
@@ -202,6 +204,9 @@ class ExpenseService(
                             AppError.Unauthorized("Only the payer can delete this expense")
                         )
                     }
+
+                    val user = userRepository.findById(userId)
+                    username = user?.username
 
                     expenseRepository.delete(expenseId)
                     groupRepository.updateTotalExpenses(expense.groupId, -expense.amount)
@@ -221,10 +226,9 @@ class ExpenseService(
                             description = description
                         )
 
-                        val user = userRepository.findById(userId)
                         messageService.createSystemMessage(
                             groupId = groupId,
-                            content = "${user?.username ?: "Someone"} deleted expense: $description"
+                            content = "${username ?: "Someone"} deleted expense: $description"
                         )
 
                         Result.Success(Unit)

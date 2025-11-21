@@ -30,15 +30,14 @@ fun ExpenseDetailCard(
     var isLoadingAttachments by remember { mutableStateOf(true) }
     var expanded by remember { mutableStateOf(false) }
 
-    // Fetch attachments when card is created
     LaunchedEffect(expense.id) {
         try {
             val res = RetrofitClient.attachmentService.getExpenseAttachments(expense.id)
             if (res.isSuccessful && res.body() != null) {
                 attachments = res.body()!!.attachments
             }
-        } catch (e: Exception) {
-            // Silently fail - no attachments to show
+        } catch (_: Exception) {
+            // no attachments to show
         } finally {
             isLoadingAttachments = false
         }
@@ -161,63 +160,37 @@ fun ExpenseDetailCard(
                     }
                 }
 
-                // Attachments list
+                // Attachments thumbnails
                 if (attachments.isNotEmpty()) {
                     Spacer(Modifier.height(8.dp))
-                    Text(
-                        "Attachments:",
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
 
-                    var downloadingId by remember { mutableStateOf<Int?>(null) }
-                    var downloadError by remember { mutableStateOf<String?>(null) }
+                    AttachmentThumbnailGrid(
+                        attachments = attachments,
+                        onAttachmentClick = { attachment ->
+                            coroutineScope.launch {
+                                val result = AttachmentDownloadHelper.downloadAndOpen(
+                                    context = context,
+                                    attachmentId = attachment.id,
+                                    fileName = attachment.fileName,
+                                    mimeType = attachment.mimeType
+                                )
 
-                    attachments.forEach { attachment ->
-                        AttachmentItem(
-                            attachment = attachment,
-                            isDownloading = downloadingId == attachment.id,
-                            onDownload = {
-                                downloadingId = attachment.id
-                                downloadError = null
-
-                                coroutineScope.launch {
-                                    val result = AttachmentDownloadHelper.downloadAndOpen(
-                                        context = context,
-                                        attachmentId = attachment.id,
-                                        fileName = attachment.fileName,
-                                        mimeType = attachment.mimeType
-                                    )
-
-                                    downloadingId = null
-
-                                    if (result.isFailure) {
-                                        downloadError = "Failed to download: ${attachment.fileName}"
-                                        android.widget.Toast.makeText(
-                                            context,
-                                            downloadError,
-                                            android.widget.Toast.LENGTH_SHORT
-                                        ).show()
-                                    } else {
-                                        android.widget.Toast.makeText(
-                                            context,
-                                            "Opening ${attachment.fileName}",
-                                            android.widget.Toast.LENGTH_SHORT
-                                        ).show()
-                                    }
+                                if (result.isFailure) {
+                                    android.widget.Toast.makeText(
+                                        context,
+                                        "Failed to download: ${attachment.fileName}",
+                                        android.widget.Toast.LENGTH_SHORT
+                                    ).show()
+                                } else {
+                                    android.widget.Toast.makeText(
+                                        context,
+                                        "Opening ${attachment.fileName}",
+                                        android.widget.Toast.LENGTH_SHORT
+                                    ).show()
                                 }
                             }
-                        )
-                    }
-
-                    downloadError?.let { error ->
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            error,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.error
-                        )
-                    }
+                        }
+                    )
                 }
             }
         }

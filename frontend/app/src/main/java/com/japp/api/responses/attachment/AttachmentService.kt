@@ -29,6 +29,11 @@ interface AttachmentService {
         @Path("id") attachmentId: Int
     ): Response<ResponseBody>
 
+    @GET("$BASE_ROUTE/{id}/thumbnail")
+    suspend fun getThumbnail(
+        @Path("id") attachmentId: Int
+    ): Response<ResponseBody>
+
     @DELETE("$BASE_ROUTE/{id}")
     suspend fun deleteAttachment(
         @Path("id") attachmentId: Int

@@ -1,6 +1,7 @@
 package com.japp.api.responses.auth
 
 import retrofit2.Call
+import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.POST
 
@@ -10,8 +11,8 @@ interface AuthService {
     }
 
     @POST("${BASE_ROUTE}/signup")
-    fun signup(@Body request: SignupRequest): Call<AuthResponse?>?
+    suspend fun signup(@Body request: SignupRequest): Response<AuthResponse>
 
     @POST("${BASE_ROUTE}/login")
-    fun login(@Body request: LoginRequest): Call<AuthResponse?>?
+    suspend fun login(@Body request: LoginRequest): Response<AuthResponse>
 }

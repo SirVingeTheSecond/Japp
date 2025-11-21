@@ -29,10 +29,9 @@ fun ProfileScreen(navController: NavController) {
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
-        try {
-            user = RetrofitClient.userService.get_my_user()
-        } catch (e: Exception) {
-            errorMessage = e.message
+        val res = RetrofitClient.userService.getMyUser()
+        if (res.isSuccessful && res.body() != null) {
+            user = res.body()
         }
     }
 

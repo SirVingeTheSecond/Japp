@@ -6,13 +6,11 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -47,13 +45,9 @@ import com.japp.AppDestinations
 import com.japp.api.RetrofitClient
 import com.japp.api.responses.activity.ActivityDto
 import com.japp.api.responses.auth.UserDto
-import com.japp.api.responses.expense.GroupBalanceSummaryDto
 import com.japp.api.responses.group.GroupDto
 import com.japp.composables.GroupIcon
 import com.japp.composables.getActivityIcon
-import retrofit2.Call
-import retrofit2.Callback
-import retrofit2.Response
 import java.text.SimpleDateFormat
 import java.util.Date
 import kotlin.math.absoluteValue
@@ -68,49 +62,15 @@ fun HomeScreen(navController: NavController? = null) {
 
     LaunchedEffect(Unit) {
         // Activity call
-        RetrofitClient.activityService.get_user_activities(4).enqueue(
-            object: Callback<List<ActivityDto>>{
-                override fun onResponse(
-                    call: Call<List<ActivityDto>?>,
-                    response: Response<List<ActivityDto>?>
-                ) {
-                    val body = response.body()
-                    if (body != null && response.isSuccessful) {
-                        activities = body
-                    }
-                }
-
-                override fun onFailure(
-                    call: Call<List<ActivityDto>?>,
-                    t: Throwable
-                ) {
-                    TODO("Not yet implemented")
-                }
-
-            }
-        )
+        val res1 = RetrofitClient.activityService.getUserActivities(4)
+        if (res1.isSuccessful && res1.body() != null) {
+            activities = res1.body()!!
+        }
         // Group call
-        RetrofitClient.groupService.get_my_groups().enqueue(
-            object: Callback<List<GroupDto>?>{
-                override fun onResponse(
-                    call: Call<List<GroupDto>?>,
-                    response: Response<List<GroupDto>?>
-                ) {
-                    val body = response.body()
-                    if (body != null && response.isSuccessful) {
-                        groups = body
-                    }
-                }
-
-                override fun onFailure(
-                    call: Call<List<GroupDto>?>,
-                    t: Throwable
-                ) {
-                    TODO("Not yet implemented")
-                }
-
-            }
-        )
+        val res2 = RetrofitClient.groupService.getMyGroups()
+        if (res2.isSuccessful && res2.body() != null) {
+            groups = res2.body()!!
+        }
     }
 
     var owed by remember { mutableStateOf<Double?>(null) }
@@ -118,37 +78,24 @@ fun HomeScreen(navController: NavController? = null) {
 
     LaunchedEffect(groups) {
         // Me call
-        val me = RetrofitClient.userService.get_my_user()
-        if (groups != null) {
-            for (group in groups) {
-                RetrofitClient.expenseService.get_group_balances(group.id)!!.enqueue(
-                    object: Callback<GroupBalanceSummaryDto?> {
-                        override fun onResponse(
-                            call: Call<GroupBalanceSummaryDto?>,
-                            response: Response<GroupBalanceSummaryDto?>
-                        ) {
-                            val body = response.body()
-                            if (body != null && response.isSuccessful) {
-                                if (owed == null || owes == null) {
-                                    owed = 0.0
-                                    owes = 0.0
-                                }
-                                val myBal = body.balances.find { (userId, _, _) ->  userId == me.id}
-                                if (myBal != null) {
-                                    if (myBal.balance < 0) owes = owes!! + myBal.balance.absoluteValue else owed = owed!! + myBal.balance.absoluteValue
-                                }
-                            }
+        val res = RetrofitClient.userService.getMyUser()
+        if (res.isSuccessful && res.body() != null) {
+            val me = res.body()!!
+            if (groups != null) {
+                for (group in groups) {
+                    val res = RetrofitClient.expenseService.getGroupBalances(group.id)
+                    if (res.isSuccessful && res.body() != null) {
+                        val balanceSummaryDto = res.body()!!
+                        if (owed == null || owes == null) {
+                            owed = 0.0
+                            owes = 0.0
                         }
-
-                        override fun onFailure(
-                            call: Call<GroupBalanceSummaryDto?>,
-                            t: Throwable
-                        ) {
-                            TODO("Not yet implemented")
+                        val myBal = balanceSummaryDto.balances.find { (userId, _, _) ->  userId == me.id}
+                        if (myBal != null) {
+                            if (myBal.balance < 0) owes = owes!! + myBal.balance.absoluteValue else owed = owed!! + myBal.balance.absoluteValue
                         }
-
                     }
-                )
+                }
             }
         }
     }
@@ -291,27 +238,10 @@ fun Activity(activity: ActivityDto) {
     var group by remember { mutableStateOf<GroupDto?>(null) }
 
     LaunchedEffect(Unit) {
-        RetrofitClient.groupService.get_group(activity.groupId)!!.enqueue(
-            object: Callback<GroupDto?>{
-                override fun onResponse(
-                    call: Call<GroupDto?>,
-                    response: Response<GroupDto?>
-                ) {
-                    val body = response.body()
-                    if (body != null && response.isSuccessful) {
-                        group = body
-                    }
-                }
-
-                override fun onFailure(
-                    call: Call<GroupDto?>,
-                    t: Throwable
-                ) {
-                    TODO("Not yet implemented")
-                }
-
-            }
-        )
+        val res = RetrofitClient.groupService.getGroup(activity.groupId)
+        if (res.isSuccessful && res.body() != null) {
+            group = res.body()
+        }
     }
 
     Row(
@@ -350,7 +280,10 @@ fun QuickGroups(
 ) {
     var me by remember { mutableStateOf<UserDto?>(null) }
     LaunchedEffect(Unit) {
-        me = RetrofitClient.userService.get_my_user()
+        val res = RetrofitClient.userService.getMyUser()
+        if (res.isSuccessful && res.body() != null) {
+            me = res.body()!!
+        }
     }
 
     Column(
@@ -388,28 +321,12 @@ fun Group(group: GroupDto, me: UserDto, navController: NavController? = null) {
     var groupBalance by remember { mutableStateOf<Double?>(null) }
 
     LaunchedEffect(Unit) {
-        RetrofitClient.expenseService.get_group_balances(group.id)!!.enqueue(
-            object: Callback<GroupBalanceSummaryDto?>{
-                override fun onResponse(
-                    call: Call<GroupBalanceSummaryDto?>,
-                    response: Response<GroupBalanceSummaryDto?>
-                ) {
-                    val body = response.body()
-                    if (body != null && response.isSuccessful) {
-                        val myBal = body.balances.find { (userId, username, balance) -> userId == me.id }
-                        groupBalance = myBal?.balance
-                    }
-                }
-
-                override fun onFailure(
-                    call: Call<GroupBalanceSummaryDto?>,
-                    t: Throwable
-                ) {
-                    TODO("Not yet implemented")
-                }
-
-            }
-        )
+        val res = RetrofitClient.expenseService.getGroupBalances(group.id)
+        if (res.isSuccessful && res.body() != null) {
+            val summaryDto = res.body()!!
+            val myBal = summaryDto.balances.find { (userId, username, balance) -> userId == me.id }
+            groupBalance = myBal?.balance
+        }
     }
 
     var colorTint = Color.Transparent

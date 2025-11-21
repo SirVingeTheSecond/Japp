@@ -12,24 +12,30 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.japp.api.RetrofitClient
 import com.japp.api.responses.Currency
-import com.japp.api.responses.SplitInputMode
+import com.japp.api.responses.ExpenseCategory
 import com.japp.api.responses.SplitType
 import com.japp.api.responses.expense.CreateExpenseRequest
 import com.japp.api.responses.expense.ExpenseDto
-import com.japp.api.responses.expense.ExpenseSplitDto
 import com.japp.api.responses.expense.ExpenseSplitRequest
 import com.japp.api.responses.group.GroupDto
 import com.japp.api.responses.group.GroupMemberDto
+import kotlinx.coroutines.launch
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
-import kotlin.math.abs
+
+enum class SplitInputMode {
+    AMOUNT,
+    PERCENTAGE
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CreateExpenseScreen(
     navController: NavController? = null
 ) {
+    val coroutineScope = rememberCoroutineScope()
+
     var groups by remember { mutableStateOf<List<GroupDto>>(emptyList()) }
     var selectedGroup by remember { mutableStateOf<GroupDto?>(null) }
 
@@ -49,47 +55,22 @@ fun CreateExpenseScreen(
     var memberShares by remember { mutableStateOf<Map<Int, String>>(emptyMap()) }
 
     LaunchedEffect(Unit) {
-        val call = RetrofitClient.groupService.get_my_groups()
-
-        call.enqueue(object : Callback<List<GroupDto>> {
-            override fun onResponse(
-                call: Call<List<GroupDto>>,
-                response: Response<List<GroupDto>>
-            ) {
-                isLoadingGroups = false
-                if (response.isSuccessful && response.body() != null) {
-                    groups = response.body()!!
-                } else {
-                    errorMessage = "Could not load groups (${response.code()})"
-                }
-            }
-
-            override fun onFailure(call: Call<List<GroupDto>>, t: Throwable) {
-                isLoadingGroups = false
-                errorMessage = "Network error: ${t.message}"
-            }
-        })
+        val res = RetrofitClient.groupService.getMyGroups()
+        if (res.isSuccessful && res.body() != null) {
+            groups = res.body()!!
+            isLoadingGroups = false
+        } else {
+            errorMessage = "Could not load groups (${res.code()})"
+        }
     }
 
     LaunchedEffect(selectedGroup?.id) {
         val group = selectedGroup ?: return@LaunchedEffect
-
-        val call = RetrofitClient.groupService.get_group_members(group.id)
-        call?.enqueue(object : Callback<List<GroupMemberDto>?> {
-            override fun onResponse(
-                call: Call<List<GroupMemberDto>?>,
-                response: Response<List<GroupMemberDto>?>
-            ) {
-                if (response.isSuccessful && response.body() != null) {
-                    groupMembers = response.body()!!
-                    memberShares = groupMembers.associate { it.userId to "" }
-                }
-            }
-
-            override fun onFailure(call: Call<List<GroupMemberDto>?>, t: Throwable) {
-                errorMessage = "Failed to load group members: ${t.message}"
-            }
-        })
+        val res = RetrofitClient.groupService.getGroupMembers(group.id)
+        if (res.isSuccessful && res.body() != null) {
+            groupMembers = res.body()!!
+            memberShares = groupMembers.associate { it.userId to "" }
+        }
     }
 
     Column(
@@ -322,33 +303,22 @@ fun CreateExpenseScreen(
                         groupId = group.id,
                         amount = amountValue,
                         description = description,
-                        category = category.ifBlank { null },
+                        category = ExpenseCategory.fromString(category),
                         currency = Currency.DKK,
                         splitType = splitType,
                         splits = splitsForRequest
                     )
 
                     isSubmitting = true
-
-                    val call = RetrofitClient.expenseService.create_expense(request)
-                    call?.enqueue(object : Callback<ExpenseDto?> {
-                        override fun onResponse(
-                            call: Call<ExpenseDto?>,
-                            response: Response<ExpenseDto?>
-                        ) {
-                            isSubmitting = false
-                            if (response.isSuccessful && response.body() != null) {
-                                navController?.navigateUp()
-                            } else {
-                                errorMessage = "Failed to create expense"
-                            }
+                    coroutineScope.launch {
+                        val res = RetrofitClient.expenseService.createExpense(request)
+                        isSubmitting = false
+                        if (res.isSuccessful && res.body() != null) {
+                            navController?.navigateUp()
+                        } else {
+                            errorMessage = "Failed to create expense"
                         }
-
-                        override fun onFailure(call: Call<ExpenseDto?>, t: Throwable) {
-                            isSubmitting = false
-                            errorMessage = "Network error: ${t.message}"
-                        }
-                    })
+                    }
                 },
                 modifier = Modifier.fillMaxWidth()
             ) {

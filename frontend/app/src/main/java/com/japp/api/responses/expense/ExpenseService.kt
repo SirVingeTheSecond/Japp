@@ -1,6 +1,6 @@
 package com.japp.api.responses.expense
 
-import retrofit2.Call
+import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
@@ -13,16 +13,14 @@ interface ExpenseService {
     }
 
     @POST(BASE_ROUTE)
-    fun create_expense(@Body request: CreateExpenseRequest): Call<ExpenseDto?>?
+    suspend fun createExpense(@Body request: CreateExpenseRequest): Response<ExpenseDto>
 
     @GET("$BASE_ROUTE/group/{groupId}")
-    fun get_group_expenses(@Path("groupId") groupId: Int): Call<List<ExpenseDto>?>?
+    suspend fun getGroupExpenses(@Path("groupId") groupId: Int): Response<List<ExpenseDto>>
 
     @GET("$BASE_ROUTE/group/{groupId}/balances")
-    fun get_group_balances(@Path("groupId") groupId: Int): Call<GroupBalanceSummaryDto?>?
-
-
+    suspend fun getGroupBalances(@Path("groupId") groupId: Int): Response<GroupBalanceSummaryDto>
 
     @DELETE("$BASE_ROUTE/{id}")
-    fun delete_expense(@Path("id") id: Int): Call<Unit?>?
+    suspend fun deleteExpense(@Path("id") id: Int): Response<Unit>
 }

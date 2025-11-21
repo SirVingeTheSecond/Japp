@@ -175,11 +175,28 @@ fun CreateExpenseScreen(
 
         Spacer(Modifier.height(8.dp))
 
+        // Nullable boolean so that it's possible to know when description has been checked.
+        // Preventing the box from starting off being invalid.
+        var descriptionValid by remember { mutableStateOf<Boolean?>(null) }
+
         OutlinedTextField(
             value = description,
-            onValueChange = { description = it },
+            onValueChange = {
+                description = it
+                if (description.isEmpty()) {
+                    descriptionValid = false
+                }
+            },
             label = { Text("Description") },
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            isError = !(descriptionValid ?: true),
+            supportingText = {
+                descriptionValid?.let {
+                    if (!it) {
+                        Text("Description cannot be left empty")
+                    }
+                }
+            }
         )
 
         Spacer(Modifier.height(8.dp))
@@ -286,6 +303,11 @@ fun CreateExpenseScreen(
         } else {
             Button(
                 onClick = {
+                    if (description.isEmpty()) {
+                        descriptionValid = false
+                        return@Button
+                    }
+
                     val group = selectedGroup
                     if (group == null) {
                         errorMessage = "Please select a group"

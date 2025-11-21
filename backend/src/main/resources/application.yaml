@@ -24,5 +24,12 @@ database:
     idleTimeout: 600000
     maxLifetime: 1800000
 
+websocket:
+  heartbeatIntervalInSeconds: 20
+
+storage:
+  attachments:
+    basePath: /var/japp/attachments
+
 app:
   version: 1.0.0

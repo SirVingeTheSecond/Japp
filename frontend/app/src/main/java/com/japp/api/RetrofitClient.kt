@@ -1,6 +1,7 @@
 package com.japp.api
 
 import android.content.Context
+import android.util.Log
 import androidx.core.content.edit
 import com.japp.api.responses.ActivityType
 import com.japp.api.responses.Currency
@@ -31,6 +32,7 @@ import retrofit2.Converter
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.GET
+import java.net.SocketTimeoutException
 import java.util.Date
 import retrofit2.Response as RetrofitResponse
 
@@ -55,7 +57,11 @@ object ErrorUtils {
 
             response.errorBody()?.let { converter.convert(it) }
         } catch (e: Exception) {
-            null
+            return ErrorResponse(
+                response.code().toString(),
+                "Something went wrong. (${response.code()})",
+                response.raw().sentRequestAtMillis
+            )
         }
     }
 }
@@ -115,7 +121,12 @@ class AuthInterceptor(val context: Context) : Interceptor {
             }
         }.build()
 
-        return chain.proceed(newReq)
+        return try {
+            chain.proceed(newReq)
+        } catch (e: SocketTimeoutException) {
+            // Handle timeout exception (e.g., log, retry, etc.)
+            throw e // Or return an error response
+        }
     }
 }
 object RetrofitClient {

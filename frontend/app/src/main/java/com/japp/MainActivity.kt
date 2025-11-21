@@ -43,16 +43,18 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.japp.screens.ActivityScreen
+import com.japp.screens.CreateExpenseScreen
 import com.japp.screens.HomeScreen
 import com.japp.screens.ProfileScreen
 import com.japp.screens.ScanScreen
 import com.japp.ui.theme.JappTheme
 import androidx.navigation.navArgument
 import androidx.navigation.navDeepLink
+import com.japp.screens.ActivityScreen
 import com.japp.screens.CreateGroupScreen
 import com.japp.screens.GroupScreen
 import com.japp.screens.JoinGroupScreen
+import com.japp.screens.SettleGroup
 import com.japp.screens.ShowGroupsScreen
 
 class MainActivity : ComponentActivity() {
@@ -185,10 +187,13 @@ enum class AppDestinations(
     HOME("Home", Icons.Default.Home, { navController -> HomeScreen(navController) }),
     SCAN("Scan", Icons.Default.Camera, { navController -> ScanScreen(navController) }),
     PROFILE("Profile", Icons.Default.Person, { navController -> ProfileScreen(navController) }),
-    ACTIVITY("Activity", Icons.Default.Notifications, { navController -> ActivityScreen(navController) }),
+    CREATEEXPENSE("Add Expense", Icons.Default.Notifications, { navController -> CreateExpenseScreen(navController) }),
     CREATEGROUP("Create Group", Icons.Default.GroupAdd, { navController -> CreateGroupScreen(navController) }),
     MYGROUPS("My Groups", Icons.Default.Groups, { navController -> ShowGroupsScreen(navController) }),
-    GROUP("Group", Icons.Default.Group, { navController -> GroupScreen(navController) });
+    GROUP("Group", Icons.Default.Group, { navController -> GroupScreen(navController) }),
+    SETTLE("Settle group", Icons.Default.Group, {navController -> SettleGroup(navController)}),
+    ACTIVITY("Activity", Icons.Default.Notifications, { navController -> ActivityScreen(navController) });
+
 
     val route: String
         get() = label.replace(" ", "") // Remove spaces for route
@@ -201,7 +206,7 @@ enum class NavigationActionButtons(
 ) {
     DEFAULT("", null, AppDestinations.SCAN),
     // TODO: Make actual conditional buttons.
-    GROUPADD("Group", Icons.Default.Add, AppDestinations.ACTIVITY);
+    GROUPADD("Group", Icons.Default.Add, AppDestinations.CREATEEXPENSE);
 
     val icon: ImageVector
         get() = buttonIcon ?: destination.icon // If buttonIcon is null defaults to AppDestination icon

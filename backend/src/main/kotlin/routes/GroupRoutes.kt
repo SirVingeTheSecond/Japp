@@ -12,6 +12,20 @@ import io.ktor.server.request.*
 import io.ktor.server.routing.*
 import org.koin.ktor.ext.inject
 
+fun Route.publicGroupRoutes() {
+    val groupService by inject<GroupService>()
+
+    route("/groups") {
+        get("/preview/{inviteCode}") {
+            val inviteCode = call.parameters["inviteCode"]
+                ?: throw IllegalArgumentException("Invite code is required")
+
+            val result = groupService.previewGroupByInviteCode(inviteCode)
+            call.respondResult(result)
+        }
+    }
+}
+
 fun Route.groupRoutes() {
     val groupService by inject<GroupService>()
 

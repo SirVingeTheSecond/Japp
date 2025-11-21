@@ -1,13 +1,13 @@
 package com.japp.validation
 
 import com.japp.models.Result
-import com.japp.models.error.SettlementError
 import com.japp.models.dto.CreateSettlementRequest
+import com.japp.models.error.AppError
 
 object SettlementValidator {
 
-    fun validateCreateSettlement(request: CreateSettlementRequest): Result<CreateSettlementRequest, SettlementError> {
-        val errorFactory: (String) -> SettlementError = { SettlementError.ValidationError(it) }
+    fun validateCreateSettlement(request: CreateSettlementRequest): Result<CreateSettlementRequest, AppError> {
+        val errorFactory: (String) -> AppError = { AppError.Validation(it) }
 
         // Validate amount
         ValidationHelpers.validatePositiveAmount(
@@ -20,12 +20,12 @@ object SettlementValidator {
 
         // Validate group ID
         if (request.groupId <= 0) {
-            return Result.Failure(SettlementError.ValidationError("Invalid group ID"))
+            return Result.Failure(AppError.Validation("Invalid group ID"))
         }
 
         // Validate recipient user ID
         if (request.toUserId <= 0) {
-            return Result.Failure(SettlementError.ValidationError("Invalid recipient user ID"))
+            return Result.Failure(AppError.Validation("Invalid recipient user ID"))
         }
 
         return Result.Success(request)

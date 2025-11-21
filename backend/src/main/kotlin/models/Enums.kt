@@ -292,3 +292,56 @@ object MessageTypeSerializer : StringEnumSerializer<MessageType>(
     fromString = MessageType::fromString,
     toString = { it.value }
 )
+
+// ==============================
+// WEBSOCKET ENUMS
+// ==============================
+
+/**
+ * Type of WebSocket message for chat communication.
+ *
+ * - [CONNECTED]: Initial connection confirmation
+ * - [SUBSCRIBE]: Client requests to join a group channel
+ * - [SUBSCRIBED]: Server confirms successful subscription
+ * - [UNSUBSCRIBE]: Client requests to leave a group channel
+ * - [UNSUBSCRIBED]: Server confirms successful unsubscription
+ * - [NEW_MESSAGE]: New message broadcast to group
+ * - [MESSAGE_READ]: Message read status update
+ * - [MESSAGE_DELETED]: Message deletion notification
+ * - [TYPING_START]: User started typing
+ * - [TYPING_STOP]: User stopped typing
+ * - [PING]: Heartbeat ping from server
+ * - [PONG]: Heartbeat pong from client
+ * - [ERROR]: Error response from server
+ */
+@Serializable(with = WebSocketMessageTypeSerializer::class)
+enum class WebSocketMessageType(val value: String) {
+    CONNECTED("connected"),
+    SUBSCRIBE("subscribe"),
+    SUBSCRIBED("subscribed"),
+    UNSUBSCRIBE("unsubscribe"),
+    UNSUBSCRIBED("unsubscribed"),
+    NEW_MESSAGE("new_message"),
+    MESSAGE_READ("message_read"),
+    MESSAGE_DELETED("message_deleted"),
+    TYPING_START("typing_start"),
+    TYPING_STOP("typing_stop"),
+    PING("ping"),
+    PONG("pong"),
+    ERROR("error");
+
+    companion object {
+        /**
+         * Parse string value to WebSocketMessageType enum (case-insensitive).
+         * Returns null if the value does not match any enum constant.
+         */
+        fun fromString(value: String): WebSocketMessageType? =
+            entries.find { it.value.equals(value, ignoreCase = true) }
+    }
+}
+
+object WebSocketMessageTypeSerializer : StringEnumSerializer<WebSocketMessageType>(
+    enumName = "WebSocketMessageType",
+    fromString = WebSocketMessageType::fromString,
+    toString = { it.value }
+)

@@ -227,7 +227,7 @@ class MessageIntegrationTest : AnnotationSpec() {
             setBody("""
                 {
                     "groupId": ${data.groupId},
-                    "content": "I shouldn't be able to send this"
+                    "content": "I should not be able to send this"
                 }
             """.trimIndent())
         }
@@ -410,7 +410,7 @@ class MessageIntegrationTest : AnnotationSpec() {
         val createResponse = client.post("/api/messages") {
             contentType(ContentType.Application.Json)
             header("Authorization", "Bearer ${data.token1}")
-            setBody("""{"groupId": ${data.groupId}, "content": "You can't delete this"}""")
+            setBody("""{"groupId": ${data.groupId}, "content": "You cannot delete this"}""")
         }
         val message = json.decodeFromString<MessageDto>(createResponse.bodyAsText())
 
@@ -619,7 +619,7 @@ class MessageIntegrationTest : AnnotationSpec() {
         }) {
             incoming.receive() // CONNECTED
 
-            // User3 tries to send message to group they're not in
+            // User3 tries to send message to group they are not part of
             val unauthorizedMessage = WebSocketMessage(
                 type = WebSocketMessageType.NEW_MESSAGE,
                 groupId = data.groupId,
@@ -628,7 +628,7 @@ class MessageIntegrationTest : AnnotationSpec() {
                     groupId = data.groupId,
                     userId = null,
                     userName = null,
-                    content = "I shouldn't be able to send this",
+                    content = "I should not be able to send this",
                     messageType = MessageType.USER,
                     createdAt = "",
                     editedAt = null,

@@ -108,6 +108,13 @@ fun appModule(application: Application) = module {
     }
 
     single {
+        ChatWebSocketService(
+            messageService = get(),
+            webSocketManager = get()
+        )
+    }
+
+    single {
         GroupService(
             groupRepository = get(),
             userRepository = get(),

@@ -31,6 +31,13 @@ storage:
   attachments:
     basePath: /var/japp/attachments
 
+websocket:
+  heartbeatIntervalInSeconds: 20
+
+storage:
+  attachments:
+    basePath: /var/japp/attachments
+
 app:
   version: 1.0.0
   environment: ${APP_ENV:development}

@@ -4,6 +4,7 @@ import com.japp.models.Result
 import com.japp.models.dto.LoginRequest
 import com.japp.models.dto.SignupRequest
 import com.japp.models.error.AppError
+import com.japp.utils.ValidationHelpers
 
 object AuthValidator {
 

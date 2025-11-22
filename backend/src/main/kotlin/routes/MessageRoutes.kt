@@ -15,6 +15,8 @@ import io.ktor.server.request.*
 import io.ktor.server.routing.*
 import io.ktor.server.websocket.*
 import io.ktor.websocket.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import org.koin.ktor.ext.inject
 
@@ -69,10 +71,11 @@ fun Route.chatWebSocket() {
         }
 
         try {
-            // connection confirmation
+            // Connection confirmation
             val connectMessage = chatService.handleConnect(userId, this)
             send(Frame.Text(Json.encodeToString(WebSocketMessage.serializer(), connectMessage)))
 
+            // Start heartbeat job
             val heartbeatJob = chatService.startHeartbeat(this, userId)
 
             // Process incoming messages
@@ -80,22 +83,32 @@ fun Route.chatWebSocket() {
                 when (frame) {
                     is Frame.Text -> {
                         val text = frame.readText()
-                        try {
-                            val incomingMessage = Json.decodeFromString<WebSocketMessage>(text)
-                            val responseMessage = chatService.handleMessage(incomingMessage, userId, this)
 
-                            // Send response if service returned one
-                            responseMessage?.let {
-                                send(Frame.Text(Json.encodeToString(WebSocketMessage.serializer(), it)))
+                        // async to avoid blocking messages
+                        launch(Dispatchers.Default) {
+                            try {
+                                val incomingMessage = Json.decodeFromString<WebSocketMessage>(text)
+                                println("Received WS message: type=${incomingMessage.type}, groupId=${incomingMessage.groupId}")
+
+                                val responseMessage = chatService.handleMessage(incomingMessage, userId, this@webSocket)
+
+                                // Send response if service returned one
+                                responseMessage?.let {
+                                    println("Sending WS response: type=${it.type}")
+                                    send(Frame.Text(Json.encodeToString(WebSocketMessage.serializer(), it)))
+                                }
+                            } catch (e: Exception) {
+                                println("ERROR processing WebSocket message: ${e.message}")
+                                e.printStackTrace()
+
+                                send(Frame.Text(Json.encodeToString(
+                                    WebSocketMessage.serializer(),
+                                    WebSocketMessage(
+                                        type = WebSocketMessageType.ERROR,
+                                        error = "Failed to process message: ${e.message}"
+                                    )
+                                )))
                             }
-                        } catch (_: Exception) {
-                            send(Frame.Text(Json.encodeToString(
-                                WebSocketMessage.serializer(),
-                                WebSocketMessage(
-                                    type = WebSocketMessageType.ERROR,
-                                    error = "invalid_message_format"
-                                )
-                            )))
                         }
                     }
                     else -> {}
@@ -103,8 +116,9 @@ fun Route.chatWebSocket() {
             }
 
             heartbeatJob.cancel()
-        } catch (_: Exception) {
-            // Connection error - cleanup handled in finally
+        } catch (e: Exception) {
+            println("WebSocket error for user $userId: ${e.message}")
+            e.printStackTrace()
         } finally {
             chatService.handleDisconnect(this)
         }

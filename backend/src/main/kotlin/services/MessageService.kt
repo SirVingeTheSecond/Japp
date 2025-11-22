@@ -263,26 +263,33 @@ class MessageService(
         userId: Int,
         session: WebSocketSession
     ): Result<Unit, AppError> {
+        println("subscribeToGroup called: groupId=$groupId, userId=$userId")
+
         return withContext(Dispatchers.IO) {
             try {
-                val validationResult = transaction {
-                    if (!groupRepository.isMember(groupId, userId)) {
-                        return@transaction Result.Failure(AppError.NotMember(groupId))
-                    }
-                    Result.Success(Unit)
+                val isMember = transaction {
+                    groupRepository.isMember(groupId, userId)
                 }
 
-                when (validationResult) {
-                    is Result.Failure -> validationResult
-                    is Result.Success -> {
-                        webSocketManager.subscribeToGroup(session, groupId)
-                        Result.Success(Unit)
-                    }
+                println("User $userId is member of group $groupId: $isMember")
+
+                if (!isMember) {
+                    println("User $userId NOT a member of group $groupId")
+                    return@withContext Result.Failure(AppError.NotMember(groupId))
+                }
+
+                val subscribed = webSocketManager.subscribeToGroup(session, groupId)
+                println("Subscription result: $subscribed")
+
+                if (subscribed) {
+                    Result.Success(Unit)
+                } else {
+                    Result.Failure(AppError.Internal("Failed to subscribe to group"))
                 }
             } catch (e: Exception) {
-                Result.Failure(
-                    AppError.Internal(e.message ?: "Failed to subscribe to group")
-                )
+                println("ERROR in subscribeToGroup: ${e.message}")
+                e.printStackTrace()
+                Result.Failure(AppError.Internal(e.message ?: "Subscription failed"))
             }
         }
     }

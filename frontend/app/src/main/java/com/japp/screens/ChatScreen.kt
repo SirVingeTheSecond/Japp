@@ -222,31 +222,7 @@ fun ChatScreen(groupId: Int) {
                             val messageContent = messageInput.trim()
                             messageInput = ""
 
-                            scope.launch {
-                                try {
-                                    val request = CreateMessageRequest(
-                                        groupId = groupId,
-                                        content = messageContent
-                                    )
-                                    val response = RetrofitClient.messageService.createMessage(request)
-
-                                    if (response.isSuccessful && response.body() != null) {
-                                        val sentMessage = response.body()!!
-
-                                        if (!messages.any { it.id == sentMessage.id }) {
-                                            messages = messages + sentMessage
-
-                                            // Auto-scroll to show sent message
-                                            listState.animateScrollToItem(messages.size - 1)
-                                        }
-                                    } else {
-                                        errorMessage = "Failed to send message"
-                                    }
-                                } catch (e: Exception) {
-                                    Log.e("ChatScreen", "Error sending message", e)
-                                    errorMessage = e.message
-                                }
-                            }
+                            ChatWebSocketClient.sendMessage(groupId, messageContent)
                         }
                     },
                     enabled = messageInput.isNotBlank()

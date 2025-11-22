@@ -171,6 +171,24 @@ object ChatWebSocketClient {
         ))
     }
 
+    fun sendMessage(groupId: Int, content: String) {
+        send(WebSocketMessageDto(
+            type = WebSocketMessageType.NEW_MESSAGE,
+            groupId = groupId,
+            message = com.japp.api.responses.message.MessageDto(
+                id = 0, // backend will assign correct ID -> might not be best practice
+                groupId = groupId,
+                userId = null,
+                userName = null,
+                content = content,
+                messageType = com.japp.api.responses.MessageType.USER,
+                createdAt = "",
+                editedAt = null,
+                isDeleted = false
+            )
+        ))
+    }
+
     fun disconnect() {
         webSocket?.close(1000, "User disconnect")
         webSocket = null

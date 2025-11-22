@@ -10,7 +10,7 @@ import okhttp3.*
 
 object ChatWebSocketClient {
     private const val TAG = "ChatWS"
-    private const val WS_URL = "ws://10.0.2.2:8080/api/ws/chat"
+    private const val WS_URL = "wss://japp-app-api.itnerd.net/api/ws/chat"
 
     private var webSocket: WebSocket? = null
     private val client = OkHttpClient()

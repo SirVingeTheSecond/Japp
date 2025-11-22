@@ -39,6 +39,7 @@ fun ChatScreen(groupId: Int) {
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var isTyping by remember { mutableStateOf(false) }
     var typingJob by remember { mutableStateOf<Job?>(null) }
+    var lastProcessedMessageCount by remember { mutableStateOf(0) }
 
     val credentials = CredentialsStorage.load(context)
     val currentUserId = credentials?.userId
@@ -68,26 +69,33 @@ fun ChatScreen(groupId: Int) {
 
     // Listen for incoming WebSocket messages
     val wsMessages by ChatWebSocketClient.incomingMessages.collectAsState()
-    LaunchedEffect(wsMessages) {
-        wsMessages.lastOrNull()?.let { wsMsg ->
-            when (wsMsg.type) {
-                WebSocketMessageType.NEW_MESSAGE -> {
-                    wsMsg.message?.let { newMsg ->
-                        if (newMsg.groupId == groupId && !messages.any { it.id == newMsg.id }) {
-                            messages = messages + newMsg
-                            // Auto-scroll to bottom
-                            listState.animateScrollToItem(messages.size - 1)
+    LaunchedEffect(wsMessages.size) {
+        if (wsMessages.size > lastProcessedMessageCount) {
+            wsMessages.drop(lastProcessedMessageCount).forEach { wsMsg ->
+                when (wsMsg.type) {
+                    WebSocketMessageType.NEW_MESSAGE -> {
+                        wsMsg.message?.let { newMsg ->
+                            if (newMsg.groupId == groupId && !messages.any { it.id == newMsg.id }) {
+                                messages = messages + newMsg
+
+                                // Auto-scroll if user is near bottom
+                                if (listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index == messages.size - 2 ||
+                                    messages.size == 1) {
+                                    listState.animateScrollToItem(messages.size - 1)
+                                }
+                            }
                         }
                     }
+                    WebSocketMessageType.SUBSCRIBED -> {
+                        Log.d("ChatScreen", "Subscribed to group $groupId")
+                    }
+                    WebSocketMessageType.ERROR -> {
+                        errorMessage = wsMsg.error
+                    }
+                    else -> {}
                 }
-                WebSocketMessageType.SUBSCRIBED -> {
-                    Log.d("ChatScreen", "Subscribed to group $groupId")
-                }
-                WebSocketMessageType.ERROR -> {
-                    errorMessage = wsMsg.error
-                }
-                else -> {}
             }
+            lastProcessedMessageCount = wsMessages.size
         }
     }
 
@@ -211,16 +219,26 @@ fun ChatScreen(groupId: Int) {
                                 ChatWebSocketClient.sendTypingStop(groupId)
                             }
 
+                            val messageContent = messageInput.trim()
+                            messageInput = ""
+
                             scope.launch {
                                 try {
                                     val request = CreateMessageRequest(
                                         groupId = groupId,
-                                        content = messageInput.trim()
+                                        content = messageContent
                                     )
                                     val response = RetrofitClient.messageService.createMessage(request)
 
-                                    if (response.isSuccessful) {
-                                        messageInput = ""
+                                    if (response.isSuccessful && response.body() != null) {
+                                        val sentMessage = response.body()!!
+
+                                        if (!messages.any { it.id == sentMessage.id }) {
+                                            messages = messages + sentMessage
+
+                                            // Auto-scroll to show sent message
+                                            listState.animateScrollToItem(messages.size - 1)
+                                        }
                                     } else {
                                         errorMessage = "Failed to send message"
                                     }

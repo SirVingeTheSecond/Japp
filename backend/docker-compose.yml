@@ -21,8 +21,8 @@ services:
         depends_on:
             - database
         environment:
-            POSTGRES_URL: "jdbc:postgresql://10.23.45.2/japp"
-            POSTGRES_USER: "japp"
+            DATABASE_URL: "jdbc:postgresql://10.23.45.2/japp"
+            DATABASE_USER: "japp"
             DATABASE_PASSWORD: ${DATABASE_PASSWORD}  # From .env file
             JWT_SECRET: ${JWT_SECRET}
             JWT_ISSUER: ${JWT_ISSUER:-japp-issuer}

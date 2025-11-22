@@ -8,6 +8,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AttachFile
@@ -20,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.japp.api.RetrofitClient
@@ -46,7 +48,8 @@ enum class SplitInputMode {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CreateExpenseScreen(
-    navController: NavController? = null
+    navController: NavController? = null,
+    groupId: Int? = null,
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
@@ -56,7 +59,7 @@ fun CreateExpenseScreen(
 
     var amount by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
-    var category by remember { mutableStateOf("") }
+    var category by remember { mutableStateOf<ExpenseCategory?>(null) }
 
     var isLoadingGroups by remember { mutableStateOf(true) }
     var isSubmitting by remember { mutableStateOf(false) }
@@ -97,6 +100,9 @@ fun CreateExpenseScreen(
         val res = RetrofitClient.groupService.getMyGroups()
         if (res.isSuccessful && res.body() != null) {
             groups = res.body()!!
+            if (groupId != null) {
+                selectedGroup = groups.find { groupDto -> groupDto.id == groupId }
+            }
             isLoadingGroups = false
         } else {
             errorMessage = "Could not load groups (${res.code()})"
@@ -193,28 +199,89 @@ fun CreateExpenseScreen(
 
         OutlinedTextField(
             value = amount,
-            onValueChange = { amount = it },
+            onValueChange = {
+                // Check if the new input contains any wordlike in it.
+                if (!it.contains("\\w")) {
+                    // Only if it doesn't contain letters, set it.
+                    // Ensure it can be converted to a double.
+                    val newVal = it.toDoubleOrNull()
+                    if (newVal != null) {
+                        amount = it
+                    }
+                }
+            },
             label = { Text("Amount") },
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            maxLines = 1,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
         )
 
         Spacer(Modifier.height(8.dp))
+
+        // Nullable boolean so that it's possible to know when description has been checked.
+        // Preventing the box from starting off being invalid.
+        var descriptionValid by remember { mutableStateOf<Boolean?>(null) }
 
         OutlinedTextField(
             value = description,
-            onValueChange = { description = it },
+            onValueChange = {
+                description = it
+                if (description.isEmpty()) {
+                    descriptionValid = false
+                }
+            },
             label = { Text("Description") },
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            isError = !(descriptionValid ?: true),
+            supportingText = {
+                descriptionValid?.let {
+                    if (!it) {
+                        Text("Description cannot be left empty")
+                    }
+                }
+            }
         )
 
         Spacer(Modifier.height(8.dp))
 
-        OutlinedTextField(
-            value = category,
-            onValueChange = { category = it },
-            label = { Text("Category (optional)") },
-            modifier = Modifier.fillMaxWidth()
-        )
+        var categoryExpanded by remember { mutableStateOf(false) }
+
+        ExposedDropdownMenuBox(
+            expanded = categoryExpanded,
+            onExpandedChange = { categoryExpanded = !categoryExpanded }
+        ) {
+            OutlinedTextField(
+                value = category?.displayName ?: "No category",
+                onValueChange = {},
+                readOnly = true,
+                label = { Text("Category (optional)") },
+                modifier = Modifier
+                    .menuAnchor()
+                    .fillMaxWidth()
+            )
+
+            ExposedDropdownMenu(
+                expanded = categoryExpanded,
+                onDismissRequest = { categoryExpanded = false }
+            ) {
+                DropdownMenuItem(
+                    { Text("No category") },
+                    onClick = {
+                        category = null
+                        categoryExpanded = false
+                    }
+                )
+                ExpenseCategory.entries.forEach { _category ->
+                    DropdownMenuItem(
+                        text = { Text(_category.displayName) },
+                        onClick = {
+                            category = _category
+                            categoryExpanded = false
+                        }
+                    )
+                }
+            }
+        }
 
         Spacer(Modifier.height(16.dp))
 
@@ -337,7 +404,7 @@ fun CreateExpenseScreen(
                                 context.contentResolver.openInputStream(uri)?.use { stream ->
                                     BitmapFactory.decodeStream(stream)
                                 }
-                            } catch (e: Exception) {
+                            } catch (_: Exception) {
                                 null
                             }
                         }
@@ -379,157 +446,174 @@ fun CreateExpenseScreen(
 
         Spacer(Modifier.height(16.dp))
 
-        Button(
-            onClick = {
-                val group = selectedGroup
-                if (group == null) {
-                    errorMessage = "Please select a group"
-                    return@Button
-                }
-
-                val amountValue = amount.toDoubleOrNull()
-                if (amountValue == null || amountValue <= 0) {
-                    errorMessage = "Invalid amount"
-                    return@Button
-                }
-
-                if (description.isBlank()) {
-                    errorMessage = "Description is required"
-                    return@Button
-                }
-
-                val splitsForRequest =
-                    if (splitType == SplitType.CUSTOM) {
-                        groupMembers.mapNotNull { member ->
-                            val raw = memberShares[member.userId].orEmpty().trim()
-                            if (raw.isEmpty()) return@mapNotNull null
-
-                            val value = raw.toDoubleOrNull() ?: return@mapNotNull null
-
-                            when (splitInputMode) {
-                                SplitInputMode.AMOUNT -> ExpenseSplitRequest(
-                                    userId = member.userId,
-                                    shareAmount = value,
-                                    sharePercentage = null
-                                )
-                                SplitInputMode.PERCENTAGE -> ExpenseSplitRequest(
-                                    userId = member.userId,
-                                    shareAmount = null,
-                                    sharePercentage = value
-                                )
-                            }
-                        }
-                    } else {
-                        null
+        if (isSubmitting) {
+            CircularProgressIndicator()
+        } else {
+            Button(
+                onClick = {
+                    if (description.isEmpty()) {
+                        descriptionValid = false
+                        return@Button
                     }
 
-                val request = CreateExpenseRequest(
-                    groupId = group.id,
-                    amount = amountValue,
-                    description = description,
-                    category = ExpenseCategory.fromString(category),
-                    currency = Currency.DKK,
-                    splitType = splitType,
-                    splits = splitsForRequest
-                )
+                    val group = selectedGroup
+                    if (group == null) {
+                        errorMessage = "Please select a group"
+                        return@Button
+                    }
 
-                isSubmitting = true
-                coroutineScope.launch {
-                    val res = RetrofitClient.expenseService.createExpense(request)
-                    isSubmitting = false
+                    val amountValue = amount.toDoubleOrNull()
+                    if (amountValue == null || amountValue <= 0) {
+                        errorMessage = "Invalid amount"
+                        return@Button
+                    }
 
-                    if (res.isSuccessful && res.body() != null) {
-                        val createdExpense = res.body()!!
+                    if (description.isBlank()) {
+                        errorMessage = "Description is required"
+                        return@Button
+                    }
 
-                        // Upload attachments if any selected
-                        if (selectedImageUris.isNotEmpty()) {
-                            uploadingAttachments = true
-                            uploadProgress = "Uploading attachments..."
+                    val splitsForRequest =
+                        if (splitType == SplitType.CUSTOM) {
+                            groupMembers.mapNotNull { member ->
+                                val raw = memberShares[member.userId].orEmpty().trim()
+                                if (raw.isEmpty()) return@mapNotNull null
 
-                            var successCount = 0
-                            selectedImageUris.forEachIndexed { index, uri ->
-                                uploadProgress = "Uploading ${index + 1}/${selectedImageUris.size}..."
+                                val value = raw.toDoubleOrNull() ?: return@mapNotNull null
 
-                                try {
-                                    // Copy URI content to temp file for upload
-                                    val inputStream = context.contentResolver.openInputStream(uri)
-                                    val file = File(context.cacheDir, "upload_${System.currentTimeMillis()}.jpg")
-
-                                    inputStream?.use { input ->
-                                        FileOutputStream(file).use { output ->
-                                            input.copyTo(output)
-                                        }
-                                    }
-
-                                    // Create request
-                                    // Perhaps not the cleanest approach
-                                    val mimeType = when (file.extension.lowercase()) {
-                                        "png" -> "image/png"
-                                        "jpg", "jpeg" -> "image/jpeg"
-                                        else -> "image/jpeg"
-                                    }
-                                    val requestBody = file.asRequestBody(mimeType.toMediaTypeOrNull())
-                                    val filePart = MultipartBody.Part.createFormData(
-                                        "file",
-                                        file.name,
-                                        requestBody
-                                    )
-                                    val expenseIdBody = createdExpense.id.toString()
-                                        .toRequestBody("text/plain".toMediaTypeOrNull())
-
-                                    val uploadRes = RetrofitClient.attachmentService.uploadAttachment(
-                                        expenseId = expenseIdBody,
-                                        file = filePart
+                                when (splitInputMode) {
+                                    SplitInputMode.AMOUNT -> ExpenseSplitRequest(
+                                        userId = member.userId,
+                                        shareAmount = value,
+                                        sharePercentage = null
                                     )
 
-                                    if (uploadRes.isSuccessful) {
-                                        successCount++
-                                    }
-
-                                    // Clean up temp file
-                                    file.delete()
-                                } catch (_: Exception) {
-                                    // Continue with other uploads even if one fails
+                                    SplitInputMode.PERCENTAGE -> ExpenseSplitRequest(
+                                        userId = member.userId,
+                                        shareAmount = null,
+                                        sharePercentage = value
+                                    )
                                 }
                             }
-
-                            uploadingAttachments = false
-                            uploadProgress = if (successCount == selectedImageUris.size) {
-                                "All attachments uploaded successfully!"
-                            } else {
-                                "$successCount/${selectedImageUris.size} attachments uploaded"
-                            }
-
-                            // Navigate after delay to show success
-                            kotlinx.coroutines.delay(1000)
+                        } else {
+                            null
                         }
 
-                        navController?.navigateUp()
-                    } else {
-                        errorMessage = "Failed to create expense"
+                    val request = CreateExpenseRequest(
+                        groupId = group.id,
+                        amount = amountValue,
+                        description = description,
+                        category = category,
+                        currency = Currency.DKK,
+                        splitType = splitType,
+                        splits = splitsForRequest
+                    )
+
+                    isSubmitting = true
+                    coroutineScope.launch {
+                        val res = RetrofitClient.expenseService.createExpense(request)
+                        isSubmitting = false
+
+                        if (res.isSuccessful && res.body() != null) {
+                            val createdExpense = res.body()!!
+
+                            // Upload attachments if any selected
+                            if (selectedImageUris.isNotEmpty()) {
+                                uploadingAttachments = true
+                                uploadProgress = "Uploading attachments..."
+
+                                var successCount = 0
+                                selectedImageUris.forEachIndexed { index, uri ->
+                                    uploadProgress =
+                                        "Uploading ${index + 1}/${selectedImageUris.size}..."
+
+                                    try {
+                                        // Copy URI content to temp file for upload
+                                        val inputStream =
+                                            context.contentResolver.openInputStream(uri)
+                                        val file = File(
+                                            context.cacheDir,
+                                            "upload_${System.currentTimeMillis()}.jpg"
+                                        )
+
+                                        inputStream?.use { input ->
+                                            FileOutputStream(file).use { output ->
+                                                input.copyTo(output)
+                                            }
+                                        }
+
+                                        // Create request
+                                        // Perhaps not the cleanest approach
+                                        val mimeType = when (file.extension.lowercase()) {
+                                            "png" -> "image/png"
+                                            "jpg", "jpeg" -> "image/jpeg"
+                                            else -> "image/jpeg"
+                                        }
+                                        val requestBody =
+                                            file.asRequestBody(mimeType.toMediaTypeOrNull())
+                                        val filePart = MultipartBody.Part.createFormData(
+                                            "file",
+                                            file.name,
+                                            requestBody
+                                        )
+                                        val expenseIdBody = createdExpense.id.toString()
+                                            .toRequestBody("text/plain".toMediaTypeOrNull())
+
+                                        val uploadRes =
+                                            RetrofitClient.attachmentService.uploadAttachment(
+                                                expenseId = expenseIdBody,
+                                                file = filePart
+                                            )
+
+                                        if (uploadRes.isSuccessful) {
+                                            successCount++
+                                        }
+
+                                        // Clean up temp file
+                                        file.delete()
+                                    } catch (_: Exception) {
+                                        // Continue with other uploads even if one fails
+                                    }
+                                }
+
+                                uploadingAttachments = false
+                                uploadProgress = if (successCount == selectedImageUris.size) {
+                                    "All attachments uploaded successfully!"
+                                } else {
+                                    "$successCount/${selectedImageUris.size} attachments uploaded"
+                                }
+
+                                // Navigate after delay to show success
+                                kotlinx.coroutines.delay(1000)
+                            }
+
+                            navController?.navigateUp()
+                        } else {
+                            errorMessage = "Failed to create expense"
+                        }
                     }
+                },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !isSubmitting && !uploadingAttachments
+            ) {
+                if (isSubmitting) {
+                    Text("Creating...")
+                } else if (uploadingAttachments) {
+                    Text("Uploading...")
+                } else {
+                    Text("Create Expense")
                 }
-            },
-            modifier = Modifier.fillMaxWidth(),
-            enabled = !isSubmitting && !uploadingAttachments
-        ) {
-            if (isSubmitting) {
-                Text("Creating...")
-            } else if (uploadingAttachments) {
-                Text("Uploading...")
-            } else {
-                Text("Create Expense")
             }
-        }
 
-        Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(8.dp))
 
-        if (uploadProgress.isNotEmpty()) {
-            Text(uploadProgress, color = MaterialTheme.colorScheme.primary)
-        }
+            if (uploadProgress.isNotEmpty()) {
+                Text(uploadProgress, color = MaterialTheme.colorScheme.primary)
+            }
 
-        errorMessage?.let {
-            Text(it, color = Color.Red)
+            errorMessage?.let {
+                Text(it, color = Color.Red)
+            }
         }
     }
 }

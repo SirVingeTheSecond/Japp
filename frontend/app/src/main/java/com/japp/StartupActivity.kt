@@ -178,7 +178,8 @@ fun LoginScreen(context: Context?, navController: NavController) {
                             onValueChange = { newText -> emailOrUsername = newText},
                             singleLine = true,
                             label = { Text("Username or Email") },
-                            isError = isValid
+                            isError = isValid,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email)
                         )
                         OutlinedTextField(
                             password,
@@ -186,7 +187,8 @@ fun LoginScreen(context: Context?, navController: NavController) {
                             singleLine = true,
                             label = { Text("Password") },
                             isError = isValid,
-                            visualTransformation = PasswordVisualTransformation()
+                            visualTransformation = PasswordVisualTransformation(),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
                         )
                     }
                     error?.let { Text(it) }
@@ -410,7 +412,8 @@ fun SignupTabs(
                             if (!isFirstNameValid.value) {
                                 Text("First name not be empty")
                             }
-                        }
+                        },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text)
                     )
                     OutlinedTextField(
                         lastname.value,
@@ -426,7 +429,8 @@ fun SignupTabs(
                             if (!isLastNameValid.value) {
                                 Text("Last name must not be empty")
                             }
-                        }
+                        },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text)
                     )
                     OutlinedTextField(
                         email.value,
@@ -442,7 +446,8 @@ fun SignupTabs(
                             if (!isEmailValid.value) {
                                 Text("Email is invalid.")
                             }
-                        }
+                        },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email)
                     )
                     OutlinedTextField(
                         if(phone.value == 0) "" else phone.value.toString(),
@@ -466,7 +471,7 @@ fun SignupTabs(
                         label = { Text("Phone") },
                         isError = !isPhoneValid.value,
                         visualTransformation = PhoneNumberTransformation(),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                         supportingText = {
                             if (!isPhoneValid.value) {
                                 Text("Phone is not a valid number.")
@@ -496,7 +501,8 @@ fun SignupTabs(
                             if (!isUsernameValid.value) {
                                 Text("Username must be at least 3 characters")
                             }
-                        }
+                        },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Unspecified)
                     )
                     OutlinedTextField(
                         password.value,
@@ -513,7 +519,8 @@ fun SignupTabs(
                             if (!isPasswordValid.value) {
                                 Text("Password must contain at least 1 letter, 1 number and be 8 long.")
                             }
-                        }
+                        },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
                     )
                     OutlinedTextField(
                         repeatPassword.value,
@@ -530,7 +537,8 @@ fun SignupTabs(
                             if (!isRepeatPasswordValid.value) {
                                 Text("Repeated password does not match password.")
                             }
-                        }
+                        },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
                     )
                     Row (
                         Modifier.fillMaxWidth(),

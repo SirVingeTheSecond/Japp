@@ -51,9 +51,11 @@ import com.japp.api.RetrofitClient
 import com.japp.api.responses.group.GroupDto
 import com.japp.composables.GroupIcon
 import com.google.zxing.BarcodeFormat
+import com.japp.AppDestinations
 import com.japp.api.responses.expense.ExpenseDto
 import com.japp.api.responses.expense.GroupBalanceSummaryDto
 import com.japp.api.responses.group.GroupMemberDto
+import com.japp.rememberFabButton
 import com.journeyapps.barcodescanner.BarcodeEncoder
 import retrofit2.Call
 import retrofit2.Callback
@@ -72,6 +74,14 @@ fun GroupScreen(navController: NavController? = null) {
     var group_balance by remember { mutableStateOf<GroupBalanceSummaryDto?>(null) }
 
 
+    // Hook into action button
+    rememberFabButton {
+        navController?.navigate(
+            group?.let {
+                AppDestinations.CustomRoutes.CREATE_EXPENSE.withArgs(it.id)
+            } ?: AppDestinations.GROUP.route
+        )
+    }
 
 
     LaunchedEffect(

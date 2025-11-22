@@ -2,12 +2,14 @@ package com.japp.screens
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.japp.api.RetrofitClient
@@ -15,14 +17,10 @@ import com.japp.api.responses.Currency
 import com.japp.api.responses.ExpenseCategory
 import com.japp.api.responses.SplitType
 import com.japp.api.responses.expense.CreateExpenseRequest
-import com.japp.api.responses.expense.ExpenseDto
 import com.japp.api.responses.expense.ExpenseSplitRequest
 import com.japp.api.responses.group.GroupDto
 import com.japp.api.responses.group.GroupMemberDto
 import kotlinx.coroutines.launch
-import retrofit2.Call
-import retrofit2.Callback
-import retrofit2.Response
 
 enum class SplitInputMode {
     AMOUNT,
@@ -32,7 +30,8 @@ enum class SplitInputMode {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CreateExpenseScreen(
-    navController: NavController? = null
+    navController: NavController? = null,
+    groupId: Int? = null,
 ) {
     val coroutineScope = rememberCoroutineScope()
 
@@ -41,7 +40,7 @@ fun CreateExpenseScreen(
 
     var amount by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
-    var category by remember { mutableStateOf("") }
+    var category by remember { mutableStateOf<ExpenseCategory?>(null) }
 
     var isLoadingGroups by remember { mutableStateOf(true) }
     var isSubmitting by remember { mutableStateOf(false) }
@@ -58,6 +57,9 @@ fun CreateExpenseScreen(
         val res = RetrofitClient.groupService.getMyGroups()
         if (res.isSuccessful && res.body() != null) {
             groups = res.body()!!
+            if (groupId != null) {
+                selectedGroup = groups.find { groupDto -> groupDto.id == groupId }
+            }
             isLoadingGroups = false
         } else {
             errorMessage = "Could not load groups (${res.code()})"
@@ -154,28 +156,89 @@ fun CreateExpenseScreen(
 
         OutlinedTextField(
             value = amount,
-            onValueChange = { amount = it },
+            onValueChange = {
+                // Check if the new input contains any wordlike in it.
+                if (!it.contains("\\w")) {
+                    // Only if it doesn't contain letters, set it.
+                    // Ensure it can be converted to a double.
+                    val newVal = it.toDoubleOrNull()
+                    if (newVal != null) {
+                        amount = it
+                    }
+                }
+            },
             label = { Text("Amount") },
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            maxLines = 1,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
         )
 
         Spacer(Modifier.height(8.dp))
+
+        // Nullable boolean so that it's possible to know when description has been checked.
+        // Preventing the box from starting off being invalid.
+        var descriptionValid by remember { mutableStateOf<Boolean?>(null) }
 
         OutlinedTextField(
             value = description,
-            onValueChange = { description = it },
+            onValueChange = {
+                description = it
+                if (description.isEmpty()) {
+                    descriptionValid = false
+                }
+            },
             label = { Text("Description") },
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            isError = !(descriptionValid ?: true),
+            supportingText = {
+                descriptionValid?.let {
+                    if (!it) {
+                        Text("Description cannot be left empty")
+                    }
+                }
+            }
         )
 
         Spacer(Modifier.height(8.dp))
 
-        OutlinedTextField(
-            value = category,
-            onValueChange = { category = it },
-            label = { Text("Category (optional)") },
-            modifier = Modifier.fillMaxWidth()
-        )
+        var categoryExpanded by remember { mutableStateOf(false) }
+
+        ExposedDropdownMenuBox(
+            expanded = categoryExpanded,
+            onExpandedChange = { categoryExpanded = !categoryExpanded }
+        ) {
+            OutlinedTextField(
+                value = category?.displayName ?: "No category",
+                onValueChange = {},
+                readOnly = true,
+                label = { Text("Category (optional)") },
+                modifier = Modifier
+                    .menuAnchor()
+                    .fillMaxWidth()
+            )
+
+            ExposedDropdownMenu(
+                expanded = categoryExpanded,
+                onDismissRequest = { categoryExpanded = false }
+            ) {
+                DropdownMenuItem(
+                    { Text("No category") },
+                    onClick = {
+                        category = null
+                        categoryExpanded = false
+                    }
+                )
+                ExpenseCategory.entries.forEach { _category ->
+                    DropdownMenuItem(
+                        text = { Text(_category.displayName) },
+                        onClick = {
+                            category = _category
+                            categoryExpanded = false
+                        }
+                    )
+                }
+            }
+        }
 
         Spacer(Modifier.height(16.dp))
 
@@ -240,6 +303,11 @@ fun CreateExpenseScreen(
         } else {
             Button(
                 onClick = {
+                    if (description.isEmpty()) {
+                        descriptionValid = false
+                        return@Button
+                    }
+
                     val group = selectedGroup
                     if (group == null) {
                         errorMessage = "Please select a group"
@@ -303,7 +371,7 @@ fun CreateExpenseScreen(
                         groupId = group.id,
                         amount = amountValue,
                         description = description,
-                        category = ExpenseCategory.fromString(category),
+                        category = category,
                         currency = Currency.DKK,
                         splitType = splitType,
                         splits = splitsForRequest

@@ -107,7 +107,7 @@ fun HomeScreen(navController: NavController? = null) {
             .verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        QuickStats(owed, owes)
+        QuickStats(owed ?: 0.0, owes ?: 0.0)
         HorizontalDivider(
             Modifier
                 .padding(10.dp)
@@ -128,8 +128,8 @@ fun HomeScreen(navController: NavController? = null) {
 
 @Composable
 fun QuickStats(
-    owed: Double?,
-    owes: Double?
+    owed: Double,
+    owes: Double
 ) {
     var ratio by remember { mutableStateOf<Double?>(null) }
     var difference by remember { mutableStateOf<Double?>(null) }

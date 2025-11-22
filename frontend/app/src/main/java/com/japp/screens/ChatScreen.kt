@@ -44,9 +44,16 @@ fun ChatScreen(groupId: Int) {
     val credentials = CredentialsStorage.load(context)
     val currentUserId = credentials?.userId
 
-    // Subscribe to group
-    LaunchedEffect(groupId) {
-        ChatWebSocketClient.subscribeToGroup(groupId)
+    // Subscribe to group once WebSocket is connected
+    val isConnected by ChatWebSocketClient.isConnected.collectAsState()
+    LaunchedEffect(groupId, isConnected) {
+        Log.d("ChatScreen", "LaunchedEffect triggered - groupId: $groupId, isConnected: $isConnected")
+        if (isConnected) {
+            Log.d("ChatScreen", "WebSocket IS connected, subscribing to group $groupId")
+            ChatWebSocketClient.subscribeToGroup(groupId)
+        } else {
+            Log.d("ChatScreen", "WebSocket NOT connected yet, waiting...")
+        }
     }
 
     // Load message history

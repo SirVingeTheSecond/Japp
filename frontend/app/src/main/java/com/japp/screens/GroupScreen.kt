@@ -196,7 +196,7 @@ fun GroupScreen(navController: NavController? = null) {
             }
 
 
-            NavTab(group_members, group_expense, group_balance)
+            NavTab(group_members, group_expense, group_balance, GROUP_ID)
         }
         if (qrOpen) {
             Dialog(onDismissRequest = { qrOpen = false }) {
@@ -248,10 +248,10 @@ fun GroupScreen(navController: NavController? = null) {
 fun NavTab(
     groupMembers: List<GroupMemberDto>,
     groupExpenses: List<ExpenseDto>,
-    groupBalance: GroupBalanceSummaryDto?
+    groupBalance: GroupBalanceSummaryDto?,
+    groupId: Int
 ) {
     val navController = rememberNavController()
-
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
@@ -260,6 +260,7 @@ fun NavTab(
         "1" -> 0
         "2" -> 1
         "3" -> 2
+        "4" -> 3
         else -> 0
     }
 
@@ -284,6 +285,12 @@ fun NavTab(
                 selected = selectedDestination == 2,
                 onClick = { navController.navigate("3") }
             ) {
+                Text("Chat")
+            }
+            Tab(
+                selected = selectedDestination == 3,
+                onClick = { navController.navigate("4") }
+            ) {
                 Text("Options")
             }
         }
@@ -302,8 +309,7 @@ fun NavTab(
                             style = MaterialTheme.typography.titleMedium,
                             color = MaterialTheme.colorScheme.onBackground,
 
-                        )
-
+                            )
 
                         val balance = groupBalance
                             ?.balances
@@ -362,7 +368,11 @@ fun NavTab(
             }
 
             composable("3") {
-                var notificationsEnabled by remember { mutableStateOf(false) } // need to use endpoint for backend logic
+                ChatScreen(groupId = groupId)
+            }
+
+            composable("4") {
+                var notificationsEnabled by remember { mutableStateOf(false) }
 
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -385,24 +395,19 @@ fun NavTab(
                         )
                     }
                     Button(
-                            onClick = { /* TODO */ },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color.Red,
-                        contentColor = Color.White
-                    ),
-                    shape = RoundedCornerShape(10.dp),
-                    modifier = Modifier
-                        .padding(top = 24.dp)
+                        onClick = { /* TODO */ },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color.Red,
+                            contentColor = Color.White
+                        ),
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier
+                            .padding(top = 24.dp)
                     ) {
-                    Text("DELETE GROUP")
+                        Text("DELETE GROUP")
+                    }
                 }
-                }
-
-
-
             }
-
         }
     }
 }
-

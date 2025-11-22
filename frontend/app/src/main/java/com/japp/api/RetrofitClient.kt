@@ -13,6 +13,7 @@ import com.japp.api.responses.SettlementStatus
 import com.japp.api.responses.SplitType
 import com.japp.api.responses.UserStatus
 import com.japp.api.responses.activity.ActivityService
+import com.japp.api.responses.attachment.AttachmentService
 import com.japp.api.responses.auth.AuthService
 import com.japp.api.responses.expense.ExpenseService
 import com.japp.api.responses.group.GroupService
@@ -129,7 +130,10 @@ class AuthInterceptor(val context: Context) : Interceptor {
     }
 }
 object RetrofitClient {
+    // Not very smart
     private const val BASE_URL = "https://japp-app-api.itnerd.net/api/"
+    // Used for testing locally
+    //private const val BASE_URL = "http://10.0.2.2:8080/api/"
     var retrofit: Retrofit? = null
 
     fun init(context: Context) {
@@ -182,6 +186,9 @@ object RetrofitClient {
 
     val activityService: ActivityService
         get() = retrofit!!.create(ActivityService::class.java)
+
+    val attachmentService: AttachmentService
+        get() = retrofit!!.create(AttachmentService::class.java)
 
     val authService: AuthService
         get() = retrofit!!.create(AuthService::class.java)

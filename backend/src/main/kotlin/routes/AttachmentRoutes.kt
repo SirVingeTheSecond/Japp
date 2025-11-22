@@ -126,6 +126,37 @@ fun Route.attachmentRoutes() {
             }
         }
 
+        // Get attachment thumbnail
+        get("/{id}/thumbnail") {
+            val attachmentId = call.requirePathInt("id")
+            val userId = call.getUserId()
+
+            when (val result = attachmentService.getAttachmentThumbnail(attachmentId, userId)) {
+                is Result.Success -> {
+                    val thumbnailFile = result.value
+                    call.response.header(
+                        HttpHeaders.ContentType,
+                        ContentType.Image.JPEG.toString()
+                    )
+                    call.response.header(
+                        HttpHeaders.CacheControl,
+                        "max-age=86400" // 24 hours
+                    )
+                    call.respondFile(thumbnailFile)
+                }
+                is Result.Failure -> {
+                    val status = HttpStatusCode.fromValue(result.error.httpStatus)
+                    call.respond(
+                        status,
+                        ResponseFactory.error(
+                            error = result.error::class.simpleName ?: "Error",
+                            message = result.error.message
+                        )
+                    )
+                }
+            }
+        }
+
         // List all attachments for an expense
         get("/expense/{expenseId}") {
             val expenseId = call.requirePathInt("expenseId")

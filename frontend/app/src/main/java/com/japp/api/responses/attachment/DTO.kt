@@ -1,8 +1,5 @@
-package com.japp.models.dto
+package com.japp.api.responses.attachment
 
-import kotlinx.serialization.Serializable
-
-@Serializable
 data class AttachmentDto(
     val id: Int,
     val expenseId: Int,
@@ -16,7 +13,6 @@ data class AttachmentDto(
     val thumbnailUrl: String
 )
 
-@Serializable
 data class AttachmentListDto(
     val expenseId: Int,
     val attachments: List<AttachmentDto>

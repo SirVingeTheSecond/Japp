@@ -1,14 +1,26 @@
 package com.japp.screens
 
+import android.graphics.BitmapFactory
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AttachFile
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
@@ -21,6 +33,12 @@ import com.japp.api.responses.expense.ExpenseSplitRequest
 import com.japp.api.responses.group.GroupDto
 import com.japp.api.responses.group.GroupMemberDto
 import kotlinx.coroutines.launch
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.asRequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
+import java.io.File
+import java.io.FileOutputStream
 
 enum class SplitInputMode {
     AMOUNT,
@@ -33,6 +51,7 @@ fun CreateExpenseScreen(
     navController: NavController? = null,
     groupId: Int? = null,
 ) {
+    val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
 
     var groups by remember { mutableStateOf<List<GroupDto>>(emptyList()) }
@@ -47,11 +66,35 @@ fun CreateExpenseScreen(
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
     var splitType by remember { mutableStateOf(SplitType.EQUAL) }
-
     var splitInputMode by remember { mutableStateOf(SplitInputMode.AMOUNT) }
 
     var groupMembers by remember { mutableStateOf<List<GroupMemberDto>>(emptyList()) }
     var memberShares by remember { mutableStateOf<Map<Int, String>>(emptyMap()) }
+
+    var selectedImageUris by remember { mutableStateOf<List<Uri>>(emptyList()) }
+    var uploadingAttachments by remember { mutableStateOf(false) }
+    var uploadProgress by remember { mutableStateOf("") }
+
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        uri?.let {
+            selectedImageUris = selectedImageUris + it
+        }
+    }
+
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicturePreview()
+    ) { bitmap ->
+        bitmap?.let {
+            // Save bitmap to temp file and get URI
+            val file = File(context.cacheDir, "camera_${System.currentTimeMillis()}.jpg")
+            FileOutputStream(file).use { out ->
+                bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 90, out)
+            }
+            selectedImageUris = selectedImageUris + Uri.fromFile(file)
+        }
+    }
 
     LaunchedEffect(Unit) {
         val res = RetrofitClient.groupService.getMyGroups()
@@ -82,7 +125,7 @@ fun CreateExpenseScreen(
             .verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.Start,
 
-    ) {
+        ) {
         Text("Create Expense", style = MaterialTheme.typography.titleLarge)
 
         Spacer(Modifier.height(16.dp))
@@ -273,25 +316,130 @@ fun CreateExpenseScreen(
 
                 groupMembers.forEach { member ->
                     val currentValue = memberShares[member.userId] ?: ""
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(vertical = 4.dp)
+                    ) {
+                        Text(
+                            member.username,
+                            modifier = Modifier.weight(1f)
+                        )
+                        OutlinedTextField(
+                            value = currentValue,
+                            onValueChange = { newValue ->
+                                memberShares = memberShares + (member.userId to newValue)
+                            },
+                            label = {
+                                Text(
+                                    when (splitInputMode) {
+                                        SplitInputMode.AMOUNT -> "Amount"
+                                        SplitInputMode.PERCENTAGE -> "Percent"
+                                    }
+                                )
+                            },
+                            modifier = Modifier.width(120.dp)
+                        )
+                    }
+                }
+            }
+        }
 
-                    OutlinedTextField(
-                        value = currentValue,
-                        onValueChange = { newValue ->
-                            memberShares = memberShares.toMutableMap().apply {
-                                put(member.userId, newValue)
-                            }
-                        },
-                        label = {
-                            Text(
-                                "${member.username} " +
-                                        if (splitInputMode == SplitInputMode.AMOUNT) "(amount)" else "(%)"
-                            )
-                        },
+        Spacer(Modifier.height(16.dp))
+
+        // Attachments section
+
+        HorizontalDivider()
+
+        Spacer(Modifier.height(8.dp))
+
+        Text("Attachments (optional)", style = MaterialTheme.typography.titleMedium)
+
+        Spacer(Modifier.height(8.dp))
+
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            OutlinedButton(
+                onClick = {
+                    imagePickerLauncher.launch(
+                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                    )
+                },
+                enabled = !isSubmitting && !uploadingAttachments
+            ) {
+                Icon(Icons.Default.AttachFile, contentDescription = "Add from gallery")
+                Spacer(Modifier.width(4.dp))
+                Text("Gallery")
+            }
+
+            OutlinedButton(
+                onClick = { cameraLauncher.launch(null) },
+                enabled = !isSubmitting && !uploadingAttachments
+            ) {
+                Icon(Icons.Default.AttachFile, contentDescription = "Take photo")
+                Spacer(Modifier.width(4.dp))
+                Text("Camera")
+            }
+        }
+
+        // Display selected images
+        if (selectedImageUris.isNotEmpty()) {
+            Spacer(Modifier.height(8.dp))
+
+            selectedImageUris.forEach { uri ->
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp)
+                ) {
+                    Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 4.dp),
-                        singleLine = true
-                    )
+                            .padding(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Load and display
+                        val bitmap = remember(uri) {
+                            try {
+                                context.contentResolver.openInputStream(uri)?.use { stream ->
+                                    BitmapFactory.decodeStream(stream)
+                                }
+                            } catch (_: Exception) {
+                                null
+                            }
+                        }
+
+                        if (bitmap != null) {
+                            Image(
+                                bitmap = bitmap.asImageBitmap(),
+                                contentDescription = "Selected image",
+                                modifier = Modifier.size(60.dp)
+                            )
+                        } else {
+                            Icon(
+                                Icons.Default.Image,
+                                contentDescription = "Image",
+                                modifier = Modifier.size(60.dp)
+                            )
+                        }
+
+                        Spacer(Modifier.width(8.dp))
+
+                        Text(
+                            uri.lastPathSegment ?: "Image",
+                            modifier = Modifier.weight(1f),
+                            style = MaterialTheme.typography.bodySmall
+                        )
+
+                        IconButton(
+                            onClick = {
+                                selectedImageUris = selectedImageUris.filter { it != uri }
+                            },
+                            enabled = !isSubmitting && !uploadingAttachments
+                        ) {
+                            Icon(Icons.Default.Close, contentDescription = "Remove")
+                        }
+                    }
                 }
             }
         }
@@ -315,34 +463,17 @@ fun CreateExpenseScreen(
                     }
 
                     val amountValue = amount.toDoubleOrNull()
-                    if (amountValue == null) {
-                        errorMessage = "Amount must be a number"
+                    if (amountValue == null || amountValue <= 0) {
+                        errorMessage = "Invalid amount"
                         return@Button
                     }
 
-                    if (splitType == SplitType.CUSTOM && splitInputMode == SplitInputMode.PERCENTAGE) {
-                        var totalPercentage = 0.0
-
-                        for (member in groupMembers) {
-                            val raw = memberShares[member.userId].orEmpty().trim()
-                            if (raw.isEmpty()) continue
-
-                            val value = raw.toDoubleOrNull()
-                            if (value == null) {
-                                errorMessage = "Invalid percentage for ${member.username}"
-                                return@Button
-                            }
-
-                            totalPercentage += value
-                        }
-
-                        if (kotlin.math.abs(totalPercentage - 100.0) > 0.01) {
-                            errorMessage = "Percentages must add up to 100 (currently ${"%.2f".format(totalPercentage)})"
-                            return@Button
-                        }
+                    if (description.isBlank()) {
+                        errorMessage = "Description is required"
+                        return@Button
                     }
 
-                    val splitsForRequest: List<ExpenseSplitRequest>? =
+                    val splitsForRequest =
                         if (splitType == SplitType.CUSTOM) {
                             groupMembers.mapNotNull { member ->
                                 val raw = memberShares[member.userId].orEmpty().trim()
@@ -356,6 +487,7 @@ fun CreateExpenseScreen(
                                         shareAmount = value,
                                         sharePercentage = null
                                     )
+
                                     SplitInputMode.PERCENTAGE -> ExpenseSplitRequest(
                                         userId = member.userId,
                                         shareAmount = null,
@@ -381,24 +513,107 @@ fun CreateExpenseScreen(
                     coroutineScope.launch {
                         val res = RetrofitClient.expenseService.createExpense(request)
                         isSubmitting = false
+
                         if (res.isSuccessful && res.body() != null) {
+                            val createdExpense = res.body()!!
+
+                            // Upload attachments if any selected
+                            if (selectedImageUris.isNotEmpty()) {
+                                uploadingAttachments = true
+                                uploadProgress = "Uploading attachments..."
+
+                                var successCount = 0
+                                selectedImageUris.forEachIndexed { index, uri ->
+                                    uploadProgress =
+                                        "Uploading ${index + 1}/${selectedImageUris.size}..."
+
+                                    try {
+                                        // Copy URI content to temp file for upload
+                                        val inputStream =
+                                            context.contentResolver.openInputStream(uri)
+                                        val file = File(
+                                            context.cacheDir,
+                                            "upload_${System.currentTimeMillis()}.jpg"
+                                        )
+
+                                        inputStream?.use { input ->
+                                            FileOutputStream(file).use { output ->
+                                                input.copyTo(output)
+                                            }
+                                        }
+
+                                        // Create request
+                                        // Perhaps not the cleanest approach
+                                        val mimeType = when (file.extension.lowercase()) {
+                                            "png" -> "image/png"
+                                            "jpg", "jpeg" -> "image/jpeg"
+                                            else -> "image/jpeg"
+                                        }
+                                        val requestBody =
+                                            file.asRequestBody(mimeType.toMediaTypeOrNull())
+                                        val filePart = MultipartBody.Part.createFormData(
+                                            "file",
+                                            file.name,
+                                            requestBody
+                                        )
+                                        val expenseIdBody = createdExpense.id.toString()
+                                            .toRequestBody("text/plain".toMediaTypeOrNull())
+
+                                        val uploadRes =
+                                            RetrofitClient.attachmentService.uploadAttachment(
+                                                expenseId = expenseIdBody,
+                                                file = filePart
+                                            )
+
+                                        if (uploadRes.isSuccessful) {
+                                            successCount++
+                                        }
+
+                                        // Clean up temp file
+                                        file.delete()
+                                    } catch (_: Exception) {
+                                        // Continue with other uploads even if one fails
+                                    }
+                                }
+
+                                uploadingAttachments = false
+                                uploadProgress = if (successCount == selectedImageUris.size) {
+                                    "All attachments uploaded successfully!"
+                                } else {
+                                    "$successCount/${selectedImageUris.size} attachments uploaded"
+                                }
+
+                                // Navigate after delay to show success
+                                kotlinx.coroutines.delay(1000)
+                            }
+
                             navController?.navigateUp()
                         } else {
                             errorMessage = "Failed to create expense"
                         }
                     }
                 },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !isSubmitting && !uploadingAttachments
             ) {
-                Text("Create Expense")
+                if (isSubmitting) {
+                    Text("Creating...")
+                } else if (uploadingAttachments) {
+                    Text("Uploading...")
+                } else {
+                    Text("Create Expense")
+                }
             }
 
-        }
+            Spacer(Modifier.height(8.dp))
 
-        Spacer(Modifier.height(8.dp))
+            if (uploadProgress.isNotEmpty()) {
+                Text(uploadProgress, color = MaterialTheme.colorScheme.primary)
+            }
 
-        errorMessage?.let {
-            Text(it, color = Color.Red)
+            errorMessage?.let {
+                Text(it, color = Color.Red)
+            }
         }
     }
 }

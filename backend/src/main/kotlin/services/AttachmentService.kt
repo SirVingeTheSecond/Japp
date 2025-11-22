@@ -3,11 +3,12 @@ package com.japp.services
 import com.japp.models.Result
 import com.japp.models.dto.AttachmentDto
 import com.japp.models.dto.AttachmentListDto
-import com.japp.models.error.AttachmentError
+import com.japp.models.error.AppError
 import com.japp.repositories.interfaces.IAttachmentRepository
 import com.japp.repositories.interfaces.IExpenseRepository
 import com.japp.repositories.interfaces.IGroupRepository
 import com.japp.repositories.interfaces.IUserRepository
+import com.japp.utils.ThumbnailGenerator
 import com.japp.utils.toDto
 import com.japp.validation.AttachmentValidator
 import kotlinx.coroutines.Dispatchers
@@ -34,7 +35,7 @@ class AttachmentService(
         fileSize: Long,
         mimeType: String,
         inputStream: InputStream
-    ): Result<AttachmentDto, AttachmentError> {
+    ): Result<AttachmentDto, AppError> {
         return when (val validation = AttachmentValidator.validateFileUpload(fileName, fileSize, mimeType)) {
             is Result.Failure -> validation
             is Result.Success -> {
@@ -43,12 +44,12 @@ class AttachmentService(
                         val result = transaction {
                             val expense = expenseRepository.findById(expenseId)
                                 ?: return@transaction Result.Failure(
-                                    AttachmentError.ExpenseNotFound(expenseId)
+                                    AppError.NotFound("Expense", expenseId)
                                 )
 
                             if (!groupRepository.isMember(expense.groupId, userId)) {
                                 return@transaction Result.Failure(
-                                    AttachmentError.NotMember(expense.groupId)
+                                    AppError.NotMember(expense.groupId)
                                 )
                             }
 
@@ -105,7 +106,7 @@ class AttachmentService(
                         }
                     } catch (e: Exception) {
                         Result.Failure(
-                            AttachmentError.InternalError(e.message ?: "Failed to upload attachment")
+                            AppError.Internal(e.message ?: "Failed to upload attachment")
                         )
                     }
                 }
@@ -116,30 +117,30 @@ class AttachmentService(
     suspend fun getAttachment(
         attachmentId: Int,
         userId: Int
-    ): Result<Pair<File, String>, AttachmentError> {
+    ): Result<Pair<File, String>, AppError> {
         return withContext(Dispatchers.IO) {
             try {
                 transaction {
                     val attachment = attachmentRepository.findById(attachmentId)
                         ?: return@transaction Result.Failure(
-                            AttachmentError.NotFound(attachmentId)
+                            AppError.NotFound("Attachment", attachmentId)
                         )
 
                     val expense = expenseRepository.findById(attachment.expenseId)
                         ?: return@transaction Result.Failure(
-                            AttachmentError.ExpenseNotFound(attachment.expenseId)
+                            AppError.NotFound("Attachment", attachment.expenseId)
                         )
 
                     if (!groupRepository.isMember(expense.groupId, userId)) {
                         return@transaction Result.Failure(
-                            AttachmentError.NotMember(expense.groupId)
+                            AppError.NotMember(expense.groupId)
                         )
                     }
 
                     val file = File(storageBasePath, attachment.storagePath)
                     if (!file.exists()) {
                         return@transaction Result.Failure(
-                            AttachmentError.InternalError("Attachment file not found on disk")
+                            AppError.Internal("Attachment file not found on disk")
                         )
                     }
 
@@ -147,7 +148,66 @@ class AttachmentService(
                 }
             } catch (e: Exception) {
                 Result.Failure(
-                    AttachmentError.InternalError(e.message ?: "Failed to retrieve attachment")
+                    AppError.Internal(e.message ?: "Failed to retrieve attachment")
+                )
+            }
+        }
+    }
+
+    suspend fun getAttachmentThumbnail(
+        attachmentId: Int,
+        userId: Int
+    ): Result<File, AppError> {
+        return withContext(Dispatchers.IO) {
+            try {
+                transaction {
+                    val attachment = attachmentRepository.findById(attachmentId)
+                        ?: return@transaction Result.Failure(
+                            AppError.NotFound("Expense", attachmentId)
+                        )
+
+                    val expense = expenseRepository.findById(attachment.expenseId)
+                        ?: return@transaction Result.Failure(
+                            AppError.NotFound("Expense", attachment.expenseId)
+                        )
+
+                    if (!groupRepository.isMember(expense.groupId, userId)) {
+                        return@transaction Result.Failure(
+                            AppError.NotMember(expense.groupId)
+                        )
+                    }
+
+                    val originalFile = File(storageBasePath, attachment.storagePath)
+                    if (!originalFile.exists()) {
+                        return@transaction Result.Failure(
+                            AppError.Internal("Attachment file not found on disk")
+                        )
+                    }
+
+                    val existingThumbnail = ThumbnailGenerator.getThumbnailFile(
+                        originalFile,
+                        storageBasePath
+                    )
+
+                    if (existingThumbnail != null) {
+                        return@transaction Result.Success(existingThumbnail)
+                    }
+
+                    val generatedThumbnail = ThumbnailGenerator.generateThumbnail(
+                        originalFile,
+                        storageBasePath
+                    )
+
+                    if (generatedThumbnail != null) {
+                        Result.Success(generatedThumbnail)
+                    } else {
+                        // Not an image or generation failed so we return original file
+                        Result.Success(originalFile)
+                    }
+                }
+            } catch (e: Exception) {
+                Result.Failure(
+                    AppError.Internal(e.message ?: "Failed to retrieve thumbnail")
                 )
             }
         }
@@ -156,18 +216,18 @@ class AttachmentService(
     suspend fun getAttachments(
         expenseId: Int,
         userId: Int
-    ): Result<AttachmentListDto, AttachmentError> {
+    ): Result<AttachmentListDto, AppError> {
         return withContext(Dispatchers.IO) {
             try {
                 transaction {
                     val expense = expenseRepository.findById(expenseId)
                         ?: return@transaction Result.Failure(
-                            AttachmentError.ExpenseNotFound(expenseId)
+                            AppError.NotFound("Expense", expenseId)
                         )
 
                     if (!groupRepository.isMember(expense.groupId, userId)) {
                         return@transaction Result.Failure(
-                            AttachmentError.NotMember(expense.groupId)
+                            AppError.NotMember(expense.groupId)
                         )
                     }
 
@@ -192,57 +252,55 @@ class AttachmentService(
                 }
             } catch (e: Exception) {
                 Result.Failure(
-                    AttachmentError.InternalError(e.message ?: "Failed to retrieve attachments")
+                    AppError.Internal(e.message ?: "Failed to retrieve attachments")
                 )
             }
         }
     }
 
-    // It is definitely not the smartest approach to hardcode this
-
     suspend fun deleteAttachment(
         attachmentId: Int,
         userId: Int
-    ): Result<Unit, AttachmentError> {
+    ): Result<Unit, AppError> {
         return withContext(Dispatchers.IO) {
             try {
                 transaction {
                     val attachment = attachmentRepository.findById(attachmentId)
                         ?: return@transaction Result.Failure(
-                            AttachmentError.NotFound(attachmentId)
+                            AppError.NotFound("Attachment", attachmentId)
                         )
 
                     if (attachment.uploadedBy != userId) {
                         return@transaction Result.Failure(
-                            AttachmentError.Unauthorized("Only the uploader can delete this attachment")
+                            AppError.Unauthorized("Only the uploader can delete this attachment")
                         )
                     }
 
                     val expense = expenseRepository.findById(attachment.expenseId)
                         ?: return@transaction Result.Failure(
-                            AttachmentError.ExpenseNotFound(attachment.expenseId)
+                            AppError.NotFound("Expense", attachment.expenseId)
                         )
 
                     if (!groupRepository.isMember(expense.groupId, userId)) {
                         return@transaction Result.Failure(
-                            AttachmentError.NotMember(expense.groupId)
+                            AppError.NotMember(expense.groupId)
                         )
                     }
 
-                    // Delete DB record
                     attachmentRepository.delete(attachmentId)
 
-                    // Delete the file
                     val file = File(storageBasePath, attachment.storagePath)
                     if (file.exists()) {
                         file.delete()
                     }
 
+                    ThumbnailGenerator.deleteThumbnail(file, storageBasePath)
+
                     Result.Success(Unit)
                 }
             } catch (e: Exception) {
                 Result.Failure(
-                    AttachmentError.InternalError(e.message ?: "Failed to delete attachment")
+                    AppError.Internal(e.message ?: "Failed to delete attachment")
                 )
             }
         }

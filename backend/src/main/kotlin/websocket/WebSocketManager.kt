@@ -74,37 +74,20 @@ class WebSocketManager(
         }
     }
 
-    suspend fun startHeartbeat(
-        session: WebSocketSession,
-        userId: Int
-    ): Job = coroutineScope {
-        launch {
-            if (heartbeatInterval == null) {
-                logger.debug("Heartbeat disabled for User: $userId")
-                return@launch
-            }
+    suspend fun startHeartbeat(session: WebSocketSession, userId: Int): Job {
+        return CoroutineScope(Dispatchers.Default).launch {
+            while (isActive && sessions.containsKey(session)) {
+                try {
+                    delay(heartbeatInterval ?: 20.seconds)
 
-            try {
-                while (isActive) {
-                    delay(heartbeatInterval)
-                    try {
-                        val pingMessage = Json.encodeToString(
-                            WebSocketMessage.serializer(),
-                            WebSocketMessage(type = WebSocketMessageType.PING)
-                        )
-                        session.send(Frame.Text(pingMessage))
-                        logger.debug("Heartbeat ping sent - User: $userId")
+                    val pingMessage = WebSocketMessage(type = WebSocketMessageType.PING)
+                    session.send(Frame.Text(Json.encodeToString(WebSocketMessage.serializer(), pingMessage)))
 
-                    } catch (e: Exception) {
-                        logger.warn("Heartbeat failed for User: $userId - ${e.message}")
-                        session.close(CloseReason(CloseReason.Codes.INTERNAL_ERROR, "Heartbeat failed"))
-                        break
-                    }
+                    logger.debug("Sent PING to user $userId")
+                } catch (e: Exception) {
+                    logger.error("Heartbeat error for user $userId", e)
+                    break
                 }
-            } catch (_: CancellationException) {
-                logger.debug("Heartbeat cancelled for User: $userId")
-            } finally {
-                unregisterSession(session)
             }
         }
     }

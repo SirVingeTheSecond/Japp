@@ -111,7 +111,7 @@ class ChatWebSocketService(
         userId: Int
     ): WebSocketMessage {
         val groupId = message.groupId
-        val content = message.message?.content
+        val content = message.content ?: message.message?.content  // Accept both for backward compat
 
         // a bit of validation, innit?
         if (groupId == null || content.isNullOrBlank()) {

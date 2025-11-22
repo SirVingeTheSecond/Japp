@@ -1,7 +1,6 @@
 package com.japp.api
 
 import android.content.Context
-import android.util.Log
 import androidx.core.content.edit
 import com.japp.api.responses.ActivityType
 import com.japp.api.responses.Currency

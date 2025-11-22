@@ -1,15 +1,17 @@
-// ChatWebSocketClient.kt - Complete replacement with named deserializer class
 package com.japp.websocket
 
 import android.util.Log
 import com.google.gson.*
+import com.japp.api.responses.MessageType
 import com.japp.api.responses.WebSocketMessageType
+import com.japp.api.responses.message.MessageDto
 import com.japp.api.responses.message.WebSocketMessageDto
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import okhttp3.*
 import java.lang.reflect.Type
 
+// Deserializer: "pong" -> PONG
 class WebSocketMessageTypeDeserializer : JsonDeserializer<WebSocketMessageType> {
     override fun deserialize(
         json: JsonElement,
@@ -18,6 +20,27 @@ class WebSocketMessageTypeDeserializer : JsonDeserializer<WebSocketMessageType> 
     ): WebSocketMessageType? {
         val value = json.asString
         return WebSocketMessageType.fromString(value)
+    }
+}
+
+// Serializer: PONG -> "pong"
+class WebSocketMessageTypeSerializer : JsonSerializer<WebSocketMessageType> {
+    override fun serialize(
+        src: WebSocketMessageType,
+        typeOfSrc: Type,
+        context: JsonSerializationContext
+    ): JsonElement {
+        return JsonPrimitive(src.value)
+    }
+}
+
+class MessageTypeSerializer : JsonSerializer<MessageType> {
+    override fun serialize(
+        src: MessageType,
+        typeOfSrc: Type,
+        context: JsonSerializationContext
+    ): JsonElement {
+        return JsonPrimitive(src.value)
     }
 }
 
@@ -30,6 +53,8 @@ object ChatWebSocketClient {
 
     private val gson: Gson = GsonBuilder()
         .registerTypeAdapter(WebSocketMessageType::class.java, WebSocketMessageTypeDeserializer())
+        .registerTypeAdapter(WebSocketMessageType::class.java, WebSocketMessageTypeSerializer())
+        .registerTypeAdapter(MessageType::class.java, MessageTypeSerializer())
         .create()
 
     private val _isConnected = MutableStateFlow(false)
@@ -77,6 +102,8 @@ object ChatWebSocketClient {
 
                     if (msg.type == WebSocketMessageType.PING) {
                         val pong = WebSocketMessageDto(type = WebSocketMessageType.PONG)
+                        val pongJson = gson.toJson(pong)
+                        Log.d(TAG, "Sending PONG: $pongJson")
                         send(pong)
                         return
                     }
@@ -122,7 +149,7 @@ object ChatWebSocketClient {
                 Log.e(TAG, "WebSocket error", t)
                 _isConnected.value = false
 
-                // Auto reconnect after 3 seconds
+                // Auto-reconnect after 3 seconds
                 accessToken?.let { token ->
                     android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
                         Log.d(TAG, "Attempting to reconnect...")
@@ -139,7 +166,7 @@ object ChatWebSocketClient {
         if (!success) {
             Log.e(TAG, "Failed to send message: WebSocket is ${if (webSocket == null) "null" else "closed"}")
         } else {
-            Log.d(TAG, "Sent: ${message.type}")
+            Log.d(TAG, "Sent: ${message.type} - $text")
         }
     }
 
@@ -175,13 +202,13 @@ object ChatWebSocketClient {
         send(WebSocketMessageDto(
             type = WebSocketMessageType.NEW_MESSAGE,
             groupId = groupId,
-            message = com.japp.api.responses.message.MessageDto(
-                id = 0, // backend will assign correct ID -> might not be best practice
+            message = MessageDto(
+                id = 0, // Backend ignores this
                 groupId = groupId,
                 userId = null,
                 userName = null,
                 content = content,
-                messageType = com.japp.api.responses.MessageType.USER,
+                messageType = MessageType.USER,
                 createdAt = "",
                 editedAt = null,
                 isDeleted = false

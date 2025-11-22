@@ -73,7 +73,7 @@ fun ChatScreen(groupId: Int) {
         if (wsMessages.size > lastProcessedMessageCount) {
             wsMessages.drop(lastProcessedMessageCount).forEach { wsMsg ->
                 when (wsMsg.type) {
-                    WebSocketMessageType.NEW_MESSAGE -> {
+                    WebSocketMessageType.NEW_MESSAGE, WebSocketMessageType.MESSAGE_SENT -> {
                         wsMsg.message?.let { newMsg ->
                             if (newMsg.groupId == groupId && !messages.any { it.id == newMsg.id }) {
                                 messages = messages + newMsg

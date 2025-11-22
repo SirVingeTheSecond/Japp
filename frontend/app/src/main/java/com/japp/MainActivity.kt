@@ -4,8 +4,11 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Camera
@@ -15,6 +18,8 @@ import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.CenterAlignedTopAppBar
@@ -159,33 +164,52 @@ fun JappApp() {
                 NavigationBarItem(
                     selected = AppDestinations.HOME.route == currentDestination?.route,
                     onClick = { navigate(AppDestinations.HOME.route) },
-                    icon = { Icon(AppDestinations.HOME.icon, "idk")},
+                    icon = {
+                        Icon(
+                            imageVector = if (AppDestinations.HOME.route == currentDestination?.route)
+                                Icons.Filled.Home
+                            else
+                                Icons.Outlined.Home,
+                            contentDescription = "Navigate to Home",
+                            modifier = Modifier.size(32.dp)
+                        )
+                    },
                     label = {
                         Text(AppDestinations.HOME.label)
                     },
-                    alwaysShowLabel = false,
+                    alwaysShowLabel = true,
+                    modifier = Modifier.padding(top = 4.dp)
                 )
                 val fab = FabController.state
                 val actionButton = NavigationActionButtons.entries
                     .find { it.route == currentDestination?.route }
                     ?: NavigationActionButtons.DEFAULT
-                FloatingActionButton (
+                FloatingActionButton(
                     onClick = {
                         fab.onClick?.invoke() ?: navigate(actionButton.destination.route)
                     },
-                    // Tendency to hit home or profile instead of scan, but moves them far apart. TODO: Better solution
-                    Modifier.padding(24.dp, 0.dp)
+                    modifier = Modifier.padding(horizontal = 12.dp)
                 ) {
                     Icon(fab.icon ?: actionButton.icon, null)
                 }
                 NavigationBarItem(
                     selected = AppDestinations.PROFILE.route == currentDestination?.route,
                     onClick = { navigate(AppDestinations.PROFILE.route) },
-                    icon = { Icon(AppDestinations.PROFILE.icon, "idk")},
+                    icon = {
+                        Icon(
+                            imageVector = if (AppDestinations.PROFILE.route == currentDestination?.route)
+                                Icons.Filled.Person
+                            else
+                                Icons.Outlined.Person,
+                            contentDescription = "Navigate to Profile",
+                            modifier = Modifier.size(32.dp)
+                        )
+                    },
                     label = {
                         Text(AppDestinations.PROFILE.label)
                     },
-                    alwaysShowLabel = false,
+                    alwaysShowLabel = true,
+                    modifier = Modifier.padding(top = 4.dp)
                 )
             }
         },

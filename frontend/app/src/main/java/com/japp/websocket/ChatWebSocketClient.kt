@@ -4,14 +4,12 @@ import android.util.Log
 import com.google.gson.*
 import com.japp.api.responses.MessageType
 import com.japp.api.responses.WebSocketMessageType
-import com.japp.api.responses.message.MessageDto
 import com.japp.api.responses.message.WebSocketMessageDto
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import okhttp3.*
 import java.lang.reflect.Type
 
-// Deserializer: "pong" -> PONG
 class WebSocketMessageTypeDeserializer : JsonDeserializer<WebSocketMessageType> {
     override fun deserialize(
         json: JsonElement,
@@ -23,7 +21,6 @@ class WebSocketMessageTypeDeserializer : JsonDeserializer<WebSocketMessageType> 
     }
 }
 
-// Serializer: PONG -> "pong"
 class WebSocketMessageTypeSerializer : JsonSerializer<WebSocketMessageType> {
     override fun serialize(
         src: WebSocketMessageType,
@@ -46,11 +43,15 @@ class MessageTypeSerializer : JsonSerializer<MessageType> {
 
 object ChatWebSocketClient {
     private const val TAG = "ChatWS"
+    // Android emulator
+    //private const val WS_URL = "ws://10.0.2.2:8080/api/ws/chat"
+    // "Production"
     private const val WS_URL = "wss://japp-app-api.itnerd.net/api/ws/chat"
 
     private var webSocket: WebSocket? = null
     private val client = OkHttpClient()
 
+    // Gson with custom enum serializers for backend compatibility
     private val gson: Gson = GsonBuilder()
         .registerTypeAdapter(WebSocketMessageType::class.java, WebSocketMessageTypeDeserializer())
         .registerTypeAdapter(WebSocketMessageType::class.java, WebSocketMessageTypeSerializer())
@@ -63,17 +64,16 @@ object ChatWebSocketClient {
     private val _incomingMessages = MutableStateFlow<List<WebSocketMessageDto>>(emptyList())
     val incomingMessages: StateFlow<List<WebSocketMessageDto>> = _incomingMessages
 
-    // Map of groupId to list of usernames currently typing
     private val _typingUsers = MutableStateFlow<Map<Int, List<String>>>(emptyMap())
     val typingUsers: StateFlow<Map<Int, List<String>>> = _typingUsers
 
+    // Store access token for reconnection attempts
     private var accessToken: String? = null
 
     fun connect(token: String) {
         accessToken = token
 
         if (_isConnected.value) {
-            Log.d(TAG, "Already connected")
             return
         }
 
@@ -84,35 +84,29 @@ object ChatWebSocketClient {
 
         webSocket = client.newWebSocket(request, object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
-                Log.d(TAG, "WebSocket connected")
-                // Update state on main thread so UI observes it
+                // Update state on main thread to ensure UI observes change
                 android.os.Handler(android.os.Looper.getMainLooper()).post {
                     _isConnected.value = true
-                    Log.d(TAG, "isConnected state updated to TRUE")
                 }
             }
 
             override fun onMessage(webSocket: WebSocket, text: String) {
                 try {
-                    Log.d(TAG, "Received raw: $text")
                     val msg = gson.fromJson(text, WebSocketMessageDto::class.java)
 
                     if (msg.type == null) {
-                        Log.e(TAG, "Received message with null type: $text")
+                        Log.e(TAG, "Received message with null type")
                         return
                     }
 
-                    Log.d(TAG, "Parsed type: ${msg.type}")
-
+                    // Respond to PING immediately to keep connection alive
                     if (msg.type == WebSocketMessageType.PING) {
                         val pong = WebSocketMessageDto(type = WebSocketMessageType.PONG)
-                        val pongJson = gson.toJson(pong)
-                        Log.d(TAG, "Sending PONG: $pongJson")
                         send(pong)
                         return
                     }
 
-                    // Handle typing indicators
+                    // Update typing indicator state
                     when (msg.type) {
                         WebSocketMessageType.TYPING_START -> {
                             msg.groupId?.let { groupId ->
@@ -137,14 +131,14 @@ object ChatWebSocketClient {
                         else -> {}
                     }
 
+                    // Append message to list for UI processing
                     _incomingMessages.value = _incomingMessages.value + msg
                 } catch (e: Exception) {
-                    Log.e(TAG, "Failed to parse message: $text", e)
+                    Log.e(TAG, "Failed to parse message", e)
                 }
             }
 
             override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
-                Log.d(TAG, "WebSocket closing: $code - $reason")
                 webSocket.close(1000, null)
                 _isConnected.value = false
             }
@@ -156,7 +150,6 @@ object ChatWebSocketClient {
                 // Auto-reconnect after 3 seconds
                 accessToken?.let { token ->
                     android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                        Log.d(TAG, "Attempting to reconnect...")
                         connect(token)
                     }, 3000)
                 }
@@ -164,13 +157,11 @@ object ChatWebSocketClient {
         })
     }
 
-    fun send(message: WebSocketMessageDto) {
+    private fun send(message: WebSocketMessageDto) {
         val text = gson.toJson(message)
         val success = webSocket?.send(text) ?: false
         if (!success) {
             Log.e(TAG, "Failed to send message: WebSocket is ${if (webSocket == null) "null" else "closed"}")
-        } else {
-            Log.d(TAG, "Sent: ${message.type} - $text")
         }
     }
 
@@ -206,17 +197,7 @@ object ChatWebSocketClient {
         send(WebSocketMessageDto(
             type = WebSocketMessageType.NEW_MESSAGE,
             groupId = groupId,
-            message = MessageDto(
-                id = 0, // Backend ignores this
-                groupId = groupId,
-                userId = null,
-                userName = null,
-                content = content,
-                messageType = MessageType.USER,
-                createdAt = "",
-                editedAt = null,
-                isDeleted = false
-            )
+            content = content
         ))
     }
 
@@ -227,6 +208,5 @@ object ChatWebSocketClient {
         _incomingMessages.value = emptyList()
         _typingUsers.value = emptyMap()
         accessToken = null
-        Log.d(TAG, "Disconnected")
     }
 }

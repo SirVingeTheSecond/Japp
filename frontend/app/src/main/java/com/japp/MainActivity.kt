@@ -1,6 +1,7 @@
 package com.japp
 
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -71,9 +72,12 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        // Connect WebSocket if user is authenticated
+        // Disconnect potential existing connection first
+        ChatWebSocketClient.disconnect()
+
         val credentials = CredentialsStorage.load(this)
         credentials?.let {
+            Log.d("MainActivity", "Connecting WebSocket for user: ${it.userId}")
             ChatWebSocketClient.connect(it.accessToken)
         }
 
@@ -82,6 +86,11 @@ class MainActivity : ComponentActivity() {
                 JappApp()
             }
         }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        ChatWebSocketClient.disconnect()
     }
 }
 

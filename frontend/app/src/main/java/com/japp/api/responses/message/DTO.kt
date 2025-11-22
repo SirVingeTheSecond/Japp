@@ -28,6 +28,7 @@ data class WebSocketMessageDto(
     val userId: Int? = null,
     val username: String? = null,
     val message: MessageDto? = null,
+    val content: String? = null,
     val messageIds: List<Int>? = null,
     val timestamp: Long = System.currentTimeMillis(),
     val error: String? = null

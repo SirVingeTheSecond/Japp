@@ -83,29 +83,41 @@ fun ChatScreen(groupId: Int) {
     // Listen for incoming WebSocket messages
     val wsMessages by ChatWebSocketClient.incomingMessages.collectAsState()
     LaunchedEffect(wsMessages.size) {
+        Log.d("ChatScreen", "wsMessages updated: size=${wsMessages.size}, lastProcessed=$lastProcessedMessageCount")
+
         if (wsMessages.size > lastProcessedMessageCount) {
             wsMessages.drop(lastProcessedMessageCount).forEach { wsMsg ->
+                Log.d("ChatScreen", "Processing WS message: type=${wsMsg.type}, groupId=${wsMsg.groupId}, messageId=${wsMsg.message?.id}")
+
                 when (wsMsg.type) {
                     WebSocketMessageType.NEW_MESSAGE, WebSocketMessageType.MESSAGE_SENT -> {
                         wsMsg.message?.let { newMsg ->
+                            Log.d("ChatScreen", "Received message: id=${newMsg.id}, userId=${newMsg.userId}, content=${newMsg.content}, currentUserId=$currentUserId")
+
                             if (newMsg.groupId == groupId && !messages.any { it.id == newMsg.id }) {
                                 messages = messages + newMsg
+                                Log.d("ChatScreen", "Added message to list. Total messages: ${messages.size}")
 
                                 // Auto-scroll if user is near bottom
                                 if (listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index == messages.size - 2 ||
                                     messages.size == 1) {
                                     listState.animateScrollToItem(messages.size - 1)
                                 }
+                            } else {
+                                Log.d("ChatScreen", "Message NOT added: groupId match=${newMsg.groupId == groupId}, duplicate=${messages.any { it.id == newMsg.id }}")
                             }
-                        }
+                        } ?: Log.e("ChatScreen", "MESSAGE_SENT/NEW_MESSAGE has null message field!")
                     }
                     WebSocketMessageType.SUBSCRIBED -> {
                         Log.d("ChatScreen", "Subscribed to group $groupId")
                     }
                     WebSocketMessageType.ERROR -> {
                         errorMessage = wsMsg.error
+                        Log.e("ChatScreen", "WebSocket error: ${wsMsg.error}")
                     }
-                    else -> {}
+                    else -> {
+                        Log.d("ChatScreen", "Ignoring message type: ${wsMsg.type}")
+                    }
                 }
             }
             lastProcessedMessageCount = wsMessages.size

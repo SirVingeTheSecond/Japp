@@ -46,6 +46,12 @@ fun ChatScreen(groupId: Int) {
 
     // Subscribe to group once WebSocket is connected
     val isConnected by ChatWebSocketClient.isConnected.collectAsState()
+
+    // try to subscribe when screen opens
+    LaunchedEffect(Unit) {
+        Log.d("ChatScreen", "Screen opened, current isConnected: ${ChatWebSocketClient.isConnected.value}")
+    }
+
     LaunchedEffect(groupId, isConnected) {
         Log.d("ChatScreen", "LaunchedEffect triggered - groupId: $groupId, isConnected: $isConnected")
         if (isConnected) {

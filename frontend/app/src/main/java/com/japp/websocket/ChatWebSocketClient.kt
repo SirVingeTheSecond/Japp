@@ -85,7 +85,11 @@ object ChatWebSocketClient {
         webSocket = client.newWebSocket(request, object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
                 Log.d(TAG, "WebSocket connected")
-                _isConnected.value = true
+                // Update state on main thread so UI observes it
+                android.os.Handler(android.os.Looper.getMainLooper()).post {
+                    _isConnected.value = true
+                    Log.d(TAG, "isConnected state updated to TRUE")
+                }
             }
 
             override fun onMessage(webSocket: WebSocket, text: String) {

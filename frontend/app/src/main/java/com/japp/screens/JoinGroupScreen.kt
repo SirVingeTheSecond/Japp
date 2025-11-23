@@ -17,23 +17,23 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.japp.AppDestinations
+import com.japp.api.ErrorUtils
 import com.japp.api.RetrofitClient
-import com.japp.api.responses.group.GroupDto
 import com.japp.api.responses.group.GroupPreviewDto
 import com.japp.api.responses.group.JoinGroupRequest
 import com.japp.composables.GroupIcon
 import kotlinx.coroutines.launch
-import retrofit2.Call
-import retrofit2.Callback
-import retrofit2.Response
 
 @Composable
 fun JoinGroupScreen(navController: NavController? = null, inviteCode: String?) {
+    val context = LocalContext.current
+
     if (inviteCode == null) {
         navController?.navigateUp()
         return
@@ -47,6 +47,8 @@ fun JoinGroupScreen(navController: NavController? = null, inviteCode: String?) {
         val res = RetrofitClient.groupService.getGroup(inviteCode)
         if (res.isSuccessful && res.body() != null) {
             group = res.body()
+        } else {
+            ErrorUtils.handleError(res, context)
         }
     }
 
@@ -59,6 +61,8 @@ fun JoinGroupScreen(navController: NavController? = null, inviteCode: String?) {
         if (body != null && res.isSuccessful) {
             GROUP_ID = body.id
             navController?.navigate(AppDestinations.GROUP.route)
+        } else {
+            ErrorUtils.handleError(res, context)
         }
     }
 

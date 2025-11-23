@@ -29,6 +29,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.isTraversalGroup
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
@@ -36,6 +37,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.japp.AppDestinations
+import com.japp.api.ErrorUtils
 import com.japp.api.RetrofitClient
 import com.japp.api.responses.group.GroupDto
 import com.japp.composables.GroupIcon
@@ -47,12 +49,16 @@ import retrofit2.Response
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun ShowGroupsScreen(navController: NavController? = null) {
+    val context = LocalContext.current
+
     var groups by remember { mutableStateOf<List<GroupDto>>(emptyList()) }
 
     suspend fun get_my_groups() {
         val res = RetrofitClient.groupService.getMyGroups()
         if (res.isSuccessful && res.body() != null) {
             groups = res.body()!!
+        } else {
+            ErrorUtils.handleError(res, context)
         }
     }
 

@@ -240,6 +240,7 @@ enum class WebSocketMessageType(val value: String) {
     UNSUBSCRIBE("unsubscribe"),
     UNSUBSCRIBED("unsubscribed"),
     NEW_MESSAGE("new_message"),
+    MESSAGE_SENT("message_sent"),
     MESSAGE_READ("message_read"),
     MESSAGE_DELETED("message_deleted"),
     TYPING_START("typing_start"),

@@ -1,7 +1,6 @@
 package com.japp.api
 
 import android.content.Context
-import android.util.Log
 import androidx.core.content.edit
 import com.japp.api.responses.ActivityType
 import com.japp.api.responses.Currency
@@ -69,12 +68,14 @@ object ErrorUtils {
 data class Credentials(
     val accessToken: String,
     val expiresAt: Date,
+    val userId: Int
 )
 
 object CredentialsStorage {
     private const val PREF_NAME = "auth_prefs"
     private const val KEY_ACCESS_TOKEN = "access_token"
     private const val KEY_EXPIRES_AT = "expires_at"
+    private const val KEY_USER_ID = "user_id"
 
     fun save(context: Context, credentials: Credentials) {
         context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
@@ -82,6 +83,7 @@ object CredentialsStorage {
             .apply {
                 putString(KEY_ACCESS_TOKEN, credentials.accessToken)
                 putLong(KEY_EXPIRES_AT, credentials.expiresAt.time)
+                putInt(KEY_USER_ID, credentials.userId)
                 apply()
             }
     }
@@ -90,7 +92,9 @@ object CredentialsStorage {
         val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
         val token = prefs.getString(KEY_ACCESS_TOKEN, null) ?: return null
         val expiresAt = Date(prefs.getLong(KEY_EXPIRES_AT, 0))
-        return Credentials(token, expiresAt)
+        val userId = prefs.getInt(KEY_USER_ID, -1)
+        if (userId == -1) return null
+        return Credentials(token, expiresAt, userId)
     }
 
     fun clear(context: Context) {

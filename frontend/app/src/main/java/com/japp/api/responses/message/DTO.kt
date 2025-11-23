@@ -1,6 +1,7 @@
 package com.japp.api.responses.message
 
 import com.japp.api.responses.MessageType
+import com.japp.api.responses.WebSocketMessageType
 
 data class MessageDto(
     val id: Int,
@@ -19,4 +20,16 @@ data class MessagePageDto(
     val messages: List<MessageDto>,
     val hasMore: Boolean,
     val nextCursor: String?
+)
+
+data class WebSocketMessageDto(
+    val type: WebSocketMessageType,
+    val groupId: Int? = null,
+    val userId: Int? = null,
+    val username: String? = null,
+    val message: MessageDto? = null,
+    val content: String? = null,
+    val messageIds: List<Int>? = null,
+    val timestamp: Long = System.currentTimeMillis(),
+    val error: String? = null
 )

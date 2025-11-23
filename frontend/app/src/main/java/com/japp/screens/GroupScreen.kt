@@ -207,7 +207,7 @@ fun GroupScreen(navController: NavController? = null) {
             }
 
 
-            NavTab(me, group_members, group_expense, group_balance)
+            NavTab(me, group_members, group_expense, group_balance, GROUP_ID)
         }
         if (qrOpen) {
             Dialog(onDismissRequest = { qrOpen = false }) {
@@ -260,7 +260,8 @@ fun NavTab(
     me: UserDto?,
     groupMembers: MutableState<List<GroupMemberDto>>,
     groupExpenses: List<ExpenseDto>,
-    groupBalance: GroupBalanceSummaryDto?
+    groupBalance: GroupBalanceSummaryDto?,
+    groupId: Int
 ) {
     val navController = rememberNavController()
 
@@ -278,6 +279,7 @@ fun NavTab(
         "1" -> 0
         "2" -> 1
         "3" -> 2
+        "4" -> 3
         else -> 0
     }
 
@@ -300,6 +302,12 @@ fun NavTab(
             Tab(
                 selected = selectedDestination == 2,
                 onClick = { navController.navigate("3") }
+            ) {
+                Text("Chat", Modifier.padding(10.dp))
+            }
+            Tab(
+                selected = selectedDestination == 3,
+                onClick = { navController.navigate("4") }
             ) {
                 Text("Options", Modifier.padding(10.dp))
             }
@@ -362,7 +370,11 @@ fun NavTab(
             }
 
             composable("3") {
-                var notificationsEnabled by remember { mutableStateOf(false) } // need to use endpoint for backend logic
+                ChatScreen(groupId = groupId)
+            }
+
+            composable("4") {
+                var notificationsEnabled by remember { mutableStateOf(false) }
 
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -385,24 +397,19 @@ fun NavTab(
                         )
                     }
                     Button(
-                            onClick = { /* TODO */ },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color.Red,
-                        contentColor = Color.White
-                    ),
-                    shape = RoundedCornerShape(10.dp),
-                    modifier = Modifier
-                        .padding(top = 24.dp)
+                        onClick = { /* TODO */ },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color.Red,
+                            contentColor = Color.White
+                        ),
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier
+                            .padding(top = 24.dp)
                     ) {
-                    Text("DELETE GROUP")
+                        Text("DELETE GROUP")
+                    }
                 }
-                }
-
-
-
             }
-
         }
     }
 }
-

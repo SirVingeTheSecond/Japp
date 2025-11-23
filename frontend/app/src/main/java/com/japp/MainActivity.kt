@@ -4,9 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
@@ -41,8 +39,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.tooling.preview.PreviewScreenSizes
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NamedNavArgument
 import androidx.navigation.NavBackStackEntry
@@ -52,29 +48,45 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.japp.screens.CreateExpenseScreen
-import com.japp.screens.HomeScreen
-import com.japp.screens.ProfileScreen
-import com.japp.screens.ScanScreen
-import com.japp.ui.theme.JappTheme
 import androidx.navigation.navArgument
 import androidx.navigation.navDeepLink
+import com.japp.api.CredentialsStorage
 import com.japp.screens.ActivityScreen
+import com.japp.screens.CreateExpenseScreen
 import com.japp.screens.CreateGroupScreen
 import com.japp.screens.GroupScreen
+import com.japp.screens.HomeScreen
 import com.japp.screens.JoinGroupScreen
+import com.japp.screens.ProfileScreen
+import com.japp.screens.ScanScreen
 import com.japp.screens.SettleGroup
 import com.japp.screens.ShowGroupsScreen
+import com.japp.ui.theme.JappTheme
+import com.japp.websocket.ChatWebSocketClient
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        // Ensure clean WebSocket state
+        ChatWebSocketClient.disconnect()
+
+        val credentials = CredentialsStorage.load(this)
+        credentials?.let {
+            ChatWebSocketClient.connect(it.accessToken)
+        }
+
         setContent {
             JappTheme {
                 JappApp()
             }
         }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        ChatWebSocketClient.disconnect()
     }
 }
 
@@ -105,16 +117,14 @@ fun rememberFabButton(
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
-@PreviewScreenSizes
 @Composable
 fun JappApp() {
     val navController = rememberNavController()
     var currentDestination by rememberSaveable { mutableStateOf<AppDestinations?>(AppDestinations.HOME) }
-    navController.addOnDestinationChangedListener(
-        listener = { controller, destination, arguments ->
-            currentDestination = AppDestinations.entries.find { it.route == destination.route }
-        }
-    )
+
+    navController.addOnDestinationChangedListener { _, destination, _ ->
+        currentDestination = AppDestinations.entries.find { it.route == destination.route }
+    }
 
     fun navigate(route: String) {
         if (currentDestination?.route != route) {
@@ -180,6 +190,7 @@ fun JappApp() {
                     alwaysShowLabel = true,
                     modifier = Modifier.padding(top = 4.dp)
                 )
+
                 val fab = FabController.state
                 val actionButton = NavigationActionButtons.entries
                     .find { it.route == currentDestination?.route }
@@ -192,6 +203,7 @@ fun JappApp() {
                 ) {
                     Icon(fab.icon ?: actionButton.icon, null)
                 }
+
                 NavigationBarItem(
                     selected = AppDestinations.PROFILE.route == currentDestination?.route,
                     onClick = { navigate(AppDestinations.PROFILE.route) },
@@ -217,13 +229,14 @@ fun JappApp() {
         containerColor = MaterialTheme.colorScheme.surface
     ) { innerPadding ->
         NavHost(
-            navController=navController,
+            navController = navController,
             startDestination = AppDestinations.HOME.route,
             modifier = Modifier.padding(innerPadding)
         ) {
             for (destination in AppDestinations.entries) {
                 composable(destination.route) { destination.screen(navController) }
             }
+
             for (destination in AppDestinations.CustomRoutes.entries) {
                 composable(
                     route = destination.route,
@@ -245,16 +258,14 @@ enum class AppDestinations(
     HOME("Home", Icons.Default.Home, { navController -> HomeScreen(navController) }),
     SCAN("Scan", Icons.Default.Camera, { navController -> ScanScreen(navController) }),
     PROFILE("Profile", Icons.Default.Person, { navController -> ProfileScreen(navController) }),
-    // CREATEEXPENSE("Add Expense", Icons.Default.Notifications, { navController -> CreateExpenseScreen(navController) }),
     CREATEGROUP("Create Group", Icons.Default.GroupAdd, { navController -> CreateGroupScreen(navController) }),
     MYGROUPS("My Groups", Icons.Default.Groups, { navController -> ShowGroupsScreen(navController) }),
     GROUP("Group", Icons.Default.Group, { navController -> GroupScreen(navController) }),
-    SETTLE("Settle group", Icons.Default.Group, {navController -> SettleGroup(navController)}),
+    SETTLE("Settle group", Icons.Default.Group, { navController -> SettleGroup(navController) }),
     ACTIVITY("Activity", Icons.Default.Notifications, { navController -> ActivityScreen(navController) });
 
-
     val route: String
-        get() = label.replace(" ", "") // Remove spaces for route
+        get() = label.replace(" ", "")
 
     enum class CustomRoutes(
         val label: String,
@@ -267,10 +278,10 @@ enum class AppDestinations(
         JOINGROUP(
             "Join Group",
             route = "join/{code}",
-            arguments =listOf(navArgument("code") { type = NavType.StringType }),
-            deepLinks =listOf(navDeepLink {
-                            uriPattern = "japp://join/{code}"
-                        }),
+            arguments = listOf(navArgument("code") { type = NavType.StringType }),
+            deepLinks = listOf(navDeepLink {
+                uriPattern = "japp://join/{code}"
+            }),
             screen = { navController, backStackEntry ->
                 val code = backStackEntry.arguments?.getString("code")
                 JoinGroupScreen(navController, code)
@@ -295,7 +306,7 @@ enum class AppDestinations(
 }
 
 enum class NavigationActionButtons(
-    val route: String, // Route to match
+    val route: String,
     val buttonIcon: ImageVector?,
     val destination: AppDestinations,
 ) {
@@ -304,21 +315,5 @@ enum class NavigationActionButtons(
     GROUPADD(AppDestinations.GROUP.route, Icons.Default.Add, AppDestinations.GROUP);
 
     val icon: ImageVector
-        get() = buttonIcon ?: destination.icon // If buttonIcon is null defaults to AppDestination icon
-}
-
-@Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
-
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    JappTheme {
-        Greeting("Android")
-    }
+        get() = buttonIcon ?: destination.icon
 }

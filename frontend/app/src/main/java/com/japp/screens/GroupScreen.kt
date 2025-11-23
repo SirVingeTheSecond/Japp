@@ -2,7 +2,7 @@ package com.japp.screens
 
 
 import android.graphics.Bitmap
-import android.util.Log
+import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -24,6 +24,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.SecondaryTabRow
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Tab
@@ -36,12 +37,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
@@ -50,23 +53,21 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.japp.api.RetrofitClient
-import com.japp.api.responses.group.GroupDto
-import com.japp.composables.GroupIcon
 import com.google.zxing.BarcodeFormat
 import com.japp.AppDestinations
+import com.japp.api.ErrorUtils
+import com.japp.api.RetrofitClient
 import com.japp.api.responses.auth.UserDto
 import com.japp.api.responses.expense.ExpenseDto
 import com.japp.api.responses.expense.GroupBalanceSummaryDto
+import com.japp.api.responses.group.GroupDto
 import com.japp.api.responses.group.GroupMemberDto
 import com.japp.composables.ExpenseDetailCard
+import com.japp.composables.GroupIcon
 import com.japp.composables.GroupMemberDetailCard
 import com.japp.rememberFabButton
 import com.journeyapps.barcodescanner.BarcodeEncoder
-import retrofit2.Call
-import retrofit2.Callback
-import retrofit2.Response
-import kotlin.collections.List
+import kotlinx.coroutines.launch
 
 var GROUP_ID = -1
 
@@ -207,7 +208,7 @@ fun GroupScreen(navController: NavController? = null) {
             }
 
 
-            NavTab(me, group_members, group_expense, group_balance, GROUP_ID)
+            NavTab(navController, me, group_members, group_expense, group_balance, GROUP_ID)
         }
         if (qrOpen) {
             Dialog(onDismissRequest = { qrOpen = false }) {
@@ -257,6 +258,7 @@ fun GroupScreen(navController: NavController? = null) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NavTab(
+    outerNavController: NavController?,
     me: UserDto?,
     groupMembers: MutableState<List<GroupMemberDto>>,
     groupExpenses: List<ExpenseDto>,
@@ -264,8 +266,13 @@ fun NavTab(
     groupId: Int
 ) {
     val navController = rememberNavController()
+    val coroutineScope = rememberCoroutineScope()
+    val context = LocalContext.current
+    val groupOwner = groupMembers.value.find { dto -> dto.isOwner }
 
     var refreshGroupMembersKey by remember { mutableIntStateOf(0) }
+    var leaving by remember { mutableStateOf(false) }
+    var deleting by remember { mutableStateOf(false) }
 
     LaunchedEffect(refreshGroupMembersKey) {
         val res = RetrofitClient.groupService.getGroupMembers(GROUP_ID)
@@ -326,7 +333,6 @@ fun NavTab(
                         )
                         .padding(horizontal = 8.dp)
                 ) {
-                    val groupOwner = groupMembers.value.find { dto -> dto.isOwner }
                     groupMembers.value.forEach { memberDto ->
                         val balance = groupBalance
                             ?.balances
@@ -380,6 +386,7 @@ fun NavTab(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier.padding(16.dp)
                 ) {
+                    Text("Settings", style = MaterialTheme.typography.headlineSmall)
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier
@@ -396,8 +403,11 @@ fun NavTab(
                             onCheckedChange = { notificationsEnabled = it }
                         )
                     }
+                    HorizontalDivider()
+                    Text("Actions", style = MaterialTheme.typography.headlineSmall)
+                    Text("Be careful", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Button(
-                        onClick = { /* TODO */ },
+                        onClick = { leaving = true },
                         colors = ButtonDefaults.buttonColors(
                             containerColor = Color.Red,
                             contentColor = Color.White
@@ -406,7 +416,115 @@ fun NavTab(
                         modifier = Modifier
                             .padding(top = 24.dp)
                     ) {
-                        Text("DELETE GROUP")
+                        Text("LEAVE GROUP")
+                    }
+                    if (groupOwner?.userId == me?.id) {
+                        Button(
+                            onClick = { deleting = true },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color.Red,
+                                contentColor = Color.White
+                            ),
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier
+                                .padding(top = 24.dp)
+                        ) {
+                            Text("DELETE GROUP")
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Dialogs
+    when {
+        leaving -> {
+            Dialog({ leaving = false }) {
+                Card() {
+                    Column(
+                        Modifier.padding(10.dp)
+                    ) {
+                        Text(
+                            "Are you sure you wish to leave?",
+                            Modifier.fillMaxWidth().padding(5.dp),
+                            textAlign = TextAlign.Center,
+                            style = MaterialTheme.typography.titleLarge
+                        )
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceAround
+                        ) {
+                            OutlinedButton({ leaving = false }) {
+                                Text("No!")
+                            }
+                            Button({
+                                coroutineScope.launch {
+                                    val res = RetrofitClient.groupService.leaveGroup(groupId)
+                                    if (res.isSuccessful) {
+                                        outerNavController?.popBackStack(AppDestinations.HOME.route, false)
+                                    } else {
+                                        val err = ErrorUtils.parseError(res)
+                                        Toast.makeText(
+                                            context,
+                                            err?.message,
+                                            0
+                                        ).show()
+                                    }
+                                }
+                            }) {
+                                Text("Yes!")
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        deleting -> {
+            Dialog({ deleting = false }) {
+                Card() {
+                    Column(
+                        Modifier.padding(10.dp)
+                    ) {
+                        Text(
+                            "Are you sure you wish to delete this group?",
+                            Modifier.fillMaxWidth().padding(5.dp),
+                            textAlign = TextAlign.Center,
+                            style = MaterialTheme.typography.titleLarge
+                        )
+                        Text(
+                            "There is no undoing this.",
+                            Modifier.fillMaxWidth(),
+                            textAlign = TextAlign.Center,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(Modifier.height(10.dp))
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceAround
+                        ) {
+                            OutlinedButton({ deleting = false }) {
+                                Text("No!")
+                            }
+                            Button({
+                                coroutineScope.launch {
+                                    val res = RetrofitClient.groupService.deleteGroup(groupId)
+                                    if (res.isSuccessful) {
+                                        outerNavController?.popBackStack(AppDestinations.HOME.route, false)
+                                    } else {
+                                        val err = ErrorUtils.parseError(res)
+                                        Toast.makeText(
+                                            context,
+                                            err?.message,
+                                            0
+                                        ).show()
+                                    }
+                                }
+                            }) {
+                                Text("Yes!")
+                            }
+                        }
                     }
                 }
             }

@@ -17,7 +17,6 @@ import androidx.compose.ui.unit.dp
 import com.japp.api.CredentialsStorage
 import com.japp.api.RetrofitClient
 import com.japp.api.responses.WebSocketMessageType
-import com.japp.api.responses.message.CreateMessageRequest
 import com.japp.api.responses.message.MessageDto
 import com.japp.composables.MessageBubble
 import com.japp.composables.TypingIndicator
@@ -33,36 +32,31 @@ fun ChatScreen(groupId: Int) {
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
 
+    // Message state
     var messages by remember { mutableStateOf<List<MessageDto>>(emptyList()) }
     var messageInput by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    // Typing indicator state
     var isTyping by remember { mutableStateOf(false) }
     var typingJob by remember { mutableStateOf<Job?>(null) }
-    var lastProcessedMessageCount by remember { mutableStateOf(0) }
+
+    // Track WebSocket messages to avoid reprocessing
+    var lastProcessedMessageCount by remember { mutableIntStateOf(0) }
 
     val credentials = CredentialsStorage.load(context)
     val currentUserId = credentials?.userId
 
-    // Subscribe to group once WebSocket is connected
+    // Subscribe to group chat once WebSocket is connected
     val isConnected by ChatWebSocketClient.isConnected.collectAsState()
-
-    // try to subscribe when screen opens
-    LaunchedEffect(Unit) {
-        Log.d("ChatScreen", "Screen opened, current isConnected: ${ChatWebSocketClient.isConnected.value}")
-    }
-
     LaunchedEffect(groupId, isConnected) {
-        Log.d("ChatScreen", "LaunchedEffect triggered - groupId: $groupId, isConnected: $isConnected")
         if (isConnected) {
-            Log.d("ChatScreen", "WebSocket IS connected, subscribing to group $groupId")
             ChatWebSocketClient.subscribeToGroup(groupId)
-        } else {
-            Log.d("ChatScreen", "WebSocket NOT connected yet, waiting...")
         }
     }
 
-    // Load message history
+    // Message history
     LaunchedEffect(groupId) {
         try {
             val response = RetrofitClient.messageService.getGroupMessages(groupId)
@@ -80,55 +74,47 @@ fun ChatScreen(groupId: Int) {
         }
     }
 
-    // Listen for incoming WebSocket messages
+    // Auto scroll to latest message after initial load
+    LaunchedEffect(isLoading, messages.size) {
+        if (!isLoading && messages.isNotEmpty()) {
+            listState.scrollToItem(messages.size - 1)
+        }
+    }
+
     val wsMessages by ChatWebSocketClient.incomingMessages.collectAsState()
     LaunchedEffect(wsMessages.size) {
-        Log.d("ChatScreen", "wsMessages updated: size=${wsMessages.size}, lastProcessed=$lastProcessedMessageCount")
-
         if (wsMessages.size > lastProcessedMessageCount) {
+            // Process only new messages since last update
             wsMessages.drop(lastProcessedMessageCount).forEach { wsMsg ->
-                Log.d("ChatScreen", "Processing WS message: type=${wsMsg.type}, groupId=${wsMsg.groupId}, messageId=${wsMsg.message?.id}")
-
                 when (wsMsg.type) {
                     WebSocketMessageType.NEW_MESSAGE, WebSocketMessageType.MESSAGE_SENT -> {
                         wsMsg.message?.let { newMsg ->
-                            Log.d("ChatScreen", "Received message: id=${newMsg.id}, userId=${newMsg.userId}, content=${newMsg.content}, currentUserId=$currentUserId")
-
                             if (newMsg.groupId == groupId && !messages.any { it.id == newMsg.id }) {
                                 messages = messages + newMsg
-                                Log.d("ChatScreen", "Added message to list. Total messages: ${messages.size}")
 
-                                // Auto-scroll if user is near bottom
+                                // Auto scroll if user is viewing the bottom of the chat
                                 if (listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index == messages.size - 2 ||
                                     messages.size == 1) {
                                     listState.animateScrollToItem(messages.size - 1)
                                 }
-                            } else {
-                                Log.d("ChatScreen", "Message NOT added: groupId match=${newMsg.groupId == groupId}, duplicate=${messages.any { it.id == newMsg.id }}")
                             }
-                        } ?: Log.e("ChatScreen", "MESSAGE_SENT/NEW_MESSAGE has null message field!")
-                    }
-                    WebSocketMessageType.SUBSCRIBED -> {
-                        Log.d("ChatScreen", "Subscribed to group $groupId")
+                        }
                     }
                     WebSocketMessageType.ERROR -> {
                         errorMessage = wsMsg.error
-                        Log.e("ChatScreen", "WebSocket error: ${wsMsg.error}")
                     }
-                    else -> {
-                        Log.d("ChatScreen", "Ignoring message type: ${wsMsg.type}")
-                    }
+                    else -> {}
                 }
             }
             lastProcessedMessageCount = wsMessages.size
         }
     }
 
-    // Listen for typing indicators
+    // Listen for typing indicators from other users
     val typingUsers by ChatWebSocketClient.typingUsers.collectAsState()
     val currentlyTyping = typingUsers[groupId] ?: emptyList()
 
-    // Cleanup
+    // unsubscribe and stop typing indicator when leaving screen
     DisposableEffect(groupId) {
         onDispose {
             if (isTyping) {
@@ -168,7 +154,7 @@ fun ChatScreen(groupId: Int) {
             }
         }
 
-        // Typing indicator
+        // Typing indicator for other users
         TypingIndicator(usernames = currentlyTyping)
 
         // Error message
@@ -181,7 +167,7 @@ fun ChatScreen(groupId: Int) {
             )
         }
 
-        // Input
+        // Message input
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
@@ -199,16 +185,16 @@ fun ChatScreen(groupId: Int) {
                     onValueChange = { newValue ->
                         messageInput = newValue
 
-                        // Typing indicator
+                        // Send typing indicator when user starts typing
                         if (newValue.isNotBlank() && !isTyping) {
                             isTyping = true
                             ChatWebSocketClient.sendTypingStart(groupId)
                         }
 
-                        // Cancel previous and start new one
+                        // Stop typing indicator after 2 seconds of no input
                         typingJob?.cancel()
                         typingJob = scope.launch {
-                            delay(2000) // 2 seconds of no typing
+                            delay(2000)
                             if (isTyping) {
                                 isTyping = false
                                 ChatWebSocketClient.sendTypingStop(groupId)
@@ -244,9 +230,9 @@ fun ChatScreen(groupId: Int) {
                                 ChatWebSocketClient.sendTypingStop(groupId)
                             }
 
+                            // Send message via WebSocket
                             val messageContent = messageInput.trim()
                             messageInput = ""
-
                             ChatWebSocketClient.sendMessage(groupId, messageContent)
                         }
                     },

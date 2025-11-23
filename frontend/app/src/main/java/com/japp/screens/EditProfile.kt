@@ -5,6 +5,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
@@ -17,44 +18,57 @@ import kotlinx.coroutines.launch
 fun EditProfileScreen(navController: NavController) {
     val scope = rememberCoroutineScope()
 
-    var email by remember { mutableStateOf("") }
-    var username by remember { mutableStateOf("") }
     var firstname by remember { mutableStateOf("") }
     var lastname by remember { mutableStateOf("") }
     var phone by remember { mutableStateOf("") }
     var profilePicture by remember { mutableStateOf("") }
 
+    var saving by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
-    var loading by remember { mutableStateOf(false) }
-
-    LaunchedEffect(Unit) {
-        val res = RetrofitClient.userService.getMyUser()
-        if (res.isSuccessful && res.body() != null) {
-            val u = res.body()!!
-            firstname = u.firstname
-            lastname = u.lastname
-            phone = u.phone ?: ""
-            profilePicture = u.profilePicture ?: ""
+    val userLoadState by produceState<Result<Unit>?>(initialValue = null) {
+        value = try {
+            val res = RetrofitClient.userService.getMyUser()
+            if (res.isSuccessful && res.body() != null) {
+                val u = res.body()!!
+                firstname = u.firstname
+                lastname = u.lastname
+                phone = u.phone.orEmpty()
+                profilePicture = u.profilePicture.orEmpty()
+                Result.success(Unit)
+            } else {
+                Result.failure(Exception("Failed to load user"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
         }
     }
 
     fun save() {
-        loading = true
+        if (saving) return
+        saving = true
+        errorMessage = null
+
         scope.launch {
-            val req = UpdateUserRequest(
-                firstname = firstname,
-                lastname = lastname,
-                phone = phone.ifBlank { null },
-                profilePicture = profilePicture.ifBlank { null }
-            )
+            try {
+                val req = UpdateUserRequest(
+                    firstname = firstname,
+                    lastname = lastname,
+                    phone = phone.ifBlank { null },
+                    profilePicture = profilePicture.ifBlank { null }
+                )
 
-            val res = RetrofitClient.userService.updateMyUser(req)
-            loading = false
+                val res = RetrofitClient.userService.updateMyUser(req)
+                saving = false
 
-            if (res.isSuccessful) {
-                navController.popBackStack()
-            } else {
-                errorMessage = "Failed to update"
+                if (res.isSuccessful) {
+                    navController.popBackStack()
+                } else {
+                    val err = res.errorBody()?.string()
+                    errorMessage = err ?: "Failed to update"
+                }
+            } catch (e: Exception) {
+                saving = false
+                errorMessage = "Network error"
             }
         }
     }
@@ -71,60 +85,88 @@ fun EditProfileScreen(navController: NavController) {
             )
         }
     ) { padding ->
-        Column(
-            modifier = Modifier
-                .padding(padding)
-                .padding(16.dp)
-                .fillMaxSize(),
-            verticalArrangement = Arrangement.Top
-        ) {
-            OutlinedTextField(
-                value = firstname,
-                onValueChange = { firstname = it },
-                label = { Text("First name") },
-                modifier = Modifier.fillMaxWidth()
-            )
 
-            Spacer(Modifier.height(12.dp))
-
-            OutlinedTextField(
-                value = lastname,
-                onValueChange = { lastname = it },
-                label = { Text("Last name") },
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(Modifier.height(12.dp))
-
-            OutlinedTextField(
-                value = phone,
-                onValueChange = { phone = it },
-                label = { Text("Phone") },
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(Modifier.height(12.dp))
-
-            OutlinedTextField(
-                value = profilePicture,
-                onValueChange = { profilePicture = it },
-                label = { Text("Profile picture URL") },
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(Modifier.height(20.dp))
-
-            if (errorMessage != null) {
-                Text(errorMessage!!, color = MaterialTheme.colorScheme.error)
-                Spacer(Modifier.height(12.dp))
+        when {
+            userLoadState == null -> {
+                Box(
+                    modifier = Modifier
+                        .padding(padding)
+                        .fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
+                }
             }
 
-            Button(
-                onClick = { save() },
-                modifier = Modifier.fillMaxWidth(),
-                enabled = !loading
-            ) {
-                Text(if (loading) "Saving..." else "Save")
+            userLoadState?.isFailure == true -> {
+                Box(
+                    modifier = Modifier
+                        .padding(padding)
+                        .fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("Failed to load user")
+                }
+            }
+
+            else -> {
+                Column(
+                    modifier = Modifier
+                        .padding(padding)
+                        .padding(16.dp)
+                        .fillMaxSize(),
+                    verticalArrangement = Arrangement.Top
+                ) {
+
+                    OutlinedTextField(
+                        value = firstname,
+                        onValueChange = { firstname = it },
+                        label = { Text("First name") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(Modifier.height(12.dp))
+
+                    OutlinedTextField(
+                        value = lastname,
+                        onValueChange = { lastname = it },
+                        label = { Text("Last name") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(Modifier.height(12.dp))
+
+                    OutlinedTextField(
+                        value = phone,
+                        onValueChange = { phone = it },
+                        label = { Text("Phone") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(Modifier.height(12.dp))
+
+                    OutlinedTextField(
+                        value = profilePicture,
+                        onValueChange = { profilePicture = it },
+                        label = { Text("Profile picture URL") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(Modifier.height(20.dp))
+
+                    errorMessage?.let {
+                        Text(it, color = MaterialTheme.colorScheme.error)
+                        Spacer(Modifier.height(12.dp))
+                    }
+
+                    Button(
+                        onClick = { save() },
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !saving
+                    ) {
+                        Text(if (saving) "Saving..." else "Save")
+                    }
+                }
             }
         }
     }

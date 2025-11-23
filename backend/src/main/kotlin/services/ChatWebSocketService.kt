@@ -4,13 +4,18 @@ import com.japp.models.Result
 import com.japp.models.WebSocketMessageType
 import com.japp.models.dto.CreateMessageRequest
 import com.japp.models.dto.WebSocketMessage
+import com.japp.repositories.interfaces.IUserRepository
 import com.japp.utils.toWebSocketMessage
 import com.japp.websocket.WebSocketManager
 import io.ktor.websocket.*
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.withContext
+import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 
 class ChatWebSocketService(
     private val messageService: MessageService,
+    private val userRepository: IUserRepository,
     private val webSocketManager: WebSocketManager
 ) {
 
@@ -35,7 +40,7 @@ class ChatWebSocketService(
                 null
             }
             WebSocketMessageType.PING -> WebSocketMessage(type = WebSocketMessageType.PONG)
-            WebSocketMessageType.NEW_MESSAGE -> handleNewMessage(message, userId) // NEW
+            WebSocketMessageType.NEW_MESSAGE -> handleNewMessage(message, userId)
             else -> null
         }
     }
@@ -98,9 +103,19 @@ class ChatWebSocketService(
         val groupId = message.groupId ?: return
 
         if (webSocketManager.isSubscribed(session, groupId)) {
+            val username = withContext(Dispatchers.IO) {
+                transaction {
+                    userRepository.findById(userId)?.username
+                }
+            } ?: "Unknown"
+
+            // Typing indicator broadcasted to all group members except sender
             webSocketManager.broadcastToGroup(
                 groupId = groupId,
-                message = message.copy(userId = userId),
+                message = message.copy(
+                    userId = userId,
+                    username = username
+                ),
                 excludeUserId = userId
             )
         }

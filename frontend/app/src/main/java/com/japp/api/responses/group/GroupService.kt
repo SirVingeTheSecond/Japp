@@ -57,4 +57,7 @@ interface GroupService {
 
     @GET("$BASE_ROUTE/{id}/debt-history")
     suspend fun getGroupDebtHistory(@Path("id") id: Int): Response<List<DebtHistoryDto>>
+
+    @DELETE("$BASE_ROUTE/{id}/members/{memberId}")
+    suspend fun kickGroupMember(@Path("id") groupId: Int, @Path("memberId") memberId: Int): Response<Unit>
 }

@@ -31,7 +31,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -53,10 +55,12 @@ import com.japp.api.responses.group.GroupDto
 import com.japp.composables.GroupIcon
 import com.google.zxing.BarcodeFormat
 import com.japp.AppDestinations
+import com.japp.api.responses.auth.UserDto
 import com.japp.api.responses.expense.ExpenseDto
 import com.japp.api.responses.expense.GroupBalanceSummaryDto
 import com.japp.api.responses.group.GroupMemberDto
 import com.japp.composables.ExpenseDetailCard
+import com.japp.composables.GroupMemberDetailCard
 import com.japp.rememberFabButton
 import com.journeyapps.barcodescanner.BarcodeEncoder
 import retrofit2.Call
@@ -71,7 +75,8 @@ fun GroupScreen(navController: NavController? = null) {
     var qrOpen by remember { mutableStateOf(false) }
     var group by remember { mutableStateOf<GroupDto?>(null) }
     var qrCode by remember { mutableStateOf<Bitmap?>(null) }
-    var group_members by remember { mutableStateOf<List<GroupMemberDto>>(emptyList()) }
+    var me by remember { mutableStateOf<UserDto?>(null) }
+    var group_members = remember { mutableStateOf<List<GroupMemberDto>>(emptyList()) }
     var group_expense by remember { mutableStateOf<List<ExpenseDto>>(emptyList()) }
     var group_balance by remember { mutableStateOf<GroupBalanceSummaryDto?>(null) }
 
@@ -85,6 +90,12 @@ fun GroupScreen(navController: NavController? = null) {
         )
     }
 
+    LaunchedEffect(Unit) {
+        val res = RetrofitClient.userService.getMyUser()
+        if (res.isSuccessful && res.body() != null) {
+            me = res.body()!!
+        }
+    }
 
     LaunchedEffect(
         GROUP_ID
@@ -99,7 +110,7 @@ fun GroupScreen(navController: NavController? = null) {
         val res = RetrofitClient.groupService.getGroupMembers(GROUP_ID)
         val body = res.body()
         if (body != null && res.isSuccessful) {
-            group_members = body
+            group_members.value = body
         }
     }
 
@@ -196,7 +207,7 @@ fun GroupScreen(navController: NavController? = null) {
             }
 
 
-            NavTab(group_members, group_expense, group_balance, GROUP_ID)
+            NavTab(me, group_members, group_expense, group_balance, GROUP_ID)
         }
         if (qrOpen) {
             Dialog(onDismissRequest = { qrOpen = false }) {
@@ -246,12 +257,20 @@ fun GroupScreen(navController: NavController? = null) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NavTab(
-    groupMembers: List<GroupMemberDto>,
+    me: UserDto?,
+    groupMembers: MutableState<List<GroupMemberDto>>,
     groupExpenses: List<ExpenseDto>,
     groupBalance: GroupBalanceSummaryDto?,
     groupId: Int
 ) {
     val navController = rememberNavController()
+
+    var refreshGroupMembersKey by remember { mutableIntStateOf(0) }
+
+    LaunchedEffect(refreshGroupMembersKey) {
+        val res = RetrofitClient.groupService.getGroupMembers(GROUP_ID)
+        if (res.isSuccessful && res.body() != null) groupMembers.value = res.body()!!
+    }
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
@@ -270,28 +289,27 @@ fun NavTab(
         ) {
             Tab(
                 selected = selectedDestination == 0,
-                onClick = { navController.navigate("1") },
-                modifier = Modifier.padding(10.dp)
+                onClick = { navController.navigate("1") }
             ) {
-                Text("Members")
+                Text("Members", Modifier.padding(10.dp))
             }
             Tab(
                 selected = selectedDestination == 1,
                 onClick = { navController.navigate("2") }
             ) {
-                Text("Expenses")
+                Text("Expenses", Modifier.padding(10.dp))
             }
             Tab(
                 selected = selectedDestination == 2,
                 onClick = { navController.navigate("3") }
             ) {
-                Text("Chat")
+                Text("Chat", Modifier.padding(10.dp))
             }
             Tab(
                 selected = selectedDestination == 3,
                 onClick = { navController.navigate("4") }
             ) {
-                Text("Options")
+                Text("Options", Modifier.padding(10.dp))
             }
         }
         NavHost(
@@ -300,43 +318,27 @@ fun NavTab(
         ) {
             composable("1") {
                 Column(
-                    horizontalAlignment = Alignment.CenterHorizontally
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier
+                        .verticalScroll(
+                            state = rememberScrollState(),
+                            enabled = true,
+                        )
+                        .padding(horizontal = 8.dp)
                 ) {
-                    groupMembers.forEach { memberDto ->
-                        Text(
-                            memberDto.username,
-                            Modifier.padding(15.dp),
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onBackground,
-
-                            )
-
+                    val groupOwner = groupMembers.value.find { dto -> dto.isOwner }
+                    groupMembers.value.forEach { memberDto ->
                         val balance = groupBalance
                             ?.balances
                             ?.find { it.username == memberDto.username }
                             ?.balance ?: 0.0
-
-                        val backgroundColor = if (balance < 0) Color.Red else Color.Green
-
-                        Box(
-                            modifier = Modifier
-                                .padding(8.dp)
-                                .background(
-                                    color = backgroundColor,
-                                    shape = RoundedCornerShape(8.dp)
-                                )
-                                .padding(horizontal = 12.dp, vertical = 6.dp)
-                        ) {
-                            Text(
-                                text = "Balance: $balance",
-                                color = Color.White
-                            )
-                        }
-
-                        HorizontalDivider(
-                            thickness = 1.dp,
-                            color = Color.LightGray,
-                            modifier = Modifier.padding(vertical = 4.dp)
+                        GroupMemberDetailCard(
+                            groupBalance?.groupId ?: 0,
+                            memberDto,
+                            {refreshGroupMembersKey++},
+                            balance = balance,
+                            me = me,
+                            groupOwner = groupOwner
                         )
                     }
                 }

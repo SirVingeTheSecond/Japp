@@ -7,7 +7,10 @@ import com.japp.database.tables.GroupMembers
 import com.japp.database.tables.Groups
 import com.japp.database.tables.Messages
 import com.japp.database.tables.Settlements
+import com.japp.database.tables.Users
 import com.japp.models.domain.Group
+import com.japp.models.domain.GroupMemberInfo
+import com.japp.models.domain.User
 import com.japp.repositories.interfaces.IGroupRepository
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.SortOrder
@@ -73,6 +76,28 @@ class GroupRepository : IGroupRepository {
         return GroupMembers.selectAll()
             .where { GroupMembers.groupId eq groupId }
             .map { it[GroupMembers.userId] }
+    }
+
+    override fun getMembersWithDetails(groupId: Int): List<GroupMemberInfo> {
+        return (GroupMembers innerJoin Users)
+            .selectAll()
+            .where { GroupMembers.groupId eq groupId }
+            .map { row ->
+                GroupMemberInfo(
+                    user = User(
+                        id = row[Users.id],
+                        username = row[Users.username],
+                        firstname = row[Users.firstname],
+                        lastname = row[Users.lastname],
+                        email = row[Users.email],
+                        passwordHash = row[Users.passwordHash],
+                        phone = row[Users.phone],
+                        profilePicture = row[Users.profilePicture],
+                        createdAt = row[Users.createdAt]
+                    ),
+                    joinedAt = row[GroupMembers.joinedAt]
+                )
+            }
     }
 
     override fun getMembersSortedByJoinDate(groupId: Int): List<Int> {

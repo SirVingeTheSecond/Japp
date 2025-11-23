@@ -32,6 +32,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -107,12 +108,15 @@ fun rememberFabButton(
     visible: Boolean = true,
     onClick: (() -> Unit)? = null
 ) {
-    SideEffect {
+    DisposableEffect(icon, visible, onClick) {
         FabController.state = FabState(
             icon = icon,
             onClick = onClick,
             visible = visible
         )
+        onDispose {
+            FabController.state = FabState()
+        }
     }
 }
 

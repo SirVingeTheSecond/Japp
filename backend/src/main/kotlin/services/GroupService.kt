@@ -325,18 +325,17 @@ class GroupService(
                         return@transaction Result.Failure(AppError.NotMember(groupId))
                     }
 
-                    val memberIds = groupRepository.getMembers(groupId)
                     val group = groupRepository.findById(groupId)
                         ?: return@transaction Result.Failure(AppError.NotFound("Group", groupId))
 
-                    val members = memberIds.mapNotNull { memberId ->
-                        userRepository.findById(memberId)?.let { user ->
-                            createGroupMemberDto(
-                                user = user,
-                                joinedAt = "", // Track this separately if needed
-                                isOwner = memberId == group.createdBy
-                            )
-                        }
+                    val membersInfo = groupRepository.getMembersWithDetails(groupId)
+
+                    val members = membersInfo.map { memberInfo ->
+                        createGroupMemberDto(
+                            user = memberInfo.user,
+                            joinedAt = memberInfo.joinedAt,
+                            isOwner = memberInfo.user.id == group.createdBy
+                        )
                     }
 
                     Result.Success(members)

@@ -1,6 +1,7 @@
 package com.japp.repositories.interfaces
 
 import com.japp.models.domain.Group
+import com.japp.models.domain.GroupMemberInfo
 
 /**
  * Repository interface for accessing group data
@@ -11,6 +12,7 @@ interface IGroupRepository {
     fun findByInviteCode(code: String): Group?
     fun findByUserId(userId: Int): List<Group>
     fun getMembers(groupId: Int): List<Int>
+    fun getMembersWithDetails(groupId: Int): List<GroupMemberInfo>
     fun getMembersSortedByJoinDate(groupId: Int): List<Int>
     fun isMember(groupId: Int, userId: Int): Boolean
     fun isOwner(groupId: Int, userId: Int): Boolean

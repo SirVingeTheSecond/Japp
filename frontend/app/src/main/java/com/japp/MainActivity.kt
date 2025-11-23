@@ -14,6 +14,7 @@ import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.GroupAdd
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.ManageAccounts
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.outlined.Home
@@ -55,6 +56,7 @@ import com.japp.api.CredentialsStorage
 import com.japp.screens.ActivityScreen
 import com.japp.screens.CreateExpenseScreen
 import com.japp.screens.CreateGroupScreen
+import com.japp.screens.EditProfileScreen
 import com.japp.screens.GroupScreen
 import com.japp.screens.HomeScreen
 import com.japp.screens.JoinGroupScreen
@@ -266,7 +268,8 @@ enum class AppDestinations(
     MYGROUPS("My Groups", Icons.Default.Groups, { navController -> ShowGroupsScreen(navController) }),
     GROUP("Group", Icons.Default.Group, { navController -> GroupScreen(navController) }),
     SETTLE("Settle group", Icons.Default.Group, { navController -> SettleGroup(navController) }),
-    ACTIVITY("Activity", Icons.Default.Notifications, { navController -> ActivityScreen(navController) });
+    ACTIVITY("Activity", Icons.Default.Notifications, { navController -> ActivityScreen(navController) }),
+    EDITPROFILE("EditProfile", Icons.Default.ManageAccounts, { navController -> EditProfileScreen(navController) });
 
     val route: String
         get() = label.replace(" ", "")

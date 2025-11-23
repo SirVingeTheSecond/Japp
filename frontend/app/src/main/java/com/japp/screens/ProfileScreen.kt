@@ -14,6 +14,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.japp.AppDestinations
+import com.japp.Screens
 import com.japp.StartupActivity
 import com.japp.api.CredentialsStorage
 import com.japp.api.RetrofitClient
@@ -93,7 +95,7 @@ fun ProfileScreen(navController: NavController) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(Dimens.spacingSmall),
-                onClick = { "TODO: Implement" }
+                onClick = { navController.navigate(AppDestinations.EDITPROFILE.route) }
             ) {
                 Text("Edit profile")
             }

@@ -251,4 +251,123 @@ class GroupMemberIntegrationTest : AnnotationSpec() {
 
         members1[0].joinedAt shouldBe members2[0].joinedAt
     }
+
+    @Test
+    fun `owner should successfully remove a member`() = testApplication {
+        application { module() }
+        setupTestConfig()
+        val testData = setupTestData()
+
+        val createGroupResponse = client.post("/api/groups") {
+            contentType(ContentType.Application.Json)
+            bearerAuth(testData.auth1.token)
+            setBody("""
+                {
+                    "name": "Test Group",
+                    "description": "Test group for member removal"
+                }
+            """.trimIndent())
+        }
+        val group = json.decodeFromString<GroupDto>(createGroupResponse.bodyAsText())
+
+        client.post("/api/groups/${group.id}/members") {
+            contentType(ContentType.Application.Json)
+            bearerAuth(testData.auth1.token)
+            setBody("""{"userId": ${testData.auth2.user.id}}""")
+        }
+
+        val removeResponse = client.delete("/api/groups/${group.id}/members/${testData.auth2.user.id}") {
+            bearerAuth(testData.auth1.token)
+        }
+
+        removeResponse.status shouldBe HttpStatusCode.OK
+
+        val membersResponse = client.get("/api/groups/${group.id}/members") {
+            bearerAuth(testData.auth1.token)
+        }
+        val members = json.decodeFromString<List<GroupMemberDto>>(membersResponse.bodyAsText())
+        members shouldHaveSize 1
+        members.none { it.userId == testData.auth2.user.id } shouldBe true
+    }
+
+    @Test
+    fun `non-owner should fail to remove a member`() = testApplication {
+        application { module() }
+        setupTestConfig()
+        val testData = setupTestData()
+
+        val createGroupResponse = client.post("/api/groups") {
+            contentType(ContentType.Application.Json)
+            bearerAuth(testData.auth1.token)
+            setBody("""
+                {
+                    "name": "Test Group",
+                    "description": "Test group"
+                }
+            """.trimIndent())
+        }
+        val group = json.decodeFromString<GroupDto>(createGroupResponse.bodyAsText())
+
+        client.post("/api/groups/${group.id}/members") {
+            contentType(ContentType.Application.Json)
+            bearerAuth(testData.auth1.token)
+            setBody("""{"userId": ${testData.auth2.user.id}}""")
+        }
+
+        val removeResponse = client.delete("/api/groups/${group.id}/members/${testData.auth1.user.id}") {
+            bearerAuth(testData.auth2.token)
+        }
+
+        removeResponse.status shouldBe HttpStatusCode.Forbidden
+    }
+
+    @Test
+    fun `owner should fail to remove themselves`() = testApplication {
+        application { module() }
+        setupTestConfig()
+        val testData = setupTestData()
+
+        val createGroupResponse = client.post("/api/groups") {
+            contentType(ContentType.Application.Json)
+            bearerAuth(testData.auth1.token)
+            setBody("""
+                {
+                    "name": "Test Group",
+                    "description": "Test group"
+                }
+            """.trimIndent())
+        }
+        val group = json.decodeFromString<GroupDto>(createGroupResponse.bodyAsText())
+
+        val removeResponse = client.delete("/api/groups/${group.id}/members/${testData.auth1.user.id}") {
+            bearerAuth(testData.auth1.token)
+        }
+
+        removeResponse.status shouldBe HttpStatusCode.BadRequest
+    }
+
+    @Test
+    fun `should fail to remove non-existent member`() = testApplication {
+        application { module() }
+        setupTestConfig()
+        val testData = setupTestData()
+
+        val createGroupResponse = client.post("/api/groups") {
+            contentType(ContentType.Application.Json)
+            bearerAuth(testData.auth1.token)
+            setBody("""
+                {
+                    "name": "Test Group",
+                    "description": "Test group"
+                }
+            """.trimIndent())
+        }
+        val group = json.decodeFromString<GroupDto>(createGroupResponse.bodyAsText())
+
+        val removeResponse = client.delete("/api/groups/${group.id}/members/99999") {
+            bearerAuth(testData.auth1.token)
+        }
+
+        removeResponse.status shouldBe HttpStatusCode.NotFound
+    }
 }

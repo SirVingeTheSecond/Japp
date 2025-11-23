@@ -73,6 +73,14 @@ fun Route.groupRoutes() {
             call.respondResult(result, HttpStatusCode.Created)
         }
 
+        delete("/{id}/members/{memberId}") {
+            val groupId = call.requirePathInt("id")
+            val memberId = call.requirePathInt("memberId")
+            val userId = call.getUserId()
+            val result = groupService.removeMember(groupId, memberId, userId)
+            call.respondResult(result)
+        }
+
         delete("/{id}/leave") {
             val groupId = call.requirePathInt("id")
             val userId = call.getUserId()

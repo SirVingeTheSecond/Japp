@@ -198,6 +198,82 @@ class GroupService(
     }
 
     /**
+     * Remove a member from a group (owner only)
+     */
+    suspend fun removeMember(
+        groupId: Int,
+        userIdToRemove: Int,
+        requestingUserId: Int
+    ): Result<Unit, AppError> {
+        return withContext(Dispatchers.IO) {
+            try {
+                var removedUsername: String? = null
+
+                val removeResult = transaction {
+                    if (!groupRepository.isMember(groupId, requestingUserId)) {
+                        return@transaction Result.Failure(AppError.NotMember(groupId))
+                    }
+
+                    if (!groupRepository.isOwner(groupId, requestingUserId)) {
+                        return@transaction Result.Failure(AppError.NotOwner(groupId))
+                    }
+
+                    if (userIdToRemove == requestingUserId) {
+                        return@transaction Result.Failure(
+                            AppError.Validation("Cannot remove yourself. Use leave group instead.")
+                        )
+                    }
+
+                    if (groupRepository.isOwner(groupId, userIdToRemove)) {
+                        return@transaction Result.Failure(
+                            AppError.Validation("Cannot remove the group owner")
+                        )
+                    }
+
+                    if (!groupRepository.isMember(groupId, userIdToRemove)) {
+                        return@transaction Result.Failure(
+                            AppError.NotFound("Member", userIdToRemove)
+                        )
+                    }
+
+                    val user = userRepository.findById(userIdToRemove)
+                    removedUsername = user?.username ?: "Unknown"
+
+                    val balances = expenseRepository.calculateGroupBalances(groupId)
+                    val userBalance = balances[userIdToRemove] ?: 0.0
+
+                    if (userBalance < 0.0) {
+                        debtHistoryRepository.create(
+                            groupId = groupId,
+                            userId = userIdToRemove,
+                            amountOwed = -userBalance
+                        )
+                    }
+
+                    groupRepository.removeMember(groupId, userIdToRemove)
+
+                    Result.Success(Unit)
+                }
+
+                if (removeResult is Result.Success) {
+                    activityService.logMemberRemoved(groupId, requestingUserId, userIdToRemove)
+
+                    messageService.createSystemMessage(
+                        groupId = groupId,
+                        content = "${removedUsername ?: "A member"} was removed from the group"
+                    )
+                }
+
+                removeResult
+            } catch (e: Exception) {
+                Result.Failure(
+                    AppError.Internal(e.message ?: "Failed to remove member")
+                )
+            }
+        }
+    }
+
+    /**
      * Get all groups for a user
      */
     suspend fun getUserGroups(userId: Int): Result<List<GroupDto>, AppError> {

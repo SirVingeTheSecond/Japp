@@ -169,6 +169,7 @@ enum class ActivityType(val value: String, val description: String) {
     GROUP_CREATED("group_created", "Group created"),
     MEMBER_JOINED("member_joined", "Member joined"),
     MEMBER_LEFT("member_left", "Member left"),
+    MEMBER_REMOVED("member_removed", "Member removed"),
     EXPENSE_CREATED("expense_created", "Expense created"),
     EXPENSE_UPDATED("expense_updated", "Expense updated"),
     EXPENSE_DELETED("expense_deleted", "Expense deleted"),

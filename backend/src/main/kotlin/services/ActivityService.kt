@@ -12,6 +12,8 @@ import com.japp.utils.toDto
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
@@ -31,7 +33,9 @@ class ActivityService(
                         userId = userId,
                         actionType = ActivityType.GROUP_CREATED,
                         description = "created the group",
-                        metadata = """{"groupName":"$groupName"}"""
+                        metadata = buildMetadata(
+                            "groupName" to groupName
+                        )
                     )
                 }
             } catch (_: Exception) {
@@ -50,7 +54,10 @@ class ActivityService(
                         userId = newMemberId,
                         actionType = ActivityType.MEMBER_JOINED,
                         description = "joined the group",
-                        metadata = """{"addedBy":$userId,"memberName":"${newMember?.username ?: "Unknown"}"}"""
+                        metadata = buildMetadata(
+                            "addedBy" to userId,
+                            "memberName" to (newMember?.username ?: "Unknown")
+                        )
                     )
                 }
             } catch (_: Exception) {
@@ -69,7 +76,10 @@ class ActivityService(
                         userId = addedBy,
                         actionType = ActivityType.MEMBER_JOINED,
                         description = "added ${addedUser?.username ?: "Unknown"} to the group",
-                        metadata = """{"addedUserId":$addedUserId,"addedUserName":"${addedUser?.username ?: "Unknown"}"}"""
+                        metadata = buildMetadata(
+                            "addedUserId" to addedUserId,
+                            "addedUserName" to (addedUser?.username ?: "Unknown")
+                        )
                     )
                 }
             } catch (_: Exception) {
@@ -88,7 +98,34 @@ class ActivityService(
                         userId = userId,
                         actionType = ActivityType.MEMBER_LEFT,
                         description = "left the group",
-                        metadata = """{"memberName":"${user?.username ?: "Unknown"}"}"""
+                        metadata = buildMetadata(
+                            "memberName" to (user?.username ?: "Unknown")
+                        )
+                    )
+                }
+            } catch (_: Exception) {
+                // Not critical, silently fail
+            }
+        }
+    }
+
+    suspend fun logMemberRemoved(groupId: Int, removedBy: Int, removedUserId: Int) {
+        withContext(Dispatchers.IO) {
+            try {
+                transaction {
+                    val removedUser = userRepository.findById(removedUserId)
+                    val removerUser = userRepository.findById(removedBy)
+                    activityRepository.create(
+                        groupId = groupId,
+                        userId = removedBy,
+                        actionType = ActivityType.MEMBER_REMOVED,
+                        description = "removed ${removedUser?.username ?: "Unknown"} from the group",
+                        metadata = buildMetadata(
+                            "removedUserId" to removedUserId,
+                            "removedUserName" to (removedUser?.username ?: "Unknown"),
+                            "removedBy" to removedBy,
+                            "removedByName" to (removerUser?.username ?: "Unknown")
+                        )
                     )
                 }
             } catch (_: Exception) {
@@ -114,7 +151,11 @@ class ActivityService(
                         actionType = ActivityType.EXPENSE_CREATED,
                         description = "added expense: $description",
                         relatedExpenseId = expenseId,
-                        metadata = """{"amount":$amount,"currency":"$currency","description":"$description"}"""
+                        metadata = buildMetadata(
+                            "amount" to amount,
+                            "currency" to currency,
+                            "description" to description
+                        )
                     )
                 }
             } catch (_: Exception) {
@@ -138,7 +179,9 @@ class ActivityService(
                         actionType = ActivityType.EXPENSE_UPDATED,
                         description = "updated expense: $description",
                         relatedExpenseId = expenseId,
-                        metadata = """{"description":"$description"}"""
+                        metadata = buildMetadata(
+                            "description" to description
+                        )
                     )
                 }
             } catch (_: Exception) {
@@ -163,7 +206,10 @@ class ActivityService(
                         actionType = ActivityType.EXPENSE_DELETED,
                         description = "deleted expense: $description",
                         relatedExpenseId = expenseId,
-                        metadata = """{"amount":$amount,"description":"$description"}"""
+                        metadata = buildMetadata(
+                            "amount" to amount,
+                            "description" to description
+                        )
                     )
                 }
             } catch (_: Exception) {
@@ -189,7 +235,11 @@ class ActivityService(
                         actionType = ActivityType.SETTLEMENT_CREATED,
                         description = "created payment to ${toUser?.username ?: "Unknown"}",
                         relatedSettlementId = settlementId,
-                        metadata = """{"amount":$amount,"toUserId":$toUserId,"toUserName":"${toUser?.username ?: "Unknown"}"}"""
+                        metadata = buildMetadata(
+                            "amount" to amount,
+                            "toUserId" to toUserId,
+                            "toUserName" to (toUser?.username ?: "Unknown")
+                        )
                     )
                 }
             } catch (_: Exception) {
@@ -215,7 +265,11 @@ class ActivityService(
                         actionType = ActivityType.SETTLEMENT_COMPLETED,
                         description = "confirmed payment from ${fromUser?.username ?: "Unknown"}",
                         relatedSettlementId = settlementId,
-                        metadata = """{"amount":$amount,"fromUserId":$fromUserId,"fromUserName":"${fromUser?.username ?: "Unknown"}"}"""
+                        metadata = buildMetadata(
+                            "amount" to amount,
+                            "fromUserId" to fromUserId,
+                            "fromUserName" to (fromUser?.username ?: "Unknown")
+                        )
                     )
                 }
             } catch (_: Exception) {
@@ -239,7 +293,9 @@ class ActivityService(
                         actionType = ActivityType.RECEIPT_UPLOADED,
                         description = "added receipt for: $expenseDescription",
                         relatedExpenseId = expenseId,
-                        metadata = """{"expenseDescription":"$expenseDescription"}"""
+                        metadata = buildMetadata(
+                            "expenseDescription" to expenseDescription
+                        )
                     )
                 }
             } catch (_: Exception) {
@@ -329,5 +385,19 @@ class ActivityService(
         } catch (_: Exception) {
             emptyMap()
         }
+    }
+
+    private fun buildMetadata(vararg entries: Pair<String, Any?>): String {
+        val jsonObject = buildJsonObject {
+            entries.forEach { (key, value) ->
+                when (value) {
+                    null -> {}
+                    is Number -> put(key, JsonPrimitive(value))
+                    is Boolean -> put(key, JsonPrimitive(value))
+                    else -> put(key, JsonPrimitive(value.toString()))
+                }
+            }
+        }
+        return jsonObject.toString()
     }
 }

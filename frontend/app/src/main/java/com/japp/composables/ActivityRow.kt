@@ -12,6 +12,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.GroupAdd
+import androidx.compose.material.icons.filled.GroupRemove
 import androidx.compose.material.icons.filled.Hardware
 import androidx.compose.material.icons.filled.Receipt
 import androidx.compose.material.icons.filled.Update
@@ -34,6 +35,7 @@ import java.time.ZoneId
 fun getActivityIcon(actionType: ActivityType): ImageVector {
     return when (actionType) { // These icons are not final, just placeholders for now
         ActivityType.MEMBER_LEFT -> Icons.Default.Circle
+        ActivityType.MEMBER_REMOVED -> Icons.Default.GroupRemove
         ActivityType.GROUP_CREATED -> Icons.Default.Group
         ActivityType.MEMBER_JOINED -> Icons.Default.GroupAdd
         ActivityType.EXPENSE_CREATED -> Icons.Default.Add

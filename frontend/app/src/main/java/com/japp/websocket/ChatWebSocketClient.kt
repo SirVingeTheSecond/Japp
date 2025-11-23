@@ -51,7 +51,7 @@ object ChatWebSocketClient {
     private var webSocket: WebSocket? = null
     private val client = OkHttpClient()
 
-    // Gson with custom enum serializers for backend compatibility
+    // enum serializers for backend compatibility
     private val gson: Gson = GsonBuilder()
         .registerTypeAdapter(WebSocketMessageType::class.java, WebSocketMessageTypeDeserializer())
         .registerTypeAdapter(WebSocketMessageType::class.java, WebSocketMessageTypeSerializer())
@@ -67,7 +67,7 @@ object ChatWebSocketClient {
     private val _typingUsers = MutableStateFlow<Map<Int, List<String>>>(emptyMap())
     val typingUsers: StateFlow<Map<Int, List<String>>> = _typingUsers
 
-    // Store access token for reconnection attempts
+    // access token for reconnection attempts
     private var accessToken: String? = null
 
     fun connect(token: String) {
@@ -94,11 +94,6 @@ object ChatWebSocketClient {
                 try {
                     val msg = gson.fromJson(text, WebSocketMessageDto::class.java)
 
-                    if (msg.type == null) {
-                        Log.e(TAG, "Received message with null type")
-                        return
-                    }
-
                     // Respond to PING immediately to keep connection alive
                     if (msg.type == WebSocketMessageType.PING) {
                         val pong = WebSocketMessageDto(type = WebSocketMessageType.PONG)
@@ -113,8 +108,7 @@ object ChatWebSocketClient {
                                 msg.username?.let { username ->
                                     val current = _typingUsers.value[groupId] ?: emptyList()
                                     if (!current.contains(username)) {
-                                        _typingUsers.value = _typingUsers.value +
-                                                (groupId to (current + username))
+                                        _typingUsers.value += (groupId to (current + username))
                                     }
                                 }
                             }
@@ -123,16 +117,15 @@ object ChatWebSocketClient {
                             msg.groupId?.let { groupId ->
                                 msg.username?.let { username ->
                                     val current = _typingUsers.value[groupId] ?: emptyList()
-                                    _typingUsers.value = _typingUsers.value +
-                                            (groupId to current.filter { it != username })
+                                    _typingUsers.value += (groupId to current.filter { it != username })
                                 }
                             }
                         }
                         else -> {}
                     }
 
-                    // Append message to list for UI processing
-                    _incomingMessages.value = _incomingMessages.value + msg
+                    // Append to list (for UI)
+                    _incomingMessages.value += msg
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed to parse message", e)
                 }
@@ -147,7 +140,7 @@ object ChatWebSocketClient {
                 Log.e(TAG, "WebSocket error", t)
                 _isConnected.value = false
 
-                // Auto-reconnect after 3 seconds
+                // Auto reconnect after 3 seconds
                 accessToken?.let { token ->
                     android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
                         connect(token)

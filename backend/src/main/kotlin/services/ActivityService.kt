@@ -97,6 +97,26 @@ class ActivityService(
         }
     }
 
+    suspend fun logMemberRemoved(groupId: Int, removedBy: Int, removedUserId: Int) {
+        withContext(Dispatchers.IO) {
+            try {
+                transaction {
+                    val removedUser = userRepository.findById(removedUserId)
+                    val removerUser = userRepository.findById(removedBy)
+                    activityRepository.create(
+                        groupId = groupId,
+                        userId = removedBy,
+                        actionType = ActivityType.MEMBER_REMOVED,
+                        description = "removed ${removedUser?.username ?: "Unknown"} from the group",
+                        metadata = """{"removedUserId":$removedUserId,"removedUserName":"${removedUser?.username ?: "Unknown"}","removedBy":$removedBy,"removedByName":"${removerUser?.username ?: "Unknown"}"}"""
+                    )
+                }
+            } catch (_: Exception) {
+                // Not critical, silently fail
+            }
+        }
+    }
+
     suspend fun logExpenseCreated(
         groupId: Int,
         userId: Int,

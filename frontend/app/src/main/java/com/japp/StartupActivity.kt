@@ -143,7 +143,14 @@ fun LoginScreen(context: Context?, navController: NavController) {
             val token = body.token
             val expiresAt =
                 Date(System.currentTimeMillis() + (600 * 1000)) // 600 seconds as none is given with request?
-            CredentialsStorage.save(context!!, Credentials(token, expiresAt))
+            CredentialsStorage.save(
+                context!!,
+                Credentials(
+                    accessToken = token,
+                    expiresAt = expiresAt,
+                    userId = body.user.id
+                )
+            )
 
             val intent = Intent(context, MainActivity::class.java)
             context.startActivity(intent)
@@ -253,14 +260,28 @@ fun SignupScreen(context: Context?, navController: NavController) {
             // and passing it to our modal class.
             val body = res.body()
             if (body != null && res.isSuccessful) {
-                navController.navigate(Screens.LOGIN.route)
+                // Save credentials directly after signup
+                val token = body.token
+                val expiresAt =
+                    Date(System.currentTimeMillis() + (600 * 1000)) // 600 seconds as none is given with request?
+                CredentialsStorage.save(
+                    context!!,
+                    Credentials(
+                        accessToken = token,
+                        expiresAt = expiresAt,
+                        userId = body.user.id
+                    )
+                )
+
+                val intent = Intent(context, MainActivity::class.java)
+                context.startActivity(intent)
             } else {
                 val errorResponse = ErrorUtils.parseError(res)
                 error = "Signup failed: ${errorResponse!!.message}"
             }
         } else {
             // Something went wrong
-            // TODO: Show to user?
+            // ToDo: Show to user?
         }
     }
 

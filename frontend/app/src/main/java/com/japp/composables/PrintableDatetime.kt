@@ -2,38 +2,44 @@ package com.japp.composables
 
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
+import kotlinx.coroutines.delay
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 
 @Composable
 fun PrintableDatetime(time: LocalDateTime) {
+    var now by remember { mutableStateOf(LocalDateTime.now()) }
 
-    val minutes = ChronoUnit.MINUTES.between(time, LocalDateTime.now())
-    val hours = ChronoUnit.HOURS.between(time, LocalDateTime.now())
-    val weeks = ChronoUnit.WEEKS.between(time, LocalDateTime.now())
-    val years = ChronoUnit.YEARS.between(time, LocalDateTime.now())
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(60000) // Update every minute
+            now = LocalDateTime.now()
+        }
+    }
 
-    var res: String
+    // Calculate relative time
+    val minutes = ChronoUnit.MINUTES.between(time, now)
+    val hours = ChronoUnit.HOURS.between(time, now)
+    val weeks = ChronoUnit.WEEKS.between(time, now)
+    val years = ChronoUnit.YEARS.between(time, now)
 
-    if (minutes < 1) {
-        res = "now"
-    } else if (minutes < 60) {
-        res = minutes.toString() + "m"
-    } else if (hours <= 24 && years == 0L && time.dayOfYear == LocalDateTime.now().dayOfYear) {
-        res = hours.toString() + "h"
-    } else if (years == 0L && time.dayOfYear == (LocalDateTime.now().dayOfYear-1)) {
-        res = "yesterday"
-    } else if (years == 0L && weeks == 0L) {
-        res = time.dayOfWeek.name.lowercase()
-    } else {
-        val dateTimeFormatter = DateTimeFormatter.ofPattern("dd/MM/yy")
-        res = time.format(dateTimeFormatter)
+    val res: String = when {
+        minutes < 1 -> "now"
+        minutes < 60 -> "${minutes}m"
+        hours <= 24 && years == 0L && time.dayOfYear == now.dayOfYear -> "${hours}h"
+        years == 0L && time.dayOfYear == (now.dayOfYear - 1) -> "yesterday"
+        years == 0L && weeks == 0L -> time.dayOfWeek.name.lowercase().replaceFirstChar { it.uppercase() }
+        else -> {
+            val dateTimeFormatter = DateTimeFormatter.ofPattern("dd/MM/yy")
+            time.format(dateTimeFormatter)
+        }
     }
 
     Text(
         text = res,
-        style = MaterialTheme.typography.labelSmall
+        style = MaterialTheme.typography.labelSmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant
     )
 }

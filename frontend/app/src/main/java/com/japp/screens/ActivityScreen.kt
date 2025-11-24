@@ -28,6 +28,7 @@ import com.japp.api.RetrofitClient
 import com.japp.api.responses.activity.ActivityDto
 import com.japp.api.safeApiCall
 import com.japp.composables.ActivityRow
+import com.japp.composables.ErrorWithRetry
 import com.japp.ui.state.UiState
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -69,11 +70,9 @@ fun ActivityScreen(navController: NavController? = null) {
                 }
 
                 is UiState.Error -> {
-                    Text(
-                        text = (activitiesState as UiState.Error).message,
-                        color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.padding(vertical = 8.dp)
+                    ErrorWithRetry(
+                        message = (activitiesState as UiState.Error).message,
+                        onRetry = { refreshKey++ }
                     )
                 }
 

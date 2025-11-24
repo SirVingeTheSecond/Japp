@@ -102,7 +102,7 @@ fun HomeScreen(navController: NavController? = null) {
         isRefreshing = false
     }
 
-    LaunchedEffect(groupsState, refreshKey) {
+    LaunchedEffect(groupsState, meState, refreshKey) {
         val groups = groupsState.getOrNull() ?: return@LaunchedEffect
         val me = meState.getOrNull() ?: return@LaunchedEffect
 
@@ -514,7 +514,6 @@ fun TimeText(
     } else {
         timeText = SimpleDateFormat("dd/mm/yy").format(date)
     }
-
 
     Text(timeText, modifier = modifier.then(Modifier), style = style, textAlign = textAlign)
 }

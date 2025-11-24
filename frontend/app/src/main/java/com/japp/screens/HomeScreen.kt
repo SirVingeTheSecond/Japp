@@ -138,6 +138,7 @@ fun HomeScreen(navController: NavController? = null) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .padding(12.dp)
                 .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {

@@ -192,7 +192,7 @@ fun GroupScreen(navController: NavController? = null) {
                 ) {
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.verticalScroll(rememberScrollState())  // ADD for pull gesture
+                        modifier = Modifier.fillMaxSize()
                     ) {
                         Row {
                             GroupIcon(
@@ -220,30 +220,30 @@ fun GroupScreen(navController: NavController? = null) {
                                 }
                             }
                         }
-                    }
 
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 8.dp),
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        Button(
-                            onClick = { qrOpen = true },
-                            modifier = Modifier.padding(horizontal = 8.dp)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp),
+                            horizontalArrangement = Arrangement.Center
                         ) {
-                            Text("Show QR")
+                            Button(
+                                onClick = { qrOpen = true },
+                                modifier = Modifier.padding(horizontal = 8.dp)
+                            ) {
+                                Text("Show QR")
+                            }
+
+                            Button(
+                                onClick = { navController?.navigate("SettleGroup") },
+                                modifier = Modifier.padding(horizontal = 8.dp)
+                            ) {
+                                Text("Settle Group")
+                            }
                         }
 
-                        Button(
-                            onClick = { navController?.navigate("SettleGroup") },
-                            modifier = Modifier.padding(horizontal = 8.dp)
-                        ) {
-                            Text("Settle Group")
-                        }
+                        NavTab(navController, me, groupMembers, groupExpenses, groupBalance, GROUP_ID)
                     }
-
-                    NavTab(navController, me, groupMembers, groupExpenses, groupBalance, GROUP_ID)
                 }
 
                 if (qrOpen) {

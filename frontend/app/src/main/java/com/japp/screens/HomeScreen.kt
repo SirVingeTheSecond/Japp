@@ -16,15 +16,18 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -57,6 +60,7 @@ import kotlin.math.absoluteValue
 import kotlin.math.round
 import kotlin.math.roundToInt
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Preview(showSystemUi = true)
 @Composable
 fun HomeScreen(navController: NavController? = null) {
@@ -67,10 +71,13 @@ fun HomeScreen(navController: NavController? = null) {
     var owed by remember { mutableStateOf<Double?>(null) }
     var owes by remember { mutableStateOf<Double?>(null) }
 
-    LaunchedEffect(Unit) {
+    var isRefreshing by remember { mutableStateOf(false) }
+    var refreshKey by remember { mutableIntStateOf(0) }
+
+    LaunchedEffect(refreshKey) {
         // Activity call
         activitiesState = when (val result = safeApiCall("HomeScreen.activities") {
-            RetrofitClient.activityService.getUserActivities(4)
+            RetrofitClient.activityService.getUserActivities(limit = 3)
         }) {
             is NetworkResult.Success -> UiState.Success(result.data)
             is NetworkResult.Error -> UiState.Error(result.message)
@@ -83,10 +90,6 @@ fun HomeScreen(navController: NavController? = null) {
             is NetworkResult.Success -> UiState.Success(result.data)
             is NetworkResult.Error -> UiState.Error(result.message)
         }
-    }
-
-    LaunchedEffect(groupsState) {
-        val groups = groupsState.getOrNull() ?: return@LaunchedEffect
 
         // Me call
         meState = when (val result = safeApiCall("HomeScreen.me") {
@@ -96,6 +99,11 @@ fun HomeScreen(navController: NavController? = null) {
             is NetworkResult.Error -> UiState.Error(result.message)
         }
 
+        isRefreshing = false
+    }
+
+    LaunchedEffect(groupsState, meState, refreshKey) {
+        val groups = groupsState.getOrNull() ?: return@LaunchedEffect
         val me = meState.getOrNull() ?: return@LaunchedEffect
 
         // Calculate balances across all groups
@@ -120,31 +128,37 @@ fun HomeScreen(navController: NavController? = null) {
         owes = totalOwes
     }
 
-    Column(
-        Modifier
-            .fillMaxSize()
-            .padding(10.dp)
-            .verticalScroll(rememberScrollState()),
-        horizontalAlignment = Alignment.CenterHorizontally
+    PullToRefreshBox(
+        isRefreshing = isRefreshing,
+        onRefresh = {
+            isRefreshing = true
+            refreshKey++
+        }
     ) {
-        QuickStats(owed, owes)
-        HorizontalDivider(
-            Modifier
-                .padding(10.dp)
-                .background(MaterialTheme.colorScheme.primary),
-            thickness = 2.dp
-        )
-        QuickActivities(navController, activitiesState)
-        HorizontalDivider(
-            Modifier
-                .padding(10.dp)
-                .background(MaterialTheme.colorScheme.primary),
-            thickness = 2.dp
-        )
-        QuickGroups(navController, groupsState, meState)
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState()),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            QuickStats(owed, owes)
+            HorizontalDivider(
+                Modifier
+                    .padding(10.dp)
+                    .background(MaterialTheme.colorScheme.primary),
+                thickness = 2.dp
+            )
+            QuickActivities(navController, activitiesState)
+            HorizontalDivider(
+                Modifier
+                    .padding(10.dp)
+                    .background(MaterialTheme.colorScheme.primary),
+                thickness = 2.dp
+            )
+            QuickGroups(navController, groupsState, meState)
+        }
     }
 }
-
 
 @Composable
 fun QuickStats(
@@ -166,7 +180,13 @@ fun QuickStats(
             val acceptColor = Color(0xFF20DF6C)
             val errorColor = Color(0xFFDF2020)
             val ratioColorInt =
-                ratio?.let { ColorUtils.blendARGB(acceptColor.toArgb(), errorColor.toArgb(), it.toFloat()) }
+                ratio?.let {
+                    ColorUtils.blendARGB(
+                        acceptColor.toArgb(),
+                        errorColor.toArgb(),
+                        it.toFloat()
+                    )
+                }
             val ratioColor = Color(ratioColorInt ?: Color.Yellow.toArgb())
 
             Pill(
@@ -248,6 +268,7 @@ fun QuickActivities(
                     trackColor = MaterialTheme.colorScheme.surfaceVariant,
                 )
             }
+
             is UiState.Error -> {
                 Text(
                     text = activitiesState.message,
@@ -256,6 +277,7 @@ fun QuickActivities(
                     modifier = Modifier.padding(vertical = 8.dp)
                 )
             }
+
             is UiState.Success -> {
                 if (activitiesState.data.isEmpty()) {
                     Text(
@@ -300,9 +322,23 @@ fun Activity(activity: ActivityDto) {
                 getActivityIcon(activity.actionType),
                 contentDescription = "Icon",
             )
-            Text(activity.userName, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelLarge)
-            Text(activity.description, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.labelLarge, maxLines = 1)
-            Text(group?.name ?: "", overflow = TextOverflow.MiddleEllipsis, style = MaterialTheme.typography.labelSmall, maxLines = 1)
+            Text(
+                activity.userName,
+                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.labelLarge
+            )
+            Text(
+                activity.description,
+                overflow = TextOverflow.Ellipsis,
+                style = MaterialTheme.typography.labelLarge,
+                maxLines = 1
+            )
+            Text(
+                group?.name ?: "",
+                overflow = TextOverflow.MiddleEllipsis,
+                style = MaterialTheme.typography.labelSmall,
+                maxLines = 1
+            )
         }
         TimeText(
             Date(activity.createdAt.toLong()),
@@ -344,6 +380,7 @@ fun QuickGroups(
                     trackColor = MaterialTheme.colorScheme.surfaceVariant,
                 )
             }
+
             groupsState is UiState.Error -> {
                 Text(
                     text = groupsState.message,
@@ -352,6 +389,7 @@ fun QuickGroups(
                     modifier = Modifier.padding(vertical = 8.dp)
                 )
             }
+
             meState is UiState.Error -> {
                 Text(
                     text = meState.message,
@@ -360,6 +398,7 @@ fun QuickGroups(
                     modifier = Modifier.padding(vertical = 8.dp)
                 )
             }
+
             groupsState is UiState.Success && meState is UiState.Success -> {
                 val groups = groupsState.data
                 val me = meState.data
@@ -372,7 +411,12 @@ fun QuickGroups(
                         modifier = Modifier.padding(vertical = 8.dp)
                     )
                 } else {
-                    for (group in (if (groups.size <= 3) groups else groups.slice(IntRange(0, 2)))) {
+                    for (group in (if (groups.size <= 3) groups else groups.slice(
+                        IntRange(
+                            0,
+                            2
+                        )
+                    ))) {
                         Group(group, me, navController)
                     }
                 }
@@ -399,7 +443,13 @@ fun Group(group: GroupDto, me: UserDto, navController: NavController? = null) {
     if (groupBalance != null) {
         colorTint = if (groupBalance!! >= 0) Color(0xFF20DF6C) else Color(0xFFDF2020)
         cardColor = CardDefaults.cardColors(
-            Color(ColorUtils.blendARGB(cardColor.containerColor.toArgb(), colorTint.toArgb(), 0.1f))
+            Color(
+                ColorUtils.blendARGB(
+                    cardColor.containerColor.toArgb(),
+                    colorTint.toArgb(),
+                    0.1f
+                )
+            )
         )
     }
 
@@ -425,7 +475,10 @@ fun Group(group: GroupDto, me: UserDto, navController: NavController? = null) {
                     Text(group.description, style = MaterialTheme.typography.labelSmall)
                     HorizontalDivider()
                 }
-                Text("Group members: ${group.memberCount}", style = MaterialTheme.typography.labelSmall)
+                Text(
+                    "Group members: ${group.memberCount}",
+                    style = MaterialTheme.typography.labelSmall
+                )
             }
         }
     }
@@ -434,29 +487,33 @@ fun Group(group: GroupDto, me: UserDto, navController: NavController? = null) {
 // Extra composables
 @SuppressLint("SimpleDateFormat")
 @Composable
-fun TimeText(date: Date, modifier: Modifier = Modifier, style: TextStyle = MaterialTheme.typography.bodySmall, textAlign: TextAlign = TextAlign.Start) {
+fun TimeText(
+    date: Date,
+    modifier: Modifier = Modifier,
+    style: TextStyle = MaterialTheme.typography.bodySmall,
+    textAlign: TextAlign = TextAlign.Start
+) {
     val time = (Date().time - date.time) / 1000
     var timeText = ""
     val minute = 60
-    val hour = minute*60
-    val day = hour*24
-    val week = day*7
-    val biWeekly = week*2
+    val hour = minute * 60
+    val day = hour * 24
+    val week = day * 7
+    val biWeekly = week * 2
 
     if (time < minute) {
         timeText = "${time}s ago"
     } else if (time < hour) {
-        timeText = "${time/minute}m ago"
-    }else if (time < day) {
-        timeText = "${time/hour}h ago"
-    }else if (time < week) {
-        timeText = "${time/day}d ago"
-    }else if (time < biWeekly) {
+        timeText = "${time / minute}m ago"
+    } else if (time < day) {
+        timeText = "${time / hour}h ago"
+    } else if (time < week) {
+        timeText = "${time / day}d ago"
+    } else if (time < biWeekly) {
         timeText = "over a week ago"
-    }else {
+    } else {
         timeText = SimpleDateFormat("dd/mm/yy").format(date)
     }
-
 
     Text(timeText, modifier = modifier.then(Modifier), style = style, textAlign = textAlign)
 }

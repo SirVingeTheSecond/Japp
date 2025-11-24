@@ -29,6 +29,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
@@ -43,7 +44,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
@@ -72,17 +72,19 @@ import kotlinx.coroutines.launch
 
 var GROUP_ID = -1
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GroupScreen(navController: NavController? = null) {
-    val context = LocalContext.current
-
     var qrOpen by remember { mutableStateOf(false) }
     var groupState by remember { mutableStateOf<UiState<GroupDto>>(UiState.Loading) }
     var qrCode by remember { mutableStateOf<Bitmap?>(null) }
     var me by remember { mutableStateOf<UserDto?>(null) }
-    var groupMembers = remember { mutableStateOf<List<GroupMemberDto>>(emptyList()) }
+    val groupMembers = remember { mutableStateOf<List<GroupMemberDto>>(emptyList()) }
     var groupExpenses by remember { mutableStateOf<List<ExpenseDto>>(emptyList()) }
     var groupBalance by remember { mutableStateOf<GroupBalanceSummaryDto?>(null) }
+
+    var isRefreshing by remember { mutableStateOf(false) }
+    var refreshKey by remember { mutableIntStateOf(0) }
 
     // Hook into action button
     rememberFabButton {
@@ -99,12 +101,12 @@ fun GroupScreen(navController: NavController? = null) {
         }.onSuccess { me = it }
     }
 
-    LaunchedEffect(GROUP_ID) {
+    LaunchedEffect(GROUP_ID, refreshKey) {
         if (GROUP_ID == -1) return@LaunchedEffect
 
         groupState = UiState.Loading
 
-        // Fetch group details (critical)
+        // Group details
         groupState = when (val result = safeApiCall("GroupScreen.group") {
             RetrofitClient.groupService.getGroup(GROUP_ID)
         }) {
@@ -114,28 +116,27 @@ fun GroupScreen(navController: NavController? = null) {
 
         // Only fetch secondary data if group loaded successfully
         if (groupState is UiState.Success) {
-            // Fetch group members
             safeApiCall("GroupScreen.members") {
                 RetrofitClient.groupService.getGroupMembers(GROUP_ID)
             }.onSuccess { groupMembers.value = it }
 
-            // Fetch group balances
             safeApiCall("GroupScreen.balances") {
                 RetrofitClient.expenseService.getGroupBalances(GROUP_ID)
             }.onSuccess { groupBalance = it }
 
-            // Fetch group expenses
             safeApiCall("GroupScreen.expenses") {
                 RetrofitClient.expenseService.getGroupExpenses(GROUP_ID)
             }.onSuccess { groupExpenses = it }
         }
+
+        isRefreshing = false
     }
 
     val group = groupState.getOrNull()
 
     LaunchedEffect(group) {
         if (group != null) {
-            // lav qr code
+            // Create QR code
             qrCode = BarcodeEncoder().encodeBitmap(
                 "japp://join/${group.id}-${group.inviteCode}",
                 BarcodeFormat.QR_CODE,
@@ -155,48 +156,68 @@ fun GroupScreen(navController: NavController? = null) {
                     CircularProgressIndicator()
                 }
             }
+
             is UiState.Error -> {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
+                // Seems logical to allow refresh on error
+                PullToRefreshBox(
+                    isRefreshing = isRefreshing,
+                    onRefresh = {
+                        isRefreshing = true
+                        refreshKey++
+                    }
                 ) {
-                    Text(
-                        text = (groupState as UiState.Error).message,
-                        color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodyLarge,
-                        modifier = Modifier.padding(16.dp)
-                    )
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = (groupState as UiState.Error).message,
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodyLarge,
+                            modifier = Modifier.padding(16.dp)
+                        )
+                    }
                 }
             }
+
             is UiState.Success -> {
                 val groupData = (groupState as UiState.Success<GroupDto>).data
 
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally
+                PullToRefreshBox(
+                    isRefreshing = isRefreshing,
+                    onRefresh = {
+                        isRefreshing = true
+                        refreshKey++
+                    }
                 ) {
-                    Row {
-                        GroupIcon(
-                            groupData.name,
-                            modifier = Modifier.padding(12.dp)
-                        )
-                        Column(
-                            modifier = Modifier.padding(15.dp)
-                        ) {
-                            Text(
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.verticalScroll(rememberScrollState())  // ADD for pull gesture
+                    ) {
+                        Row {
+                            GroupIcon(
                                 groupData.name,
-                                modifier = Modifier.fillMaxWidth(),
-                                style = MaterialTheme.typography.titleLarge,
-                                textAlign = TextAlign.Right,
+                                modifier = Modifier.padding(12.dp)
                             )
-                            HorizontalDivider(
-                                thickness = 1.dp,
-                                color = Color.LightGray,
-                                modifier = Modifier.padding(vertical = 4.dp)
-                            )
-                            groupData.description?.let {
+                            Column(
+                                modifier = Modifier.padding(15.dp)
+                            ) {
                                 Text(
-                                    it, textAlign = TextAlign.Right
+                                    groupData.name,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    style = MaterialTheme.typography.titleLarge,
+                                    textAlign = TextAlign.Right,
                                 )
+                                HorizontalDivider(
+                                    thickness = 1.dp,
+                                    color = Color.LightGray,
+                                    modifier = Modifier.padding(vertical = 4.dp)
+                                )
+                                groupData.description?.let {
+                                    Text(
+                                        it, textAlign = TextAlign.Right
+                                    )
+                                }
                             }
                         }
                     }
@@ -211,7 +232,7 @@ fun GroupScreen(navController: NavController? = null) {
                             onClick = { qrOpen = true },
                             modifier = Modifier.padding(horizontal = 8.dp)
                         ) {
-                            Text("Show QR!")
+                            Text("Show QR")
                         }
 
                         Button(
@@ -269,7 +290,6 @@ fun GroupScreen(navController: NavController? = null) {
         }
     }
 }
-
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -425,7 +445,11 @@ fun NavTab(
                     }
                     HorizontalDivider()
                     Text("Actions", style = MaterialTheme.typography.headlineSmall)
-                    Text("Be careful", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(
+                        "Be careful",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
 
                     actionError?.let { error ->
                         Text(
@@ -496,8 +520,12 @@ fun NavTab(
                                         RetrofitClient.groupService.leaveGroup(groupId)
                                     }) {
                                         is NetworkResult.Success -> {
-                                            outerNavController?.popBackStack(AppDestinations.HOME.route, false)
+                                            outerNavController?.popBackStack(
+                                                AppDestinations.HOME.route,
+                                                false
+                                            )
                                         }
+
                                         is NetworkResult.Error -> {
                                             actionError = result.message
                                             leaving = false
@@ -512,6 +540,7 @@ fun NavTab(
                 }
             }
         }
+
         deleting -> {
             Dialog({ deleting = false }) {
                 Card {
@@ -547,8 +576,12 @@ fun NavTab(
                                         RetrofitClient.groupService.deleteGroup(groupId)
                                     }) {
                                         is NetworkResult.Success -> {
-                                            outerNavController?.popBackStack(AppDestinations.HOME.route, false)
+                                            outerNavController?.popBackStack(
+                                                AppDestinations.HOME.route,
+                                                false
+                                            )
                                         }
+
                                         is NetworkResult.Error -> {
                                             actionError = result.message
                                             deleting = false

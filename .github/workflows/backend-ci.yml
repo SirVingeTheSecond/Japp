@@ -29,7 +29,7 @@ jobs:
       - name: Build and Test
         run: ./gradlew build --no-daemon
 
-      - nane: Generate Kover Coverage reports
+      - name: Generate Kover Coverage reports
         run: ./gradlew koverHtmlReport --no-daemon
       
       - name: Upload test results

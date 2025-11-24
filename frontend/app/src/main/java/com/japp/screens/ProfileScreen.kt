@@ -45,6 +45,7 @@ import com.japp.api.NetworkResult
 import com.japp.api.RetrofitClient
 import com.japp.api.responses.auth.UserDto
 import com.japp.api.safeApiCall
+import com.japp.composables.ErrorWithRetry
 import com.japp.ui.state.UiState
 import com.japp.ui.theme.Dimens
 
@@ -121,11 +122,9 @@ fun ProfileScreen(navController: NavController) {
                     }
 
                     is UiState.Error -> {
-                        Text(
-                            text = (userState as UiState.Error).message,
-                            color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.bodyMedium,
-                            modifier = Modifier.padding(vertical = 8.dp)
+                        ErrorWithRetry(
+                            message = (userState as UiState.Error).message,
+                            onRetry = { refreshKey++ }
                         )
                     }
 

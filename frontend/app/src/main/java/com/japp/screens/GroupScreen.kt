@@ -62,6 +62,7 @@ import com.japp.api.responses.expense.GroupBalanceSummaryDto
 import com.japp.api.responses.group.GroupDto
 import com.japp.api.responses.group.GroupMemberDto
 import com.japp.api.safeApiCall
+import com.japp.composables.ErrorWithRetry
 import com.japp.composables.ExpenseDetailCard
 import com.japp.composables.GroupIcon
 import com.japp.composables.GroupMemberDetailCard
@@ -170,11 +171,9 @@ fun GroupScreen(navController: NavController? = null) {
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            text = (groupState as UiState.Error).message,
-                            color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.bodyLarge,
-                            modifier = Modifier.padding(16.dp)
+                        ErrorWithRetry(
+                            message = (groupState as UiState.Error).message,
+                            onRetry = { refreshKey++ }
                         )
                     }
                 }

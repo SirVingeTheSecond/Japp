@@ -51,6 +51,7 @@ import com.japp.api.responses.activity.ActivityDto
 import com.japp.api.responses.auth.UserDto
 import com.japp.api.responses.group.GroupDto
 import com.japp.api.safeApiCall
+import com.japp.composables.ErrorWithRetry
 import com.japp.composables.GroupIcon
 import com.japp.composables.getActivityIcon
 import com.japp.ui.state.UiState
@@ -149,14 +150,14 @@ fun HomeScreen(navController: NavController? = null) {
                     .background(MaterialTheme.colorScheme.primary),
                 thickness = 2.dp
             )
-            QuickActivities(navController, activitiesState)
+            QuickActivities(navController, activitiesState, onRetry = { refreshKey++ })
             HorizontalDivider(
                 Modifier
                     .padding(10.dp)
                     .background(MaterialTheme.colorScheme.primary),
                 thickness = 2.dp
             )
-            QuickGroups(navController, groupsState, meState)
+            QuickGroups(navController, groupsState, meState, onRetry = { refreshKey++ })
         }
     }
 }
@@ -243,7 +244,8 @@ fun Pill(
 @Composable
 fun QuickActivities(
     navController: NavController?,
-    activitiesState: UiState<List<ActivityDto>>
+    activitiesState: UiState<List<ActivityDto>>,
+    onRetry: () -> Unit  // ADD this parameter
 ) {
     Column(
         horizontalAlignment = Alignment.Start
@@ -271,11 +273,9 @@ fun QuickActivities(
             }
 
             is UiState.Error -> {
-                Text(
-                    text = activitiesState.message,
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.padding(vertical = 8.dp)
+                ErrorWithRetry(
+                    message = activitiesState.message,
+                    onRetry = onRetry
                 )
             }
 
@@ -354,7 +354,8 @@ fun Activity(activity: ActivityDto) {
 fun QuickGroups(
     navController: NavController?,
     groupsState: UiState<List<GroupDto>>,
-    meState: UiState<UserDto>
+    meState: UiState<UserDto>,
+    onRetry: () -> Unit  // ADD this parameter
 ) {
     Column(
         horizontalAlignment = Alignment.Start,
@@ -383,20 +384,18 @@ fun QuickGroups(
             }
 
             groupsState is UiState.Error -> {
-                Text(
-                    text = groupsState.message,
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.padding(vertical = 8.dp)
+                // REPLACE Text with ErrorWithRetry
+                ErrorWithRetry(
+                    message = groupsState.message,
+                    onRetry = onRetry
                 )
             }
 
             meState is UiState.Error -> {
-                Text(
-                    text = meState.message,
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.padding(vertical = 8.dp)
+                // REPLACE Text with ErrorWithRetry
+                ErrorWithRetry(
+                    message = meState.message,
+                    onRetry = onRetry
                 )
             }
 

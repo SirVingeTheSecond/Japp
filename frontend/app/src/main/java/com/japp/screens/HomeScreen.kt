@@ -1,3 +1,4 @@
+// File: app/src/main/java/com/japp/screens/HomeScreen.kt
 package com.japp.screens
 
 import android.annotation.SuppressLint
@@ -33,7 +34,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -43,13 +43,15 @@ import androidx.compose.ui.unit.dp
 import androidx.core.graphics.ColorUtils
 import androidx.navigation.NavController
 import com.japp.AppDestinations
-import com.japp.api.ErrorUtils
+import com.japp.api.NetworkResult
 import com.japp.api.RetrofitClient
 import com.japp.api.responses.activity.ActivityDto
 import com.japp.api.responses.auth.UserDto
 import com.japp.api.responses.group.GroupDto
+import com.japp.api.safeApiCall
 import com.japp.composables.GroupIcon
 import com.japp.composables.getActivityIcon
+import com.japp.ui.state.UiState
 import java.text.SimpleDateFormat
 import java.util.Date
 import kotlin.math.absoluteValue
@@ -59,53 +61,64 @@ import kotlin.math.roundToInt
 @Preview(showSystemUi = true)
 @Composable
 fun HomeScreen(navController: NavController? = null) {
-    val context = LocalContext.current
-
-    var activities by remember { mutableStateOf<List<ActivityDto>?>(null) }
-    var groups by remember { mutableStateOf<List<GroupDto>?>(null) }
-
-    LaunchedEffect(Unit) {
-        // Activity call
-        val res1 = RetrofitClient.activityService.getUserActivities(4)
-        if (res1.isSuccessful && res1.body() != null) {
-            activities = res1.body()!!
-        }
-        // Group call
-        val res2 = RetrofitClient.groupService.getMyGroups()
-        if (res2.isSuccessful && res2.body() != null) {
-            groups = res2.body()!!
-        }
-    }
+    var activitiesState by remember { mutableStateOf<UiState<List<ActivityDto>>>(UiState.Loading) }
+    var groupsState by remember { mutableStateOf<UiState<List<GroupDto>>>(UiState.Loading) }
+    var meState by remember { mutableStateOf<UiState<UserDto>>(UiState.Loading) }
 
     var owed by remember { mutableStateOf<Double?>(null) }
     var owes by remember { mutableStateOf<Double?>(null) }
 
-    LaunchedEffect(groups) {
+    LaunchedEffect(Unit) {
+        // Activity call
+        activitiesState = when (val result = safeApiCall("HomeScreen.activities") {
+            RetrofitClient.activityService.getUserActivities(4)
+        }) {
+            is NetworkResult.Success -> UiState.Success(result.data)
+            is NetworkResult.Error -> UiState.Error(result.message)
+        }
+
+        // Group call
+        groupsState = when (val result = safeApiCall("HomeScreen.groups") {
+            RetrofitClient.groupService.getMyGroups()
+        }) {
+            is NetworkResult.Success -> UiState.Success(result.data)
+            is NetworkResult.Error -> UiState.Error(result.message)
+        }
+    }
+
+    LaunchedEffect(groupsState) {
+        val groups = groupsState.getOrNull() ?: return@LaunchedEffect
+
         // Me call
-        val res = RetrofitClient.userService.getMyUser()
-        if (res.isSuccessful && res.body() != null) {
-            val me = res.body()!!
-            if (groups != null) {
-                for (group in groups) {
-                    val res = RetrofitClient.expenseService.getGroupBalances(group.id)
-                    if (res.isSuccessful && res.body() != null) {
-                        val balanceSummaryDto = res.body()!!
-                        if (owed == null || owes == null) {
-                            owed = 0.0
-                            owes = 0.0
-                        }
-                        val myBal = balanceSummaryDto.balances.find { (userId, _, _) ->  userId == me.id}
-                        if (myBal != null) {
-                            if (myBal.balance < 0) owes = owes!! + myBal.balance.absoluteValue else owed = owed!! + myBal.balance.absoluteValue
-                        }
-                    } else {
-                        ErrorUtils.handleError(res, context)
-                    }
+        meState = when (val result = safeApiCall("HomeScreen.me") {
+            RetrofitClient.userService.getMyUser()
+        }) {
+            is NetworkResult.Success -> UiState.Success(result.data)
+            is NetworkResult.Error -> UiState.Error(result.message)
+        }
+
+        val me = meState.getOrNull() ?: return@LaunchedEffect
+
+        // Calculate balances across all groups
+        var totalOwed = 0.0
+        var totalOwes = 0.0
+
+        for (group in groups) {
+            val result = safeApiCall("HomeScreen.balance.${group.id}") {
+                RetrofitClient.expenseService.getGroupBalances(group.id)
+            }
+            if (result is NetworkResult.Success) {
+                val balanceSummaryDto = result.data
+                val myBal = balanceSummaryDto.balances.find { (userId, _, _) -> userId == me.id }
+                if (myBal != null) {
+                    if (myBal.balance < 0) totalOwes += myBal.balance.absoluteValue else totalOwed += myBal.balance.absoluteValue
                 }
             }
-        } else {
-            ErrorUtils.handleError(res, context)
+            // Silently skip failed balance fetches to avoid blocking the entire screen
         }
+
+        owed = totalOwed
+        owes = totalOwes
     }
 
     Column(
@@ -115,29 +128,29 @@ fun HomeScreen(navController: NavController? = null) {
             .verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        QuickStats(owed ?: 0.0, owes ?: 0.0)
+        QuickStats(owed, owes)
         HorizontalDivider(
             Modifier
                 .padding(10.dp)
                 .background(MaterialTheme.colorScheme.primary),
             thickness = 2.dp
         )
-        QuickActivities(navController, activities)
+        QuickActivities(navController, activitiesState)
         HorizontalDivider(
             Modifier
                 .padding(10.dp)
                 .background(MaterialTheme.colorScheme.primary),
             thickness = 2.dp
         )
-        QuickGroups(navController, groups)
+        QuickGroups(navController, groupsState, meState)
     }
 }
 
 
 @Composable
 fun QuickStats(
-    owed: Double,
-    owes: Double
+    owed: Double?,
+    owes: Double?
 ) {
     var ratio by remember { mutableStateOf<Double?>(null) }
     var difference by remember { mutableStateOf<Double?>(null) }
@@ -149,13 +162,13 @@ fun QuickStats(
         horizontalArrangement = Arrangement.SpaceAround
     ) {
         if (owed != null && owes != null) {
-            ratio = round((owes / (owed + owes)) * 100) / 100
+            ratio = if (owed + owes > 0) round((owes / (owed + owes)) * 100) / 100 else 0.0
             difference = owed - owes
-            var acceptColor = Color(0xFF20DF6C)
-            var errorColor = Color(0xFFDF2020)
-            var ratioColorInt =
+            val acceptColor = Color(0xFF20DF6C)
+            val errorColor = Color(0xFFDF2020)
+            val ratioColorInt =
                 ratio?.let { ColorUtils.blendARGB(acceptColor.toArgb(), errorColor.toArgb(), it.toFloat()) }
-            var ratioColor = Color(ratioColorInt ?: Color.Yellow.toArgb())
+            val ratioColor = Color(ratioColorInt ?: Color.Yellow.toArgb())
 
             Pill(
                 ((owed * 10).roundToInt() / 10.0).toString(),
@@ -174,7 +187,7 @@ fun QuickStats(
                 label = "Owes",
                 color = errorColor,
                 textColor = MaterialTheme.colorScheme.onSecondaryContainer
-                )
+            )
         } else {
             LinearProgressIndicator(
                 Modifier.align(Alignment.CenterVertically),
@@ -210,7 +223,7 @@ fun Pill(
 @Composable
 fun QuickActivities(
     navController: NavController?,
-    activities: List<ActivityDto>?
+    activitiesState: UiState<List<ActivityDto>>
 ) {
     Column(
         horizontalAlignment = Alignment.Start
@@ -227,33 +240,49 @@ fun QuickActivities(
                 Text("Activities ->", textAlign = TextAlign.End)
             }
         }
-        if (activities != null) {
-            for (activity in activities) {
-                Activity(activity)
+
+        when (activitiesState) {
+            is UiState.Loading -> {
+                LinearProgressIndicator(
+                    Modifier.align(Alignment.CenterHorizontally),
+                    color = MaterialTheme.colorScheme.secondary,
+                    trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                )
             }
-        } else {
-            LinearProgressIndicator(
-                Modifier.align(Alignment.CenterHorizontally),
-                color = MaterialTheme.colorScheme.secondary,
-                trackColor = MaterialTheme.colorScheme.surfaceVariant,
-            )
+            is UiState.Error -> {
+                Text(
+                    text = activitiesState.message,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(vertical = 8.dp)
+                )
+            }
+            is UiState.Success -> {
+                if (activitiesState.data.isEmpty()) {
+                    Text(
+                        text = "No recent activities",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(vertical = 8.dp)
+                    )
+                } else {
+                    for (activity in activitiesState.data) {
+                        Activity(activity)
+                    }
+                }
+            }
         }
     }
 }
 
 @Composable
 fun Activity(activity: ActivityDto) {
-    val context = LocalContext.current
-
     var group by remember { mutableStateOf<GroupDto?>(null) }
 
     LaunchedEffect(Unit) {
-        val res = RetrofitClient.groupService.getGroup(activity.groupId)
-        if (res.isSuccessful && res.body() != null) {
-            group = res.body()
-        } else {
-            ErrorUtils.handleError(res, context)
-        }
+        safeApiCall("Activity.group.${activity.groupId}") {
+            RetrofitClient.groupService.getGroup(activity.groupId)
+        }.onSuccess { group = it }
     }
 
     Row(
@@ -288,20 +317,9 @@ fun Activity(activity: ActivityDto) {
 @Composable
 fun QuickGroups(
     navController: NavController?,
-    groups: List<GroupDto>?
+    groupsState: UiState<List<GroupDto>>,
+    meState: UiState<UserDto>
 ) {
-    val context = LocalContext.current
-
-    var me by remember { mutableStateOf<UserDto?>(null) }
-    LaunchedEffect(Unit) {
-        val res = RetrofitClient.userService.getMyUser()
-        if (res.isSuccessful && res.body() != null) {
-            me = res.body()!!
-        } else {
-            ErrorUtils.handleError(res, context)
-        }
-    }
-
     Column(
         horizontalAlignment = Alignment.Start,
         verticalArrangement = Arrangement.spacedBy(10.dp)
@@ -318,34 +336,62 @@ fun QuickGroups(
                 Text("My Groups ->", textAlign = TextAlign.End)
             }
         }
-        if (groups != null && me != null) {
-            for (group in (if (groups.size <= 3) groups else groups.slice(IntRange(0, 2)))) {
-                Group(group, me!!, navController)
+
+        when {
+            groupsState is UiState.Loading || meState is UiState.Loading -> {
+                LinearProgressIndicator(
+                    Modifier.align(Alignment.CenterHorizontally),
+                    color = MaterialTheme.colorScheme.secondary,
+                    trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                )
             }
-        } else {
-            LinearProgressIndicator(
-                Modifier.align(Alignment.CenterHorizontally),
-                color = MaterialTheme.colorScheme.secondary,
-                trackColor = MaterialTheme.colorScheme.surfaceVariant,
-            )
+            groupsState is UiState.Error -> {
+                Text(
+                    text = groupsState.message,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(vertical = 8.dp)
+                )
+            }
+            meState is UiState.Error -> {
+                Text(
+                    text = meState.message,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(vertical = 8.dp)
+                )
+            }
+            groupsState is UiState.Success && meState is UiState.Success -> {
+                val groups = groupsState.data
+                val me = meState.data
+
+                if (groups.isEmpty()) {
+                    Text(
+                        text = "No groups yet",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(vertical = 8.dp)
+                    )
+                } else {
+                    for (group in (if (groups.size <= 3) groups else groups.slice(IntRange(0, 2)))) {
+                        Group(group, me, navController)
+                    }
+                }
+            }
         }
     }
 }
 
 @Composable
 fun Group(group: GroupDto, me: UserDto, navController: NavController? = null) {
-    val context = LocalContext.current
-
     var groupBalance by remember { mutableStateOf<Double?>(null) }
 
     LaunchedEffect(Unit) {
-        val res = RetrofitClient.expenseService.getGroupBalances(group.id)
-        if (res.isSuccessful && res.body() != null) {
-            val summaryDto = res.body()!!
-            val myBal = summaryDto.balances.find { (userId, username, balance) -> userId == me.id }
+        safeApiCall("Group.balance.${group.id}") {
+            RetrofitClient.expenseService.getGroupBalances(group.id)
+        }.onSuccess { summaryDto ->
+            val myBal = summaryDto.balances.find { (userId, _, _) -> userId == me.id }
             groupBalance = myBal?.balance
-        } else {
-            ErrorUtils.handleError(res, context)
         }
     }
 
@@ -363,7 +409,7 @@ fun Group(group: GroupDto, me: UserDto, navController: NavController? = null) {
         modifier = Modifier.height(100.dp),
         colors = cardColor
     ) {
-        Row (
+        Row(
             Modifier.padding(10.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp)

@@ -1,7 +1,6 @@
 package com.japp.screens
 
 import android.app.Activity
-import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -16,6 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -37,23 +37,20 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.navigation.NavController
 import com.japp.AppDestinations
-import com.japp.api.ErrorUtils
+import com.japp.api.NetworkResult
 import com.japp.api.RetrofitClient
-import com.japp.api.responses.group.GroupDto
 import com.japp.api.responses.group.GroupPreviewDto
 import com.japp.api.responses.group.JoinGroupRequest
+import com.japp.api.safeApiCall
 import com.japp.composables.GroupIcon
+import com.japp.ui.state.UiState
 import com.journeyapps.barcodescanner.CaptureManager
 import com.journeyapps.barcodescanner.CompoundBarcodeView
 import kotlinx.coroutines.launch
-import retrofit2.Call
-import retrofit2.Callback
-import retrofit2.Response
 import kotlin.random.Random
 
 @Composable
 fun ScanScreen(navController: NavController? = null) {
-    val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
 
     var cameraAccess by remember { mutableStateOf(false) }
@@ -66,7 +63,6 @@ fun ScanScreen(navController: NavController? = null) {
         ActivityResultContracts.RequestPermission()
     ) { isGranted ->
         if (isGranted) {
-            Log.d("msg","CAM ACCESS GRANTED")
             cameraAccess = true
         } else {
             ActivityResultContracts.RequestPermission()
@@ -84,7 +80,7 @@ fun ScanScreen(navController: NavController? = null) {
         if (cameraAccess) {
             var torchState by remember { mutableStateOf(false) }
             var recomposeFlag by remember { mutableIntStateOf(Random.nextInt()) }
-            key (recomposeFlag){
+            key(recomposeFlag) {
                 AndroidView(
                     factory = { context ->
                         val preview = CompoundBarcodeView(context)
@@ -108,83 +104,153 @@ fun ScanScreen(navController: NavController? = null) {
                             this.resume()
                         }
                     },
-                    modifier = Modifier
-                        .fillMaxSize()
+                    modifier = Modifier.fillMaxSize()
                 )
             }
         }
 
-        suspend fun JoinGroup(inviteCode: String) {
-            val res = RetrofitClient.groupService.joinGroup(JoinGroupRequest(inviteCode))
-            val body = res.body()
-            if (body != null && res.isSuccessful) {
-                GROUP_ID = body.id
-                navController?.navigate(AppDestinations.GROUP.route)
-            } else {
-                ErrorUtils.handleError(res, context)
-            }
-        }
-
-        if (showResult) {
+        if (showResult && lastReadBarcode != null) {
             val barcodeMatch = "(?<=(japp://join/))(\\d+)-([A-Z0-9]+)".toRegex()
             val matches = barcodeMatch.find(lastReadBarcode!!)
-            val groupId  = matches?.groupValues?.get(2)
+            val groupId = matches?.groupValues?.get(2)
             val inviteCode = matches?.groupValues?.get(3)
+
             if (groupId != null && inviteCode != null) {
-                var group by remember { mutableStateOf<GroupPreviewDto?>(null) }
-                LaunchedEffect(Unit) {
-                    val res = RetrofitClient.groupService.getGroup(inviteCode)
-                    if (res.isSuccessful && res.body() != null) {
-                        group = res.body()
-                    } else {
-                        ErrorUtils.handleError(res, context)
+                ScanResultDialog(
+                    inviteCode = inviteCode,
+                    onDismiss = {
+                        showResult = false
+                        scanFlag = false
+                    },
+                    onJoinSuccess = { joinedGroupId ->
+                        GROUP_ID = joinedGroupId
+                        navController?.navigate(AppDestinations.GROUP.route)
                     }
+                )
+            } else {
+                showResult = false
+                scanFlag = false
+                Toast.makeText(context, "Invalid QR code", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+}
+
+@Composable
+private fun ScanResultDialog(
+    inviteCode: String,
+    onDismiss: () -> Unit,
+    onJoinSuccess: (Int) -> Unit
+) {
+    val coroutineScope = rememberCoroutineScope()
+
+    var groupState by remember { mutableStateOf<UiState<GroupPreviewDto>>(UiState.Loading) }
+    var isJoining by remember { mutableStateOf(false) }
+    var joinError by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(inviteCode) {
+        groupState = when (val result = safeApiCall("ScanScreen.groupPreview") {
+            RetrofitClient.groupService.getGroup(inviteCode)
+        }) {
+            is NetworkResult.Success -> UiState.Success(result.data)
+            is NetworkResult.Error -> UiState.Error(result.message)
+        }
+    }
+
+    fun joinGroup() {
+        isJoining = true
+        joinError = null
+
+        coroutineScope.launch {
+            when (val result = safeApiCall("ScanScreen.join") {
+                RetrofitClient.groupService.joinGroup(JoinGroupRequest(inviteCode))
+            }) {
+                is NetworkResult.Success -> {
+                    onJoinSuccess(result.data.id)
                 }
-                Dialog({showResult = false; scanFlag = false}) {
-                    Card() {
-                        Column(Modifier.padding(10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                            Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                                if (group != null) {
-                                    Box(Modifier.padding(10.dp), contentAlignment = Alignment.Center) {
-                                        GroupIcon(group!!.name, Modifier.size(90.dp))
-                                    }
-                                    Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                                        Text(group!!.name, style = MaterialTheme.typography.headlineMedium,
-                                            fontWeight = FontWeight.SemiBold)
-                                        HorizontalDivider(
-                                            Modifier
-                                                .padding(5.dp)
-                                                .background(MaterialTheme.colorScheme.primary),
-                                            thickness = 2.dp
-                                        )
-                                        Text(group!!.description ?: "No description")
-                                        HorizontalDivider(
-                                            Modifier
-                                                .padding(5.dp)
-                                                .background(MaterialTheme.colorScheme.primary),
-                                            thickness = 2.dp
-                                        )
-                                        Text("${group!!.memberCount} members")
-                                    }
-                                }
+                is NetworkResult.Error -> {
+                    joinError = result.message
+                    isJoining = false
+                }
+            }
+        }
+    }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Card {
+            Column(
+                Modifier.padding(10.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                when (groupState) {
+                    is UiState.Loading -> {
+                        CircularProgressIndicator(Modifier.padding(16.dp))
+                    }
+                    is UiState.Error -> {
+                        Text(
+                            text = (groupState as UiState.Error).message,
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.padding(16.dp)
+                        )
+                    }
+                    is UiState.Success -> {
+                        val group = (groupState as UiState.Success<GroupPreviewDto>).data
+
+                        Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                            Box(Modifier.padding(10.dp), contentAlignment = Alignment.Center) {
+                                GroupIcon(group.name, Modifier.size(90.dp))
                             }
-                            Row(Modifier.fillMaxWidth().padding(top = 5.dp), horizontalArrangement = Arrangement.SpaceAround) {
-                                // on left cuz left handed people rule!
-                                Button({ coroutineScope.launch {JoinGroup(inviteCode)} }) {
-                                    Text("Join ${group?.name ?:"..."}")
-                                }
-                                Button({showResult = false; scanFlag = false}) {
-                                    Text("Cancel")
-                                }
+                            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                Text(
+                                    group.name,
+                                    style = MaterialTheme.typography.headlineMedium,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                HorizontalDivider(
+                                    Modifier
+                                        .padding(5.dp)
+                                        .background(MaterialTheme.colorScheme.primary),
+                                    thickness = 2.dp
+                                )
+                                Text(group.description ?: "No description")
+                                HorizontalDivider(
+                                    Modifier
+                                        .padding(5.dp)
+                                        .background(MaterialTheme.colorScheme.primary),
+                                    thickness = 2.dp
+                                )
+                                Text("${group.memberCount} members")
+                            }
+                        }
+
+                        joinError?.let {
+                            Text(
+                                text = it,
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.bodySmall,
+                                modifier = Modifier.padding(vertical = 8.dp)
+                            )
+                        }
+
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(top = 5.dp),
+                            horizontalArrangement = Arrangement.SpaceAround
+                        ) {
+                            // on left cuz left handed people rule!
+                            Button(
+                                onClick = { joinGroup() },
+                                enabled = !isJoining
+                            ) {
+                                Text(if (isJoining) "Joining..." else "Join ${group.name}")
+                            }
+                            Button(onClick = onDismiss) {
+                                Text("Cancel")
                             }
                         }
                     }
                 }
-
-            } else {
-                showResult = false
-                scanFlag = false
-                Toast.makeText(LocalContext.current, "Invalid", Toast.LENGTH_SHORT).show()
             }
         }
     }

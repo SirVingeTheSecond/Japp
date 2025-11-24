@@ -1,16 +1,42 @@
 package com.japp.screens
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.japp.api.NetworkResult
 import com.japp.api.RetrofitClient
+import com.japp.api.responses.auth.UserDto
 import com.japp.api.responses.user.UpdateUserRequest
+import com.japp.api.safeApiCall
+import com.japp.ui.state.UiState
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -18,57 +44,55 @@ import kotlinx.coroutines.launch
 fun EditProfileScreen(navController: NavController) {
     val scope = rememberCoroutineScope()
 
+    var userState by remember { mutableStateOf<UiState<UserDto>>(UiState.Loading) }
+
     var firstname by remember { mutableStateOf("") }
     var lastname by remember { mutableStateOf("") }
     var phone by remember { mutableStateOf("") }
     var profilePicture by remember { mutableStateOf("") }
 
     var saving by remember { mutableStateOf(false) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
-    val userLoadState by produceState<Result<Unit>?>(initialValue = null) {
-        value = try {
-            val res = RetrofitClient.userService.getMyUser()
-            if (res.isSuccessful && res.body() != null) {
-                val u = res.body()!!
-                firstname = u.firstname
-                lastname = u.lastname
-                phone = u.phone.orEmpty()
-                profilePicture = u.profilePicture.orEmpty()
-                Result.success(Unit)
-            } else {
-                Result.failure(Exception("Failed to load user"))
+    var saveError by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(Unit) {
+        userState = when (val result = safeApiCall("EditProfile.load") {
+            RetrofitClient.userService.getMyUser()
+        }) {
+            is NetworkResult.Success -> {
+                val user = result.data
+                firstname = user.firstname
+                lastname = user.lastname
+                phone = user.phone.orEmpty()
+                profilePicture = user.profilePicture.orEmpty()
+                UiState.Success(user)
             }
-        } catch (e: Exception) {
-            Result.failure(e)
+            is NetworkResult.Error -> UiState.Error(result.message)
         }
     }
 
     fun save() {
         if (saving) return
         saving = true
-        errorMessage = null
+        saveError = null
 
         scope.launch {
-            try {
-                val req = UpdateUserRequest(
-                    firstname = firstname,
-                    lastname = lastname,
-                    phone = phone.ifBlank { null },
-                    profilePicture = profilePicture.ifBlank { null }
-                )
+            val request = UpdateUserRequest(
+                firstname = firstname,
+                lastname = lastname,
+                phone = phone.ifBlank { null },
+                profilePicture = profilePicture.ifBlank { null }
+            )
 
-                val res = RetrofitClient.userService.updateMyUser(req)
-                saving = false
-
-                if (res.isSuccessful) {
+            when (val result = safeApiCall("EditProfile.save") {
+                RetrofitClient.userService.updateMyUser(request)
+            }) {
+                is NetworkResult.Success -> {
                     navController.popBackStack()
-                } else {
-                    val err = res.errorBody()?.string()
-                    errorMessage = err ?: "Failed to update"
                 }
-            } catch (e: Exception) {
-                saving = false
-                errorMessage = "Network error"
+                is NetworkResult.Error -> {
+                    saveError = result.message
+                    saving = false
+                }
             }
         }
     }
@@ -85,9 +109,8 @@ fun EditProfileScreen(navController: NavController) {
             )
         }
     ) { padding ->
-
-        when {
-            userLoadState == null -> {
+        when (userState) {
+            is UiState.Loading -> {
                 Box(
                     modifier = Modifier
                         .padding(padding)
@@ -97,19 +120,20 @@ fun EditProfileScreen(navController: NavController) {
                     CircularProgressIndicator()
                 }
             }
-
-            userLoadState?.isFailure == true -> {
+            is UiState.Error -> {
                 Box(
                     modifier = Modifier
                         .padding(padding)
                         .fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("Failed to load user")
+                    Text(
+                        text = (userState as UiState.Error).message,
+                        color = MaterialTheme.colorScheme.error
+                    )
                 }
             }
-
-            else -> {
+            is UiState.Success -> {
                 Column(
                     modifier = Modifier
                         .padding(padding)
@@ -117,7 +141,6 @@ fun EditProfileScreen(navController: NavController) {
                         .fillMaxSize(),
                     verticalArrangement = Arrangement.Top
                 ) {
-
                     OutlinedTextField(
                         value = firstname,
                         onValueChange = { firstname = it },
@@ -154,7 +177,7 @@ fun EditProfileScreen(navController: NavController) {
 
                     Spacer(Modifier.height(20.dp))
 
-                    errorMessage?.let {
+                    saveError?.let {
                         Text(it, color = MaterialTheme.colorScheme.error)
                         Spacer(Modifier.height(12.dp))
                     }

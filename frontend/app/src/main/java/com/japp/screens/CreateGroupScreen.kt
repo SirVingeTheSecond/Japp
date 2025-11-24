@@ -1,7 +1,5 @@
 package com.japp.screens
 
-import android.util.Log
-import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -9,60 +7,66 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.japp.AppDestinations
-import com.japp.api.ErrorUtils
+import com.japp.api.NetworkResult
 import com.japp.api.RetrofitClient
 import com.japp.api.responses.group.CreateGroupRequest
-import com.japp.api.responses.group.GroupDto
+import com.japp.api.safeApiCall
 import com.japp.composables.GroupIcon
 import kotlinx.coroutines.launch
-import retrofit2.Call
-import retrofit2.Callback
-import retrofit2.Response
 
 
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun CreateGroupScreen(navController: NavController? = null) {
     val coroutineScope = rememberCoroutineScope()
-    val context = LocalContext.current
 
     var name by remember { mutableStateOf("") }
     var descript by remember { mutableStateOf("") }
     var nameValid by remember { mutableStateOf(true) }
     var descriptValid by remember { mutableStateOf(true) }
+    var isSubmitting by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
 
-    suspend fun createGroup(){
-        if (!nameValid && !descriptValid) return
-        val res = RetrofitClient.groupService.createGroup(
-            CreateGroupRequest(
-                name,
-                descript
-            )
-        )
+    fun createGroup() {
+        if (!nameValid || !descriptValid) return
+        if (name.isEmpty()) {
+            nameValid = false
+            return
+        }
 
-        val body = res.body()
-        Log.d("Tag", body.toString())
+        isSubmitting = true
+        errorMessage = null
 
-        if (body != null && res.isSuccessful) {
-            navController?.navigate(AppDestinations.HOME.route)
-        } else {
-            ErrorUtils.handleError(res, context)
+        coroutineScope.launch {
+            when (val result = safeApiCall("CreateGroupScreen.create") {
+                RetrofitClient.groupService.createGroup(
+                    CreateGroupRequest(name, descript)
+                )
+            }) {
+                is NetworkResult.Success -> {
+                    navController?.navigate(AppDestinations.HOME.route)
+                }
+                is NetworkResult.Error -> {
+                    errorMessage = result.message
+                    isSubmitting = false
+                }
+            }
         }
     }
 
@@ -71,9 +75,8 @@ fun CreateGroupScreen(navController: NavController? = null) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(20.dp, Alignment.CenterVertically)
     ) {
-        GroupIcon(
-            name
-        )
+        GroupIcon(name)
+
         Box(
             Modifier
                 .background(MaterialTheme.colorScheme.surfaceContainer)
@@ -84,15 +87,12 @@ fun CreateGroupScreen(navController: NavController? = null) {
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(20.dp)
             ) {
-
                 OutlinedTextField(
                     name,
                     isError = !nameValid,
                     onValueChange = {
                         name = it
-                        if (it.length > 50 || it.isEmpty()) {
-                            nameValid = false
-                        } else nameValid = true
+                        nameValid = it.isNotEmpty() && it.length <= 50
                     },
                     label = { Text("Group name") },
                     supportingText = {
@@ -101,33 +101,43 @@ fun CreateGroupScreen(navController: NavController? = null) {
                         }
                     }
                 )
+
                 OutlinedTextField(
                     descript,
                     isError = !descriptValid,
                     onValueChange = {
                         descript = it
-                        if (it.length > 500 || it.isEmpty()) {
-                            descriptValid = false
-                        } else descriptValid = true
+                        descriptValid = it.length <= 500
                     },
                     label = { Text("Description") },
                     supportingText = {
                         if (!descriptValid) {
-                            Text("Description must not be empty and be less than 500 characters")
+                            Text("Description must be less than 500 characters")
                         }
                     }
                 )
-                Button(onClick = {
-                    coroutineScope.launch {createGroup()}
-                }) {
-                    Text("Submit")
 
+                errorMessage?.let {
+                    Text(
+                        text = it,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall
+                    )
                 }
 
+                Button(
+                    onClick = { createGroup() },
+                    enabled = !isSubmitting
+                ) {
+                    if (isSubmitting) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.padding(end = 8.dp),
+                            strokeWidth = 2.dp
+                        )
+                    }
+                    Text(if (isSubmitting) "Creating..." else "Submit")
+                }
             }
-
         }
-
     }
 }
-

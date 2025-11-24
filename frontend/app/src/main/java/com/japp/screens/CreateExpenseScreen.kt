@@ -6,7 +6,15 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -14,8 +22,27 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Image
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -24,6 +51,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.japp.api.NetworkResult
 import com.japp.api.RetrofitClient
 import com.japp.api.responses.Currency
 import com.japp.api.responses.ExpenseCategory
@@ -32,6 +60,8 @@ import com.japp.api.responses.expense.CreateExpenseRequest
 import com.japp.api.responses.expense.ExpenseSplitRequest
 import com.japp.api.responses.group.GroupDto
 import com.japp.api.responses.group.GroupMemberDto
+import com.japp.api.safeApiCall
+import com.japp.ui.state.UiState
 import kotlinx.coroutines.launch
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
@@ -54,14 +84,13 @@ fun CreateExpenseScreen(
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
 
-    var groups by remember { mutableStateOf<List<GroupDto>>(emptyList()) }
+    var groupsState by remember { mutableStateOf<UiState<List<GroupDto>>>(UiState.Loading) }
     var selectedGroup by remember { mutableStateOf<GroupDto?>(null) }
 
     var amount by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
     var category by remember { mutableStateOf<ExpenseCategory?>(null) }
 
-    var isLoadingGroups by remember { mutableStateOf(true) }
     var isSubmitting by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
@@ -97,24 +126,28 @@ fun CreateExpenseScreen(
     }
 
     LaunchedEffect(Unit) {
-        val res = RetrofitClient.groupService.getMyGroups()
-        if (res.isSuccessful && res.body() != null) {
-            groups = res.body()!!
-            if (groupId != null) {
-                selectedGroup = groups.find { groupDto -> groupDto.id == groupId }
+        groupsState = when (val result = safeApiCall("CreateExpense.groups") {
+            RetrofitClient.groupService.getMyGroups()
+        }) {
+            is NetworkResult.Success -> {
+                val groups = result.data
+                if (groupId != null) {
+                    selectedGroup = groups.find { it.id == groupId }
+                }
+                UiState.Success(groups)
             }
-            isLoadingGroups = false
-        } else {
-            errorMessage = "Could not load groups (${res.code()})"
+
+            is NetworkResult.Error -> UiState.Error(result.message)
         }
     }
 
     LaunchedEffect(selectedGroup?.id) {
         val group = selectedGroup ?: return@LaunchedEffect
-        val res = RetrofitClient.groupService.getGroupMembers(group.id)
-        if (res.isSuccessful && res.body() != null) {
-            groupMembers = res.body()!!
-            memberShares = groupMembers.associate { it.userId to "" }
+        safeApiCall("CreateExpense.members") {
+            RetrofitClient.groupService.getGroupMembers(group.id)
+        }.onSuccess {
+            groupMembers = it
+            memberShares = groupMembers.associate { member -> member.userId to "" }
         }
     }
 
@@ -124,172 +157,64 @@ fun CreateExpenseScreen(
             .padding(16.dp)
             .verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.Start,
-
-        ) {
+    ) {
         Text("Create Expense", style = MaterialTheme.typography.titleLarge)
 
         Spacer(Modifier.height(16.dp))
 
-        if (isLoadingGroups) {
-            Text("Loading groups...")
-        } else if (groups.isEmpty()) {
-            Text("You are not in any groups")
-        } else {
-            var expanded by remember { mutableStateOf(false) }
+        when (groupsState) {
+            is UiState.Loading -> {
+                Text("Loading groups...")
+            }
 
-            ExposedDropdownMenuBox(
-                expanded = expanded,
-                onExpandedChange = { expanded = !expanded }
-            ) {
-                OutlinedTextField(
-                    value = selectedGroup?.name ?: "Select group",
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text("Group") },
-                    modifier = Modifier
-                        .menuAnchor()
-                        .fillMaxWidth()
+            is UiState.Error -> {
+                Text(
+                    text = (groupsState as UiState.Error).message,
+                    color = MaterialTheme.colorScheme.error
                 )
+            }
 
-                ExposedDropdownMenu(
-                    expanded = expanded,
-                    onDismissRequest = { expanded = false }
-                ) {
-                    groups.forEach { group ->
-                        DropdownMenuItem(
-                            text = { Text(group.name) },
-                            onClick = {
-                                selectedGroup = group
-                                expanded = false
-                            }
+            is UiState.Success -> {
+                val groups = (groupsState as UiState.Success<List<GroupDto>>).data
+                if (groups.isEmpty()) {
+                    Text("You are not in any groups")
+                } else {
+                    var expanded by remember { mutableStateOf(false) }
+
+                    ExposedDropdownMenuBox(
+                        expanded = expanded,
+                        onExpandedChange = { expanded = !expanded }
+                    ) {
+                        OutlinedTextField(
+                            value = selectedGroup?.name ?: "Select group",
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text("Group") },
+                            modifier = Modifier
+                                .menuAnchor()
+                                .fillMaxWidth()
                         )
-                    }
-                }
-            }
-        }
 
-        Spacer(Modifier.height(12.dp))
-
-        Text("Split type", style = MaterialTheme.typography.titleMedium)
-
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(top = 4.dp, bottom = 8.dp)
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                RadioButton(
-                    selected = splitType == SplitType.EQUAL,
-                    onClick = { splitType = SplitType.EQUAL }
-                )
-                Text("Equal")
-            }
-
-            Spacer(Modifier.width(16.dp))
-
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                RadioButton(
-                    selected = splitType == SplitType.CUSTOM,
-                    onClick = { splitType = SplitType.CUSTOM }
-                )
-                Text("Custom")
-            }
-        }
-
-        Spacer(Modifier.height(12.dp))
-
-        OutlinedTextField(
-            value = amount,
-            onValueChange = {
-                // Check if the new input contains any wordlike in it.
-                if (!it.contains("\\w")) {
-                    // Only if it doesn't contain letters, set it.
-                    // Ensure it can be converted to a double.
-                    val newVal = it.toDoubleOrNull()
-                    if (newVal != null) {
-                        amount = it
-                    }
-                }
-            },
-            label = { Text("Amount") },
-            modifier = Modifier.fillMaxWidth(),
-            maxLines = 1,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
-        )
-
-        Spacer(Modifier.height(8.dp))
-
-        // Nullable boolean so that it's possible to know when description has been checked.
-        // Preventing the box from starting off being invalid.
-        var descriptionValid by remember { mutableStateOf<Boolean?>(null) }
-
-        OutlinedTextField(
-            value = description,
-            onValueChange = {
-                description = it
-                if (description.isEmpty()) {
-                    descriptionValid = false
-                }
-            },
-            label = { Text("Description") },
-            modifier = Modifier.fillMaxWidth(),
-            isError = !(descriptionValid ?: true),
-            supportingText = {
-                descriptionValid?.let {
-                    if (!it) {
-                        Text("Description cannot be left empty")
-                    }
-                }
-            }
-        )
-
-        Spacer(Modifier.height(8.dp))
-
-        var categoryExpanded by remember { mutableStateOf(false) }
-
-        ExposedDropdownMenuBox(
-            expanded = categoryExpanded,
-            onExpandedChange = { categoryExpanded = !categoryExpanded }
-        ) {
-            OutlinedTextField(
-                value = category?.displayName ?: "No category",
-                onValueChange = {},
-                readOnly = true,
-                label = { Text("Category (optional)") },
-                modifier = Modifier
-                    .menuAnchor()
-                    .fillMaxWidth()
-            )
-
-            ExposedDropdownMenu(
-                expanded = categoryExpanded,
-                onDismissRequest = { categoryExpanded = false }
-            ) {
-                DropdownMenuItem(
-                    { Text("No category") },
-                    onClick = {
-                        category = null
-                        categoryExpanded = false
-                    }
-                )
-                ExpenseCategory.entries.forEach { _category ->
-                    DropdownMenuItem(
-                        text = { Text(_category.displayName) },
-                        onClick = {
-                            category = _category
-                            categoryExpanded = false
+                        ExposedDropdownMenu(
+                            expanded = expanded,
+                            onDismissRequest = { expanded = false }
+                        ) {
+                            groups.forEach { group ->
+                                DropdownMenuItem(
+                                    text = { Text(group.name) },
+                                    onClick = {
+                                        selectedGroup = group
+                                        expanded = false
+                                    }
+                                )
+                            }
                         }
-                    )
+                    }
                 }
-            }
-        }
 
-        Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(12.dp))
 
-        if (splitType == SplitType.CUSTOM) {
-            if (groupMembers.isEmpty()) {
-                Text("No members in group")
-            } else {
-                Text("Custom split mode", style = MaterialTheme.typography.titleMedium)
+                Text("Split type", style = MaterialTheme.typography.titleMedium)
 
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -297,322 +222,450 @@ fun CreateExpenseScreen(
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         RadioButton(
-                            selected = splitInputMode == SplitInputMode.AMOUNT,
-                            onClick = { splitInputMode = SplitInputMode.AMOUNT }
+                            selected = splitType == SplitType.EQUAL,
+                            onClick = { splitType = SplitType.EQUAL }
                         )
-                        Text("Amount")
+                        Text("Equal")
                     }
 
                     Spacer(Modifier.width(16.dp))
 
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         RadioButton(
-                            selected = splitInputMode == SplitInputMode.PERCENTAGE,
-                            onClick = { splitInputMode = SplitInputMode.PERCENTAGE }
+                            selected = splitType == SplitType.CUSTOM,
+                            onClick = { splitType = SplitType.CUSTOM }
                         )
-                        Text("Percentage")
+                        Text("Custom")
                     }
                 }
 
-                groupMembers.forEach { member ->
-                    val currentValue = memberShares[member.userId] ?: ""
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(vertical = 4.dp)
-                    ) {
-                        Text(
-                            member.username,
-                            modifier = Modifier.weight(1f)
-                        )
-                        OutlinedTextField(
-                            value = currentValue,
-                            onValueChange = { newValue ->
-                                memberShares = memberShares + (member.userId to newValue)
-                            },
-                            label = {
-                                Text(
-                                    when (splitInputMode) {
-                                        SplitInputMode.AMOUNT -> "Amount"
-                                        SplitInputMode.PERCENTAGE -> "Percent"
-                                    }
-                                )
-                            },
-                            modifier = Modifier.width(120.dp)
-                        )
+                Spacer(Modifier.height(12.dp))
+
+                OutlinedTextField(
+                    value = amount,
+                    onValueChange = {
+                        // Check if the new input contains any wordlike in it.
+                        if (!it.contains("\\w")) {
+                            // Only if it doesn't contain letters, set it.
+                            // Ensure it can be converted to a double.
+                            val newVal = it.toDoubleOrNull()
+                            if (newVal != null) {
+                                amount = it
+                            }
+                        }
+                    },
+                    label = { Text("Amount") },
+                    modifier = Modifier.fillMaxWidth(),
+                    maxLines = 1,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
+                )
+
+                Spacer(Modifier.height(8.dp))
+
+                // Nullable boolean so that it's possible to know when description has been checked.
+                // Preventing the box from starting off being invalid.
+                var descriptionValid by remember { mutableStateOf<Boolean?>(null) }
+
+                OutlinedTextField(
+                    value = description,
+                    onValueChange = {
+                        description = it
+                        if (description.isEmpty()) {
+                            descriptionValid = false
+                        }
+                    },
+                    label = { Text("Description") },
+                    modifier = Modifier.fillMaxWidth(),
+                    isError = !(descriptionValid ?: true),
+                    supportingText = {
+                        descriptionValid?.let {
+                            if (!it) {
+                                Text("Description cannot be left empty")
+                            }
+                        }
                     }
-                }
-            }
-        }
+                )
 
-        Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(8.dp))
 
-        // Attachments section
+                var categoryExpanded by remember { mutableStateOf(false) }
 
-        HorizontalDivider()
-
-        Spacer(Modifier.height(8.dp))
-
-        Text("Attachments (optional)", style = MaterialTheme.typography.titleMedium)
-
-        Spacer(Modifier.height(8.dp))
-
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            OutlinedButton(
-                onClick = {
-                    imagePickerLauncher.launch(
-                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                    )
-                },
-                enabled = !isSubmitting && !uploadingAttachments
-            ) {
-                Icon(Icons.Default.AttachFile, contentDescription = "Add from gallery")
-                Spacer(Modifier.width(4.dp))
-                Text("Gallery")
-            }
-
-            OutlinedButton(
-                onClick = { cameraLauncher.launch(null) },
-                enabled = !isSubmitting && !uploadingAttachments
-            ) {
-                Icon(Icons.Default.AttachFile, contentDescription = "Take photo")
-                Spacer(Modifier.width(4.dp))
-                Text("Camera")
-            }
-        }
-
-        // Display selected images
-        if (selectedImageUris.isNotEmpty()) {
-            Spacer(Modifier.height(8.dp))
-
-            selectedImageUris.forEach { uri ->
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 4.dp)
+                ExposedDropdownMenuBox(
+                    expanded = categoryExpanded,
+                    onExpandedChange = { categoryExpanded = !categoryExpanded }
                 ) {
-                    Row(
+                    OutlinedTextField(
+                        value = category?.displayName ?: "No category",
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Category (optional)") },
                         modifier = Modifier
+                            .menuAnchor()
                             .fillMaxWidth()
-                            .padding(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                    )
+
+                    ExposedDropdownMenu(
+                        expanded = categoryExpanded,
+                        onDismissRequest = { categoryExpanded = false }
                     ) {
-                        // Load and display
-                        val bitmap = remember(uri) {
-                            try {
-                                context.contentResolver.openInputStream(uri)?.use { stream ->
-                                    BitmapFactory.decodeStream(stream)
-                                }
-                            } catch (_: Exception) {
-                                null
-                            }
-                        }
-
-                        if (bitmap != null) {
-                            Image(
-                                bitmap = bitmap.asImageBitmap(),
-                                contentDescription = "Selected image",
-                                modifier = Modifier.size(60.dp)
-                            )
-                        } else {
-                            Icon(
-                                Icons.Default.Image,
-                                contentDescription = "Image",
-                                modifier = Modifier.size(60.dp)
-                            )
-                        }
-
-                        Spacer(Modifier.width(8.dp))
-
-                        Text(
-                            uri.lastPathSegment ?: "Image",
-                            modifier = Modifier.weight(1f),
-                            style = MaterialTheme.typography.bodySmall
-                        )
-
-                        IconButton(
+                        DropdownMenuItem(
+                            { Text("No category") },
                             onClick = {
-                                selectedImageUris = selectedImageUris.filter { it != uri }
-                            },
-                            enabled = !isSubmitting && !uploadingAttachments
-                        ) {
-                            Icon(Icons.Default.Close, contentDescription = "Remove")
+                                category = null
+                                categoryExpanded = false
+                            }
+                        )
+                        ExpenseCategory.entries.forEach { _category ->
+                            DropdownMenuItem(
+                                text = { Text(_category.displayName) },
+                                onClick = {
+                                    category = _category
+                                    categoryExpanded = false
+                                }
+                            )
                         }
                     }
                 }
-            }
-        }
 
-        Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(16.dp))
 
-        if (isSubmitting) {
-            CircularProgressIndicator()
-        } else {
-            Button(
-                onClick = {
-                    if (description.isEmpty()) {
-                        descriptionValid = false
-                        return@Button
-                    }
+                if (splitType == SplitType.CUSTOM) {
+                    if (groupMembers.isEmpty()) {
+                        Text("No members in group")
+                    } else {
+                        Text("Custom split mode", style = MaterialTheme.typography.titleMedium)
 
-                    val group = selectedGroup
-                    if (group == null) {
-                        errorMessage = "Please select a group"
-                        return@Button
-                    }
-
-                    val amountValue = amount.toDoubleOrNull()
-                    if (amountValue == null || amountValue <= 0) {
-                        errorMessage = "Invalid amount"
-                        return@Button
-                    }
-
-                    if (description.isBlank()) {
-                        errorMessage = "Description is required"
-                        return@Button
-                    }
-
-                    val splitsForRequest =
-                        if (splitType == SplitType.CUSTOM) {
-                            groupMembers.mapNotNull { member ->
-                                val raw = memberShares[member.userId].orEmpty().trim()
-                                if (raw.isEmpty()) return@mapNotNull null
-
-                                val value = raw.toDoubleOrNull() ?: return@mapNotNull null
-
-                                when (splitInputMode) {
-                                    SplitInputMode.AMOUNT -> ExpenseSplitRequest(
-                                        userId = member.userId,
-                                        shareAmount = value,
-                                        sharePercentage = null
-                                    )
-
-                                    SplitInputMode.PERCENTAGE -> ExpenseSplitRequest(
-                                        userId = member.userId,
-                                        shareAmount = null,
-                                        sharePercentage = value
-                                    )
-                                }
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(top = 4.dp, bottom = 8.dp)
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                RadioButton(
+                                    selected = splitInputMode == SplitInputMode.AMOUNT,
+                                    onClick = { splitInputMode = SplitInputMode.AMOUNT }
+                                )
+                                Text("Amount")
                             }
-                        } else {
-                            null
+
+                            Spacer(Modifier.width(16.dp))
+
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                RadioButton(
+                                    selected = splitInputMode == SplitInputMode.PERCENTAGE,
+                                    onClick = { splitInputMode = SplitInputMode.PERCENTAGE }
+                                )
+                                Text("Percentage")
+                            }
                         }
 
-                    val request = CreateExpenseRequest(
-                        groupId = group.id,
-                        amount = amountValue,
-                        description = description,
-                        category = category,
-                        currency = Currency.DKK,
-                        splitType = splitType,
-                        splits = splitsForRequest
-                    )
-
-                    isSubmitting = true
-                    coroutineScope.launch {
-                        val res = RetrofitClient.expenseService.createExpense(request)
-                        isSubmitting = false
-
-                        if (res.isSuccessful && res.body() != null) {
-                            val createdExpense = res.body()!!
-
-                            // Upload attachments if any selected
-                            if (selectedImageUris.isNotEmpty()) {
-                                uploadingAttachments = true
-                                uploadProgress = "Uploading attachments..."
-
-                                var successCount = 0
-                                selectedImageUris.forEachIndexed { index, uri ->
-                                    uploadProgress =
-                                        "Uploading ${index + 1}/${selectedImageUris.size}..."
-
-                                    try {
-                                        // Copy URI content to temp file for upload
-                                        val inputStream =
-                                            context.contentResolver.openInputStream(uri)
-                                        val file = File(
-                                            context.cacheDir,
-                                            "upload_${System.currentTimeMillis()}.jpg"
-                                        )
-
-                                        inputStream?.use { input ->
-                                            FileOutputStream(file).use { output ->
-                                                input.copyTo(output)
+                        groupMembers.forEach { member ->
+                            val currentValue = memberShares[member.userId] ?: ""
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(vertical = 4.dp)
+                            ) {
+                                Text(
+                                    member.username,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                OutlinedTextField(
+                                    value = currentValue,
+                                    onValueChange = { newValue ->
+                                        memberShares = memberShares + (member.userId to newValue)
+                                    },
+                                    label = {
+                                        Text(
+                                            when (splitInputMode) {
+                                                SplitInputMode.AMOUNT -> "Amount"
+                                                SplitInputMode.PERCENTAGE -> "Percent"
                                             }
-                                        }
-
-                                        // Create request
-                                        // Perhaps not the cleanest approach
-                                        val mimeType = when (file.extension.lowercase()) {
-                                            "png" -> "image/png"
-                                            "jpg", "jpeg" -> "image/jpeg"
-                                            else -> "image/jpeg"
-                                        }
-                                        val requestBody =
-                                            file.asRequestBody(mimeType.toMediaTypeOrNull())
-                                        val filePart = MultipartBody.Part.createFormData(
-                                            "file",
-                                            file.name,
-                                            requestBody
                                         )
-                                        val expenseIdBody = createdExpense.id.toString()
-                                            .toRequestBody("text/plain".toMediaTypeOrNull())
+                                    },
+                                    modifier = Modifier.width(120.dp)
+                                )
+                            }
+                        }
+                    }
+                }
 
-                                        val uploadRes =
-                                            RetrofitClient.attachmentService.uploadAttachment(
-                                                expenseId = expenseIdBody,
-                                                file = filePart
+                Spacer(Modifier.height(16.dp))
+
+                // Attachments section
+
+                HorizontalDivider()
+
+                Spacer(Modifier.height(8.dp))
+
+                Text("Attachments (optional)", style = MaterialTheme.typography.titleMedium)
+
+                Spacer(Modifier.height(8.dp))
+
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = {
+                            imagePickerLauncher.launch(
+                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                            )
+                        },
+                        enabled = !isSubmitting && !uploadingAttachments
+                    ) {
+                        Icon(Icons.Default.AttachFile, contentDescription = "Add from gallery")
+                        Spacer(Modifier.width(4.dp))
+                        Text("Gallery")
+                    }
+
+                    OutlinedButton(
+                        onClick = { cameraLauncher.launch(null) },
+                        enabled = !isSubmitting && !uploadingAttachments
+                    ) {
+                        Icon(Icons.Default.AttachFile, contentDescription = "Take photo")
+                        Spacer(Modifier.width(4.dp))
+                        Text("Camera")
+                    }
+                }
+
+                // Display selected images
+                if (selectedImageUris.isNotEmpty()) {
+                    Spacer(Modifier.height(8.dp))
+
+                    selectedImageUris.forEach { uri ->
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                // Load and display
+                                val bitmap = remember(uri) {
+                                    try {
+                                        context.contentResolver.openInputStream(uri)
+                                            ?.use { stream ->
+                                                BitmapFactory.decodeStream(stream)
+                                            }
+                                    } catch (_: Exception) {
+                                        null
+                                    }
+                                }
+
+                                if (bitmap != null) {
+                                    Image(
+                                        bitmap = bitmap.asImageBitmap(),
+                                        contentDescription = "Selected image",
+                                        modifier = Modifier.size(60.dp)
+                                    )
+                                } else {
+                                    Icon(
+                                        Icons.Default.Image,
+                                        contentDescription = "Image",
+                                        modifier = Modifier.size(60.dp)
+                                    )
+                                }
+
+                                Spacer(Modifier.width(8.dp))
+
+                                Text(
+                                    uri.lastPathSegment ?: "Image",
+                                    modifier = Modifier.weight(1f),
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+
+                                IconButton(
+                                    onClick = {
+                                        selectedImageUris = selectedImageUris.filter { it != uri }
+                                    },
+                                    enabled = !isSubmitting && !uploadingAttachments
+                                ) {
+                                    Icon(Icons.Default.Close, contentDescription = "Remove")
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Spacer(Modifier.height(16.dp))
+
+                if (isSubmitting) {
+                    CircularProgressIndicator()
+                } else {
+                    Button(
+                        onClick = {
+                            if (description.isEmpty()) {
+                                descriptionValid = false
+                                return@Button
+                            }
+
+                            val group = selectedGroup
+                            if (group == null) {
+                                errorMessage = "Please select a group"
+                                return@Button
+                            }
+
+                            val amountValue = amount.toDoubleOrNull()
+                            if (amountValue == null || amountValue <= 0) {
+                                errorMessage = "Invalid amount"
+                                return@Button
+                            }
+
+                            if (description.isBlank()) {
+                                errorMessage = "Description is required"
+                                return@Button
+                            }
+
+                            val splitsForRequest =
+                                if (splitType == SplitType.CUSTOM) {
+                                    groupMembers.mapNotNull { member ->
+                                        val raw = memberShares[member.userId].orEmpty().trim()
+                                        if (raw.isEmpty()) return@mapNotNull null
+
+                                        val value = raw.toDoubleOrNull() ?: return@mapNotNull null
+
+                                        when (splitInputMode) {
+                                            SplitInputMode.AMOUNT -> ExpenseSplitRequest(
+                                                userId = member.userId,
+                                                shareAmount = value,
+                                                sharePercentage = null
                                             )
 
-                                        if (uploadRes.isSuccessful) {
-                                            successCount++
+                                            SplitInputMode.PERCENTAGE -> ExpenseSplitRequest(
+                                                userId = member.userId,
+                                                shareAmount = null,
+                                                sharePercentage = value
+                                            )
+                                        }
+                                    }
+                                } else {
+                                    null
+                                }
+
+                            val request = CreateExpenseRequest(
+                                groupId = group.id,
+                                amount = amountValue,
+                                description = description,
+                                category = category,
+                                currency = Currency.DKK,
+                                splitType = splitType,
+                                splits = splitsForRequest
+                            )
+
+                            isSubmitting = true
+                            coroutineScope.launch {
+                                when (val result = safeApiCall("CreateExpense.create") {
+                                    RetrofitClient.expenseService.createExpense(request)
+                                }) {
+                                    is NetworkResult.Success -> {
+                                        val createdExpense = result.data
+
+                                        // Upload attachments if any selected
+                                        if (selectedImageUris.isNotEmpty()) {
+                                            uploadingAttachments = true
+                                            uploadProgress = "Uploading attachments..."
+
+                                            var successCount = 0
+                                            selectedImageUris.forEachIndexed { index, uri ->
+                                                uploadProgress =
+                                                    "Uploading ${index + 1}/${selectedImageUris.size}..."
+
+                                                try {
+                                                    // Copy URI content to temp file for upload
+                                                    val inputStream =
+                                                        context.contentResolver.openInputStream(uri)
+                                                    val file = File(
+                                                        context.cacheDir,
+                                                        "upload_${System.currentTimeMillis()}.jpg"
+                                                    )
+
+                                                    inputStream?.use { input ->
+                                                        FileOutputStream(file).use { output ->
+                                                            input.copyTo(output)
+                                                        }
+                                                    }
+
+                                                    // Create request
+                                                    // Perhaps not the cleanest approach
+                                                    val mimeType =
+                                                        when (file.extension.lowercase()) {
+                                                            "png" -> "image/png"
+                                                            "jpg", "jpeg" -> "image/jpeg"
+                                                            else -> "image/jpeg"
+                                                        }
+                                                    val requestBody =
+                                                        file.asRequestBody(mimeType.toMediaTypeOrNull())
+                                                    val filePart =
+                                                        MultipartBody.Part.createFormData(
+                                                            "file",
+                                                            file.name,
+                                                            requestBody
+                                                        )
+                                                    val expenseIdBody = createdExpense.id.toString()
+                                                        .toRequestBody("text/plain".toMediaTypeOrNull())
+
+                                                    val uploadRes =
+                                                        RetrofitClient.attachmentService.uploadAttachment(
+                                                            expenseId = expenseIdBody,
+                                                            file = filePart
+                                                        )
+
+                                                    if (uploadRes.isSuccessful) {
+                                                        successCount++
+                                                    }
+
+                                                    // Clean up temp file
+                                                    file.delete()
+                                                } catch (_: Exception) {
+                                                    // Continue with other uploads even if one fails
+                                                }
+                                            }
+
+                                            uploadingAttachments = false
+                                            uploadProgress =
+                                                if (successCount == selectedImageUris.size) {
+                                                    "All attachments uploaded successfully!"
+                                                } else {
+                                                    "$successCount/${selectedImageUris.size} attachments uploaded"
+                                                }
+
+                                            kotlinx.coroutines.delay(1000)
                                         }
 
-                                        // Clean up temp file
-                                        file.delete()
-                                    } catch (_: Exception) {
-                                        // Continue with other uploads even if one fails
+                                        navController?.navigateUp()
+                                    }
+
+                                    is NetworkResult.Error -> {
+                                        errorMessage = result.message
+                                        isSubmitting = false
                                     }
                                 }
-
-                                uploadingAttachments = false
-                                uploadProgress = if (successCount == selectedImageUris.size) {
-                                    "All attachments uploaded successfully!"
-                                } else {
-                                    "$successCount/${selectedImageUris.size} attachments uploaded"
-                                }
-
-                                // Navigate after delay to show success
-                                kotlinx.coroutines.delay(1000)
                             }
-
-                            navController?.navigateUp()
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !isSubmitting && !uploadingAttachments
+                    ) {
+                        if (isSubmitting) {
+                            Text("Creating...")
+                        } else if (uploadingAttachments) {
+                            Text("Uploading...")
                         } else {
-                            errorMessage = "Failed to create expense"
+                            Text("Create Expense")
                         }
                     }
-                },
-                modifier = Modifier.fillMaxWidth(),
-                enabled = !isSubmitting && !uploadingAttachments
-            ) {
-                if (isSubmitting) {
-                    Text("Creating...")
-                } else if (uploadingAttachments) {
-                    Text("Uploading...")
-                } else {
-                    Text("Create Expense")
+
+                    Spacer(Modifier.height(8.dp))
+
+                    if (uploadProgress.isNotEmpty()) {
+                        Text(uploadProgress, color = MaterialTheme.colorScheme.primary)
+                    }
+
+                    errorMessage?.let {
+                        Text(it, color = Color.Red)
+                    }
                 }
-            }
-
-            Spacer(Modifier.height(8.dp))
-
-            if (uploadProgress.isNotEmpty()) {
-                Text(uploadProgress, color = MaterialTheme.colorScheme.primary)
-            }
-
-            errorMessage?.let {
-                Text(it, color = Color.Red)
             }
         }
     }

@@ -1,6 +1,5 @@
 package com.japp.screens
 
-import android.util.Log
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,9 +13,11 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ListItem
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SearchBar
 import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.Text
@@ -29,7 +30,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.isTraversalGroup
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
@@ -37,46 +37,54 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.japp.AppDestinations
-import com.japp.api.ErrorUtils
+import com.japp.api.NetworkResult
 import com.japp.api.RetrofitClient
 import com.japp.api.responses.group.GroupDto
+import com.japp.api.safeApiCall
 import com.japp.composables.GroupIcon
-import retrofit2.Call
-import retrofit2.Callback
-import retrofit2.Response
+import com.japp.ui.state.UiState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun ShowGroupsScreen(navController: NavController? = null) {
-    val context = LocalContext.current
-
-    var groups by remember { mutableStateOf<List<GroupDto>>(emptyList()) }
-
-    suspend fun get_my_groups() {
-        val res = RetrofitClient.groupService.getMyGroups()
-        if (res.isSuccessful && res.body() != null) {
-            groups = res.body()!!
-        } else {
-            ErrorUtils.handleError(res, context)
-        }
-    }
+    var groupsState by remember { mutableStateOf<UiState<List<GroupDto>>>(UiState.Loading) }
 
     LaunchedEffect(Unit) {
-        get_my_groups()
+        groupsState = when (val result = safeApiCall("ShowGroupsScreen.groups") {
+            RetrofitClient.groupService.getMyGroups()
+        }) {
+            is NetworkResult.Success -> UiState.Success(result.data)
+            is NetworkResult.Error -> UiState.Error(result.message)
+        }
     }
 
     Box(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
-        SimpleSearchBar(
-            groups = groups,
-            onGroupClick = { group ->
-                GROUP_ID = group.id
-                navController?.navigate(AppDestinations.GROUP.route)
+        when (groupsState) {
+            is UiState.Loading -> {
+                CircularProgressIndicator()
             }
-        )
+            is UiState.Error -> {
+                Text(
+                    text = (groupsState as UiState.Error).message,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.padding(16.dp)
+                )
+            }
+            is UiState.Success -> {
+                SimpleSearchBar(
+                    groups = (groupsState as UiState.Success<List<GroupDto>>).data,
+                    onGroupClick = { group ->
+                        GROUP_ID = group.id
+                        navController?.navigate(AppDestinations.GROUP.route)
+                    }
+                )
+            }
+        }
     }
 }
 
@@ -145,11 +153,22 @@ fun SimpleSearchBar(
                 .weight(1f)
                 .verticalScroll(rememberScrollState())
         ) {
-            filteredGroups.forEach { group ->
-                GroupCard(
-                    group = group,
-                    onClick = { onGroupClick(group) }
+            if (filteredGroups.isEmpty()) {
+                Text(
+                    text = if (query.isBlank()) "No groups yet" else "No groups match \"$query\"",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier
+                        .padding(16.dp)
+                        .align(Alignment.CenterHorizontally)
                 )
+            } else {
+                filteredGroups.forEach { group ->
+                    GroupCard(
+                        group = group,
+                        onClick = { onGroupClick(group) }
+                    )
+                }
             }
         }
     }

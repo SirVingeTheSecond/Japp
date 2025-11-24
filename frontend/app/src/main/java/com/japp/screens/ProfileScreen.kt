@@ -2,12 +2,31 @@ package com.japp.screens
 
 import android.content.Intent
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -17,9 +36,11 @@ import androidx.navigation.NavController
 import com.japp.AppDestinations
 import com.japp.StartupActivity
 import com.japp.api.CredentialsStorage
-import com.japp.api.ErrorUtils
+import com.japp.api.NetworkResult
 import com.japp.api.RetrofitClient
 import com.japp.api.responses.auth.UserDto
+import com.japp.api.safeApiCall
+import com.japp.ui.state.UiState
 import com.japp.ui.theme.Dimens
 
 @Composable
@@ -27,15 +48,14 @@ fun ProfileScreen(navController: NavController) {
 
     val context = LocalContext.current
 
-    var user by remember { mutableStateOf<UserDto?>(null) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var userState by remember { mutableStateOf<UiState<UserDto>>(UiState.Loading) }
 
     LaunchedEffect(Unit) {
-        val res = RetrofitClient.userService.getMyUser()
-        if (res.isSuccessful && res.body() != null) {
-            user = res.body()
-        } else {
-            ErrorUtils.handleError(res, context)
+        userState = when (val result = safeApiCall("ProfileScreen.user") {
+            RetrofitClient.userService.getMyUser()
+        }) {
+            is NetworkResult.Success -> UiState.Success(result.data)
+            is NetworkResult.Error -> UiState.Error(result.message)
         }
     }
 
@@ -74,22 +94,41 @@ fun ProfileScreen(navController: NavController) {
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            Text(
-                text = user?.firstname ?: "Unknown",
-                style = MaterialTheme.typography.titleLarge
-            )
+            when (userState) {
+                is UiState.Loading -> {
+                    CircularProgressIndicator(
+                        modifier = Modifier.padding(16.dp)
+                    )
+                }
+                is UiState.Error -> {
+                    Text(
+                        text = (userState as UiState.Error).message,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(vertical = 8.dp)
+                    )
+                }
+                is UiState.Success -> {
+                    val user = (userState as UiState.Success<UserDto>).data
 
-            Text(
-                text = user?.email ?: "No email",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.secondary
-            )
-            user?.phone?.let { phone ->
-                Text(
-                    text = phone,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.secondary
-                )
+                    Text(
+                        text = user.firstname,
+                        style = MaterialTheme.typography.titleLarge
+                    )
+
+                    Text(
+                        text = user.email,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.secondary
+                    )
+                    user.phone?.let { phone ->
+                        Text(
+                            text = phone,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.secondary
+                        )
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(Dimens.spacingMedium))
@@ -97,7 +136,8 @@ fun ProfileScreen(navController: NavController) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(Dimens.spacingSmall),
-                onClick = { navController.navigate(AppDestinations.EDITPROFILE.route) }
+                onClick = { navController.navigate(AppDestinations.EDITPROFILE.route) },
+                enabled = userState is UiState.Success
             ) {
                 Text("Edit profile")
             }

@@ -2,7 +2,6 @@ package com.japp.screens
 
 
 import android.graphics.Bitmap
-import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -73,6 +72,8 @@ var GROUP_ID = -1
 
 @Composable
 fun GroupScreen(navController: NavController? = null) {
+    val context = LocalContext.current
+
     var qrOpen by remember { mutableStateOf(false) }
     var group by remember { mutableStateOf<GroupDto?>(null) }
     var qrCode by remember { mutableStateOf<Bitmap?>(null) }
@@ -95,6 +96,8 @@ fun GroupScreen(navController: NavController? = null) {
         val res = RetrofitClient.userService.getMyUser()
         if (res.isSuccessful && res.body() != null) {
             me = res.body()!!
+        } else {
+            ErrorUtils.handleError(res, context)
         }
     }
 
@@ -105,6 +108,8 @@ fun GroupScreen(navController: NavController? = null) {
         val res = RetrofitClient.groupService.getGroup(GROUP_ID)
         if (res.isSuccessful && res.body() != null) {
             group = res.body()
+        } else {
+            ErrorUtils.handleError(res, context)
         }
     }
     LaunchedEffect(GROUP_ID) {
@@ -112,6 +117,8 @@ fun GroupScreen(navController: NavController? = null) {
         val body = res.body()
         if (body != null && res.isSuccessful) {
             group_members.value = body
+        } else {
+            ErrorUtils.handleError(res, context)
         }
     }
 
@@ -120,6 +127,8 @@ fun GroupScreen(navController: NavController? = null) {
         val res = RetrofitClient.expenseService.getGroupBalances(GROUP_ID)
         if (res.isSuccessful && res.body() != null) {
             group_balance = res.body()!!
+        } else {
+            ErrorUtils.handleError(res, context)
         }
     }
 
@@ -127,6 +136,8 @@ fun GroupScreen(navController: NavController? = null) {
         val res = RetrofitClient.expenseService.getGroupExpenses(GROUP_ID)
         if (res.isSuccessful && res.body() != null) {
             group_expense = res.body()!!
+        } else {
+            ErrorUtils.handleError(res, context)
         }
     }
 
@@ -276,7 +287,11 @@ fun NavTab(
 
     LaunchedEffect(refreshGroupMembersKey) {
         val res = RetrofitClient.groupService.getGroupMembers(GROUP_ID)
-        if (res.isSuccessful && res.body() != null) groupMembers.value = res.body()!!
+        if (res.isSuccessful && res.body() != null) {
+            groupMembers.value = res.body()!!
+        } else {
+            ErrorUtils.handleError(res, context)
+        }
     }
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -464,12 +479,7 @@ fun NavTab(
                                     if (res.isSuccessful) {
                                         outerNavController?.popBackStack(AppDestinations.HOME.route, false)
                                     } else {
-                                        val err = ErrorUtils.parseError(res)
-                                        Toast.makeText(
-                                            context,
-                                            err?.message,
-                                            0
-                                        ).show()
+                                        ErrorUtils.handleError(res, context)
                                     }
                                 }
                             }) {
@@ -513,12 +523,7 @@ fun NavTab(
                                     if (res.isSuccessful) {
                                         outerNavController?.popBackStack(AppDestinations.HOME.route, false)
                                     } else {
-                                        val err = ErrorUtils.parseError(res)
-                                        Toast.makeText(
-                                            context,
-                                            err?.message,
-                                            0
-                                        ).show()
+                                        ErrorUtils.handleError(res, context)
                                     }
                                 }
                             }) {

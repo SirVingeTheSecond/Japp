@@ -33,6 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -42,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.graphics.ColorUtils
 import androidx.navigation.NavController
 import com.japp.AppDestinations
+import com.japp.api.ErrorUtils
 import com.japp.api.RetrofitClient
 import com.japp.api.responses.activity.ActivityDto
 import com.japp.api.responses.auth.UserDto
@@ -57,6 +59,8 @@ import kotlin.math.roundToInt
 @Preview(showSystemUi = true)
 @Composable
 fun HomeScreen(navController: NavController? = null) {
+    val context = LocalContext.current
+
     var activities by remember { mutableStateOf<List<ActivityDto>?>(null) }
     var groups by remember { mutableStateOf<List<GroupDto>?>(null) }
 
@@ -94,9 +98,13 @@ fun HomeScreen(navController: NavController? = null) {
                         if (myBal != null) {
                             if (myBal.balance < 0) owes = owes!! + myBal.balance.absoluteValue else owed = owed!! + myBal.balance.absoluteValue
                         }
+                    } else {
+                        ErrorUtils.handleError(res, context)
                     }
                 }
             }
+        } else {
+            ErrorUtils.handleError(res, context)
         }
     }
 
@@ -235,12 +243,16 @@ fun QuickActivities(
 
 @Composable
 fun Activity(activity: ActivityDto) {
+    val context = LocalContext.current
+
     var group by remember { mutableStateOf<GroupDto?>(null) }
 
     LaunchedEffect(Unit) {
         val res = RetrofitClient.groupService.getGroup(activity.groupId)
         if (res.isSuccessful && res.body() != null) {
             group = res.body()
+        } else {
+            ErrorUtils.handleError(res, context)
         }
     }
 
@@ -278,11 +290,15 @@ fun QuickGroups(
     navController: NavController?,
     groups: List<GroupDto>?
 ) {
+    val context = LocalContext.current
+
     var me by remember { mutableStateOf<UserDto?>(null) }
     LaunchedEffect(Unit) {
         val res = RetrofitClient.userService.getMyUser()
         if (res.isSuccessful && res.body() != null) {
             me = res.body()!!
+        } else {
+            ErrorUtils.handleError(res, context)
         }
     }
 
@@ -318,6 +334,8 @@ fun QuickGroups(
 
 @Composable
 fun Group(group: GroupDto, me: UserDto, navController: NavController? = null) {
+    val context = LocalContext.current
+
     var groupBalance by remember { mutableStateOf<Double?>(null) }
 
     LaunchedEffect(Unit) {
@@ -326,6 +344,8 @@ fun Group(group: GroupDto, me: UserDto, navController: NavController? = null) {
             val summaryDto = res.body()!!
             val myBal = summaryDto.balances.find { (userId, username, balance) -> userId == me.id }
             groupBalance = myBal?.balance
+        } else {
+            ErrorUtils.handleError(res, context)
         }
     }
 

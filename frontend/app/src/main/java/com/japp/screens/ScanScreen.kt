@@ -37,6 +37,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.navigation.NavController
 import com.japp.AppDestinations
+import com.japp.api.ErrorUtils
 import com.japp.api.RetrofitClient
 import com.japp.api.responses.group.GroupDto
 import com.japp.api.responses.group.GroupPreviewDto
@@ -53,6 +54,7 @@ import kotlin.random.Random
 @Composable
 fun ScanScreen(navController: NavController? = null) {
     val coroutineScope = rememberCoroutineScope()
+    val context = LocalContext.current
 
     var cameraAccess by remember { mutableStateOf(false) }
     var scanFlag by remember { mutableStateOf(false) }
@@ -118,6 +120,8 @@ fun ScanScreen(navController: NavController? = null) {
             if (body != null && res.isSuccessful) {
                 GROUP_ID = body.id
                 navController?.navigate(AppDestinations.GROUP.route)
+            } else {
+                ErrorUtils.handleError(res, context)
             }
         }
 
@@ -132,6 +136,8 @@ fun ScanScreen(navController: NavController? = null) {
                     val res = RetrofitClient.groupService.getGroup(inviteCode)
                     if (res.isSuccessful && res.body() != null) {
                         group = res.body()
+                    } else {
+                        ErrorUtils.handleError(res, context)
                     }
                 }
                 Dialog({showResult = false; scanFlag = false}) {

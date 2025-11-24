@@ -1,6 +1,7 @@
 package com.japp.api
 
 import android.content.Context
+import android.widget.Toast
 import androidx.core.content.edit
 import com.japp.api.responses.ActivityType
 import com.japp.api.responses.Currency
@@ -62,6 +63,15 @@ object ErrorUtils {
                 response.raw().sentRequestAtMillis
             )
         }
+    }
+
+    fun handleError(response: RetrofitResponse<*>, context: Context): Unit {
+        val err = parseError(response)
+        Toast.makeText(
+            context,
+            if (err != null) "${err.error}: ${err.message}" else "${response.code()}: ${response.message()}",
+            0
+        ).show()
     }
 }
 

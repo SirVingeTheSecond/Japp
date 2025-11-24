@@ -17,6 +17,7 @@ import androidx.navigation.NavController
 import com.japp.AppDestinations
 import com.japp.StartupActivity
 import com.japp.api.CredentialsStorage
+import com.japp.api.ErrorUtils
 import com.japp.api.RetrofitClient
 import com.japp.api.responses.auth.UserDto
 import com.japp.ui.theme.Dimens
@@ -33,6 +34,8 @@ fun ProfileScreen(navController: NavController) {
         val res = RetrofitClient.userService.getMyUser()
         if (res.isSuccessful && res.body() != null) {
             user = res.body()
+        } else {
+            ErrorUtils.handleError(res, context)
         }
     }
 

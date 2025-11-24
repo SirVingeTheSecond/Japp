@@ -72,6 +72,8 @@ fun GroupMemberDetailCard(
         val res = RetrofitClient.userService.getUser(groupMember.userId)
         if (res.isSuccessful && res.body() != null) {
             user = res.body()
+        } else {
+            ErrorUtils.handleError(res, context)
         }
     }
 
@@ -207,12 +209,7 @@ fun GroupMemberDetailCard(
                                         kickGroupMember = null
                                         onRefresh()
                                     } else {
-                                        val err = ErrorUtils.parseError(res)
-                                        Toast.makeText(
-                                            context,
-                                            "Something went wrong: (${res.code()}: ${err?.message})",
-                                            Toast.LENGTH_LONG
-                                        ).show()
+                                        ErrorUtils.handleError(res, context)
                                     }
                                 }
                             }

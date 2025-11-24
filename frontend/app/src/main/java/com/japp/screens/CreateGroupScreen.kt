@@ -1,6 +1,7 @@
 package com.japp.screens
 
 import android.util.Log
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -19,10 +20,12 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.japp.AppDestinations
+import com.japp.api.ErrorUtils
 import com.japp.api.RetrofitClient
 import com.japp.api.responses.group.CreateGroupRequest
 import com.japp.api.responses.group.GroupDto
@@ -37,6 +40,7 @@ import retrofit2.Response
 @Composable
 fun CreateGroupScreen(navController: NavController? = null) {
     val coroutineScope = rememberCoroutineScope()
+    val context = LocalContext.current
 
     var name by remember { mutableStateOf("") }
     var descript by remember { mutableStateOf("") }
@@ -57,6 +61,8 @@ fun CreateGroupScreen(navController: NavController? = null) {
 
         if (body != null && res.isSuccessful) {
             navController?.navigate(AppDestinations.HOME.route)
+        } else {
+            ErrorUtils.handleError(res, context)
         }
     }
 

@@ -4,7 +4,7 @@ import com.japp.database.tables.ActivityLogs
 import com.japp.database.tables.GroupMembers
 import com.japp.models.ActivityType
 import com.japp.models.domain.ActivityLog
-import com.japp.repositories.interfaces.IActivityRepository
+import com.japp.services.interfaces.IActivityRepository
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.eq

@@ -2,7 +2,6 @@ package com.japp.plugins
 
 import com.japp.config.loadJwtConfig
 import com.japp.config.loadStorageConfig
-import com.japp.repositories.*
 import com.japp.repositories.implementations.ActivityRepository
 import com.japp.repositories.implementations.AttachmentRepository
 import com.japp.repositories.implementations.DebtHistoryRepository
@@ -11,14 +10,14 @@ import com.japp.repositories.implementations.GroupRepository
 import com.japp.repositories.implementations.MessageRepository
 import com.japp.repositories.implementations.SettlementRepository
 import com.japp.repositories.implementations.UserRepository
-import com.japp.repositories.interfaces.IActivityRepository
-import com.japp.repositories.interfaces.IAttachmentRepository
-import com.japp.repositories.interfaces.IDebtHistoryRepository
-import com.japp.repositories.interfaces.IExpenseRepository
-import com.japp.repositories.interfaces.IGroupRepository
-import com.japp.repositories.interfaces.IMessageRepository
-import com.japp.repositories.interfaces.ISettlementRepository
-import com.japp.repositories.interfaces.IUserRepository
+import com.japp.services.interfaces.IActivityRepository
+import com.japp.services.interfaces.IAttachmentRepository
+import com.japp.services.interfaces.IDebtHistoryRepository
+import com.japp.services.interfaces.IExpenseRepository
+import com.japp.services.interfaces.IGroupRepository
+import com.japp.services.interfaces.IMessageRepository
+import com.japp.services.interfaces.ISettlementRepository
+import com.japp.services.interfaces.IUserRepository
 import com.japp.security.PasswordHasher
 import com.japp.services.*
 import com.japp.websocket.WebSocketManager

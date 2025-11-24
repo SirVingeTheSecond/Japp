@@ -5,9 +5,9 @@ import com.japp.models.ActivityType
 import com.japp.models.dto.ActivityDto
 import com.japp.models.dto.GroupActivitiesDto
 import com.japp.models.error.AppError
-import com.japp.repositories.interfaces.IActivityRepository
-import com.japp.repositories.interfaces.IGroupRepository
-import com.japp.repositories.interfaces.IUserRepository
+import com.japp.services.interfaces.IActivityRepository
+import com.japp.services.interfaces.IGroupRepository
+import com.japp.services.interfaces.IUserRepository
 import com.japp.utils.toDto
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext

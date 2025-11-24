@@ -2,7 +2,7 @@ package com.japp.repositories.implementations
 
 import com.japp.database.tables.Attachments
 import com.japp.models.domain.Attachment
-import com.japp.repositories.interfaces.IAttachmentRepository
+import com.japp.services.interfaces.IAttachmentRepository
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.eq

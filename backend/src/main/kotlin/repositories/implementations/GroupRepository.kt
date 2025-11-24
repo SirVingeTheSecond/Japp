@@ -11,7 +11,7 @@ import com.japp.database.tables.Users
 import com.japp.models.domain.Group
 import com.japp.models.domain.GroupMemberInfo
 import com.japp.models.domain.User
-import com.japp.repositories.interfaces.IGroupRepository
+import com.japp.services.interfaces.IGroupRepository
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.eq

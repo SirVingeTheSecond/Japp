@@ -1,6 +1,5 @@
 package com.japp.screens
 
-
 import android.graphics.Bitmap
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -20,6 +19,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
@@ -54,17 +54,19 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.google.zxing.BarcodeFormat
 import com.japp.AppDestinations
-import com.japp.api.ErrorUtils
+import com.japp.api.NetworkResult
 import com.japp.api.RetrofitClient
 import com.japp.api.responses.auth.UserDto
 import com.japp.api.responses.expense.ExpenseDto
 import com.japp.api.responses.expense.GroupBalanceSummaryDto
 import com.japp.api.responses.group.GroupDto
 import com.japp.api.responses.group.GroupMemberDto
+import com.japp.api.safeApiCall
 import com.japp.composables.ExpenseDetailCard
 import com.japp.composables.GroupIcon
 import com.japp.composables.GroupMemberDetailCard
 import com.japp.rememberFabButton
+import com.japp.ui.state.UiState
 import com.journeyapps.barcodescanner.BarcodeEncoder
 import kotlinx.coroutines.launch
 
@@ -75,80 +77,67 @@ fun GroupScreen(navController: NavController? = null) {
     val context = LocalContext.current
 
     var qrOpen by remember { mutableStateOf(false) }
-    var group by remember { mutableStateOf<GroupDto?>(null) }
+    var groupState by remember { mutableStateOf<UiState<GroupDto>>(UiState.Loading) }
     var qrCode by remember { mutableStateOf<Bitmap?>(null) }
     var me by remember { mutableStateOf<UserDto?>(null) }
-    var group_members = remember { mutableStateOf<List<GroupMemberDto>>(emptyList()) }
-    var group_expense by remember { mutableStateOf<List<ExpenseDto>>(emptyList()) }
-    var group_balance by remember { mutableStateOf<GroupBalanceSummaryDto?>(null) }
-
+    var groupMembers = remember { mutableStateOf<List<GroupMemberDto>>(emptyList()) }
+    var groupExpenses by remember { mutableStateOf<List<ExpenseDto>>(emptyList()) }
+    var groupBalance by remember { mutableStateOf<GroupBalanceSummaryDto?>(null) }
 
     // Hook into action button
     rememberFabButton {
         navController?.navigate(
-            group?.let {
+            groupState.getOrNull()?.let {
                 AppDestinations.CustomRoutes.CREATE_EXPENSE.withArgs(it.id)
             } ?: AppDestinations.GROUP.route
         )
     }
 
     LaunchedEffect(Unit) {
-        val res = RetrofitClient.userService.getMyUser()
-        if (res.isSuccessful && res.body() != null) {
-            me = res.body()!!
-        } else {
-            ErrorUtils.handleError(res, context)
-        }
+        safeApiCall("GroupScreen.me") {
+            RetrofitClient.userService.getMyUser()
+        }.onSuccess { me = it }
     }
 
-    LaunchedEffect(
-        GROUP_ID
-    ) {
+    LaunchedEffect(GROUP_ID) {
         if (GROUP_ID == -1) return@LaunchedEffect
-        val res = RetrofitClient.groupService.getGroup(GROUP_ID)
-        if (res.isSuccessful && res.body() != null) {
-            group = res.body()
-        } else {
-            ErrorUtils.handleError(res, context)
-        }
-    }
-    LaunchedEffect(GROUP_ID) {
-        val res = RetrofitClient.groupService.getGroupMembers(GROUP_ID)
-        val body = res.body()
-        if (body != null && res.isSuccessful) {
-            group_members.value = body
-        } else {
-            ErrorUtils.handleError(res, context)
-        }
-    }
 
+        groupState = UiState.Loading
 
-    LaunchedEffect(GROUP_ID) {
-        val res = RetrofitClient.expenseService.getGroupBalances(GROUP_ID)
-        if (res.isSuccessful && res.body() != null) {
-            group_balance = res.body()!!
-        } else {
-            ErrorUtils.handleError(res, context)
+        // Fetch group details (critical)
+        groupState = when (val result = safeApiCall("GroupScreen.group") {
+            RetrofitClient.groupService.getGroup(GROUP_ID)
+        }) {
+            is NetworkResult.Success -> UiState.Success(result.data)
+            is NetworkResult.Error -> UiState.Error(result.message)
         }
-    }
 
-    LaunchedEffect(GROUP_ID) {
-        val res = RetrofitClient.expenseService.getGroupExpenses(GROUP_ID)
-        if (res.isSuccessful && res.body() != null) {
-            group_expense = res.body()!!
-        } else {
-            ErrorUtils.handleError(res, context)
+        // Only fetch secondary data if group loaded successfully
+        if (groupState is UiState.Success) {
+            // Fetch group members
+            safeApiCall("GroupScreen.members") {
+                RetrofitClient.groupService.getGroupMembers(GROUP_ID)
+            }.onSuccess { groupMembers.value = it }
+
+            // Fetch group balances
+            safeApiCall("GroupScreen.balances") {
+                RetrofitClient.expenseService.getGroupBalances(GROUP_ID)
+            }.onSuccess { groupBalance = it }
+
+            // Fetch group expenses
+            safeApiCall("GroupScreen.expenses") {
+                RetrofitClient.expenseService.getGroupExpenses(GROUP_ID)
+            }.onSuccess { groupExpenses = it }
         }
     }
 
-
-
+    val group = groupState.getOrNull()
 
     LaunchedEffect(group) {
         if (group != null) {
             // lav qr code
             qrCode = BarcodeEncoder().encodeBitmap(
-                "japp://join/${group!!.id}-${group!!.inviteCode}",
+                "japp://join/${group.id}-${group.inviteCode}",
                 BarcodeFormat.QR_CODE,
                 200,
                 200
@@ -156,37 +145,55 @@ fun GroupScreen(navController: NavController? = null) {
         }
     }
 
-    Box(
+    Box {
+        when (groupState) {
+            is UiState.Loading -> {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
+                }
+            }
+            is UiState.Error -> {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = (groupState as UiState.Error).message,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier.padding(16.dp)
+                    )
+                }
+            }
+            is UiState.Success -> {
+                val groupData = (groupState as UiState.Success<GroupDto>).data
 
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Box {
-                if (group == null) {
-
-                } else {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
                     Row {
                         GroupIcon(
-                            group!!.name,
+                            groupData.name,
                             modifier = Modifier.padding(12.dp)
                         )
-                        Column (
+                        Column(
                             modifier = Modifier.padding(15.dp)
-                        ){
+                        ) {
                             Text(
-                                group!!.name,
+                                groupData.name,
                                 modifier = Modifier.fillMaxWidth(),
                                 style = MaterialTheme.typography.titleLarge,
                                 textAlign = TextAlign.Right,
-
                             )
                             HorizontalDivider(
                                 thickness = 1.dp,
                                 color = Color.LightGray,
                                 modifier = Modifier.padding(vertical = 4.dp)
                             )
-                            group!!.description?.let {
+                            groupData.description?.let {
                                 Text(
                                     it, textAlign = TextAlign.Right
                                 )
@@ -194,68 +201,66 @@ fun GroupScreen(navController: NavController? = null) {
                         }
                     }
 
-                }
-            }
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp),
-                horizontalArrangement = Arrangement.Center
-            ) {
-                Button(
-                    onClick = { qrOpen = true },
-                    modifier = Modifier.padding(horizontal = 8.dp)
-                ) {
-                    Text("Show QR!")
-                }
-
-                Button(
-                    onClick = { navController?.navigate("SettleGroup") },
-                    modifier = Modifier.padding(horizontal = 8.dp)
-                ) {
-                    Text("Settle Group")
-                }
-            }
-
-
-            NavTab(navController, me, group_members, group_expense, group_balance, GROUP_ID)
-        }
-        if (qrOpen) {
-            Dialog(onDismissRequest = { qrOpen = false }) {
-
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(375.dp)
-                        .padding(16.dp),
-                    shape = RoundedCornerShape(16.dp),
-                ) {
-                    Column(
-                        modifier = Modifier.fillMaxSize(),
-                        verticalArrangement = Arrangement.Center,
-                        horizontalAlignment = Alignment.CenterHorizontally,
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp),
+                        horizontalArrangement = Arrangement.Center
                     ) {
-                        if (qrCode != null) {
-                            Image(
-                                bitmap = qrCode!!.asImageBitmap(),
-                                modifier = Modifier
-                                    .aspectRatio(1f)
-                                    .fillMaxWidth(0.8f)
-                                    .background(Color.Transparent),
-                                contentScale = ContentScale.FillBounds,
-                                contentDescription = "QR Code for joining group"
-                            )
-                        }
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.Center,
+                        Button(
+                            onClick = { qrOpen = true },
+                            modifier = Modifier.padding(horizontal = 8.dp)
                         ) {
-                            TextButton(
-                                onClick = { qrOpen = false },
-                                modifier = Modifier.padding(8.dp),
+                            Text("Show QR!")
+                        }
+
+                        Button(
+                            onClick = { navController?.navigate("SettleGroup") },
+                            modifier = Modifier.padding(horizontal = 8.dp)
+                        ) {
+                            Text("Settle Group")
+                        }
+                    }
+
+                    NavTab(navController, me, groupMembers, groupExpenses, groupBalance, GROUP_ID)
+                }
+
+                if (qrOpen) {
+                    Dialog(onDismissRequest = { qrOpen = false }) {
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(375.dp)
+                                .padding(16.dp),
+                            shape = RoundedCornerShape(16.dp),
+                        ) {
+                            Column(
+                                modifier = Modifier.fillMaxSize(),
+                                verticalArrangement = Arrangement.Center,
+                                horizontalAlignment = Alignment.CenterHorizontally,
                             ) {
-                                Text("Dismiss")
+                                if (qrCode != null) {
+                                    Image(
+                                        bitmap = qrCode!!.asImageBitmap(),
+                                        modifier = Modifier
+                                            .aspectRatio(1f)
+                                            .fillMaxWidth(0.8f)
+                                            .background(Color.Transparent),
+                                        contentScale = ContentScale.FillBounds,
+                                        contentDescription = "QR Code for joining group"
+                                    )
+                                }
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.Center,
+                                ) {
+                                    TextButton(
+                                        onClick = { qrOpen = false },
+                                        modifier = Modifier.padding(8.dp),
+                                    ) {
+                                        Text("Dismiss")
+                                    }
+                                }
                             }
                         }
                     }
@@ -278,19 +283,19 @@ fun NavTab(
 ) {
     val navController = rememberNavController()
     val coroutineScope = rememberCoroutineScope()
-    val context = LocalContext.current
     val groupOwner = groupMembers.value.find { dto -> dto.isOwner }
 
     var refreshGroupMembersKey by remember { mutableIntStateOf(0) }
     var leaving by remember { mutableStateOf(false) }
     var deleting by remember { mutableStateOf(false) }
+    var actionError by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(refreshGroupMembersKey) {
-        val res = RetrofitClient.groupService.getGroupMembers(GROUP_ID)
-        if (res.isSuccessful && res.body() != null) {
-            groupMembers.value = res.body()!!
-        } else {
-            ErrorUtils.handleError(res, context)
+        when (val result = safeApiCall("NavTab.refreshMembers") {
+            RetrofitClient.groupService.getGroupMembers(GROUP_ID)
+        }) {
+            is NetworkResult.Success -> groupMembers.value = result.data
+            is NetworkResult.Error -> actionError = result.message
         }
     }
 
@@ -356,7 +361,7 @@ fun NavTab(
                         GroupMemberDetailCard(
                             groupBalance?.groupId ?: 0,
                             memberDto,
-                            {refreshGroupMembersKey++},
+                            { refreshGroupMembersKey++ },
                             balance = balance,
                             me = me,
                             groupOwner = groupOwner
@@ -421,6 +426,16 @@ fun NavTab(
                     HorizontalDivider()
                     Text("Actions", style = MaterialTheme.typography.headlineSmall)
                     Text("Be careful", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+
+                    actionError?.let { error ->
+                        Text(
+                            text = error,
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.padding(vertical = 8.dp)
+                        )
+                    }
+
                     Button(
                         onClick = { leaving = true },
                         colors = ButtonDefaults.buttonColors(
@@ -456,13 +471,15 @@ fun NavTab(
     when {
         leaving -> {
             Dialog({ leaving = false }) {
-                Card() {
+                Card {
                     Column(
                         Modifier.padding(10.dp)
                     ) {
                         Text(
                             "Are you sure you wish to leave?",
-                            Modifier.fillMaxWidth().padding(5.dp),
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(5.dp),
                             textAlign = TextAlign.Center,
                             style = MaterialTheme.typography.titleLarge
                         )
@@ -475,11 +492,16 @@ fun NavTab(
                             }
                             Button({
                                 coroutineScope.launch {
-                                    val res = RetrofitClient.groupService.leaveGroup(groupId)
-                                    if (res.isSuccessful) {
-                                        outerNavController?.popBackStack(AppDestinations.HOME.route, false)
-                                    } else {
-                                        ErrorUtils.handleError(res, context)
+                                    when (val result = safeApiCall("NavTab.leaveGroup") {
+                                        RetrofitClient.groupService.leaveGroup(groupId)
+                                    }) {
+                                        is NetworkResult.Success -> {
+                                            outerNavController?.popBackStack(AppDestinations.HOME.route, false)
+                                        }
+                                        is NetworkResult.Error -> {
+                                            actionError = result.message
+                                            leaving = false
+                                        }
                                     }
                                 }
                             }) {
@@ -492,13 +514,15 @@ fun NavTab(
         }
         deleting -> {
             Dialog({ deleting = false }) {
-                Card() {
+                Card {
                     Column(
                         Modifier.padding(10.dp)
                     ) {
                         Text(
                             "Are you sure you wish to delete this group?",
-                            Modifier.fillMaxWidth().padding(5.dp),
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(5.dp),
                             textAlign = TextAlign.Center,
                             style = MaterialTheme.typography.titleLarge
                         )
@@ -519,11 +543,16 @@ fun NavTab(
                             }
                             Button({
                                 coroutineScope.launch {
-                                    val res = RetrofitClient.groupService.deleteGroup(groupId)
-                                    if (res.isSuccessful) {
-                                        outerNavController?.popBackStack(AppDestinations.HOME.route, false)
-                                    } else {
-                                        ErrorUtils.handleError(res, context)
+                                    when (val result = safeApiCall("NavTab.deleteGroup") {
+                                        RetrofitClient.groupService.deleteGroup(groupId)
+                                    }) {
+                                        is NetworkResult.Success -> {
+                                            outerNavController?.popBackStack(AppDestinations.HOME.route, false)
+                                        }
+                                        is NetworkResult.Error -> {
+                                            actionError = result.message
+                                            deleting = false
+                                        }
                                     }
                                 }
                             }) {

@@ -1,4 +1,3 @@
-// File: app/src/main/java/com/japp/screens/HomeScreen.kt
 package com.japp.screens
 
 import android.annotation.SuppressLint

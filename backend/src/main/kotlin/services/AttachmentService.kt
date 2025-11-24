@@ -4,10 +4,10 @@ import com.japp.models.Result
 import com.japp.models.dto.AttachmentDto
 import com.japp.models.dto.AttachmentListDto
 import com.japp.models.error.AppError
-import com.japp.repositories.interfaces.IAttachmentRepository
-import com.japp.repositories.interfaces.IExpenseRepository
-import com.japp.repositories.interfaces.IGroupRepository
-import com.japp.repositories.interfaces.IUserRepository
+import com.japp.services.interfaces.IAttachmentRepository
+import com.japp.services.interfaces.IExpenseRepository
+import com.japp.services.interfaces.IGroupRepository
+import com.japp.services.interfaces.IUserRepository
 import com.japp.utils.ThumbnailGenerator
 import com.japp.utils.toDto
 import com.japp.validation.AttachmentValidator

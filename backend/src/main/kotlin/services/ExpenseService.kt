@@ -4,9 +4,9 @@ import com.japp.models.*
 import com.japp.models.domain.Expense
 import com.japp.models.dto.*
 import com.japp.models.error.AppError
-import com.japp.repositories.interfaces.IExpenseRepository
-import com.japp.repositories.interfaces.IGroupRepository
-import com.japp.repositories.interfaces.IUserRepository
+import com.japp.services.interfaces.IExpenseRepository
+import com.japp.services.interfaces.IGroupRepository
+import com.japp.services.interfaces.IUserRepository
 import com.japp.utils.toDto
 import com.japp.utils.createBalanceDto
 import com.japp.validation.ExpenseValidator

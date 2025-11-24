@@ -4,7 +4,7 @@ import com.japp.models.Result
 import com.japp.models.WebSocketMessageType
 import com.japp.models.dto.CreateMessageRequest
 import com.japp.models.dto.WebSocketMessage
-import com.japp.repositories.interfaces.IUserRepository
+import com.japp.services.interfaces.IUserRepository
 import com.japp.utils.toWebSocketMessage
 import com.japp.websocket.WebSocketManager
 import io.ktor.websocket.*

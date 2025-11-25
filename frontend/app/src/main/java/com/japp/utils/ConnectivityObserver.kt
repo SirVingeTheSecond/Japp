@@ -5,8 +5,10 @@ import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
+import androidx.annotation.RequiresPermission
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.channels.awaitClose
@@ -14,13 +16,17 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 
 /**
+ * CompositionLocal for connectivity state.
+ * Default value is true (assume connected until proven otherwise).
+ */
+val LocalConnectivity = compositionLocalOf { true }
+
+/**
  * Observes network connectivity state.
  * Returns true when device has internet connectivity, false otherwise.
  */
-@androidx.annotation.RequiresPermission(android.Manifest.permission.ACCESS_NETWORK_STATE)
-fun Context.observeConnectivityAsFlow(): Flow<Boolean> = callbackFlow @androidx.annotation.RequiresPermission(
-    android.Manifest.permission.ACCESS_NETWORK_STATE
-) {
+@RequiresPermission(android.Manifest.permission.ACCESS_NETWORK_STATE)
+fun Context.observeConnectivityAsFlow(): Flow<Boolean> = callbackFlow {
     val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
 
     val callback = object : ConnectivityManager.NetworkCallback() {

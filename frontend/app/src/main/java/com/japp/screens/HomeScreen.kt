@@ -21,7 +21,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Snackbar
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -56,8 +55,7 @@ import com.japp.composables.ErrorWithRetry
 import com.japp.composables.GroupIcon
 import com.japp.composables.getActivityIcon
 import com.japp.ui.state.UiState
-import com.japp.utils.rememberConnectivityState
-import kotlinx.coroutines.delay
+import com.japp.utils.LocalConnectivity
 import java.text.SimpleDateFormat
 import java.util.Date
 import kotlin.math.absoluteValue
@@ -65,7 +63,7 @@ import kotlin.math.round
 import kotlin.math.roundToInt
 
 /**
- * Balance data for QuickStats display
+ * Data class for balance display in QuickStats.
  */
 data class BalanceData(
     val owed: Double,
@@ -81,14 +79,12 @@ fun HomeScreen(navController: NavController? = null) {
     var meState by remember { mutableStateOf<UiState<UserDto>>(UiState.Loading) }
     var balanceState by remember { mutableStateOf<UiState<BalanceData>>(UiState.Loading) }
 
-    var errorMessage by remember { mutableStateOf<String?>(null) }
     var isRefreshing by remember { mutableStateOf(false) }
     var refreshKey by remember { mutableIntStateOf(0) }
 
-    val isConnected by rememberConnectivityState()
+    val isConnected = LocalConnectivity.current
     var wasDisconnected by remember { mutableStateOf(false) }
 
-    // Auto-retry when connection restored
     LaunchedEffect(isConnected) {
         if (isConnected && wasDisconnected) {
             refreshKey++
@@ -97,73 +93,50 @@ fun HomeScreen(navController: NavController? = null) {
     }
 
     LaunchedEffect(refreshKey) {
-        errorMessage = null
-        var hadError = false
-
-        // Activity call - preserve cached state on error
+        // Activity call
         when (val result = safeApiCall("HomeScreen.activities") {
             RetrofitClient.activityService.getUserActivities(limit = 3)
         }) {
             is NetworkResult.Success -> activitiesState = UiState.Success(result.data)
             is NetworkResult.Error -> {
-                hadError = true
                 if (activitiesState !is UiState.Success) {
                     activitiesState = UiState.Error(result.message)
-                } else {
-                    errorMessage = result.message
                 }
             }
         }
 
-        // Group call - preserve cached state on error
+        // Group call
         when (val result = safeApiCall("HomeScreen.groups") {
             RetrofitClient.groupService.getMyGroups()
         }) {
             is NetworkResult.Success -> groupsState = UiState.Success(result.data)
             is NetworkResult.Error -> {
-                hadError = true
                 if (groupsState !is UiState.Success) {
                     groupsState = UiState.Error(result.message)
-                } else {
-                    errorMessage = result.message
                 }
             }
         }
 
-        // Me call - preserve cached state on error
+        // Me call
         when (val result = safeApiCall("HomeScreen.me") {
             RetrofitClient.userService.getMyUser()
         }) {
             is NetworkResult.Success -> meState = UiState.Success(result.data)
             is NetworkResult.Error -> {
-                hadError = true
                 if (meState !is UiState.Success) {
                     meState = UiState.Error(result.message)
-                } else {
-                    errorMessage = result.message
                 }
             }
-        }
-
-        // Clear error message after 3 seconds if showing cached data
-        if (hadError && errorMessage != null) {
-            delay(3000)
-            errorMessage = null
         }
 
         isRefreshing = false
     }
 
+    // Calculate balances when groups and user data are available
     LaunchedEffect(groupsState, meState, refreshKey) {
-        val groups = groupsState.getOrNull()
-        val me = meState.getOrNull()
+        val groups = groupsState.getOrNull() ?: return@LaunchedEffect
+        val me = meState.getOrNull() ?: return@LaunchedEffect
 
-        // If we don't have required data, keep current balance state (cached or loading)
-        if (groups == null || me == null) {
-            return@LaunchedEffect
-        }
-
-        // Calculate balances across all groups
         var totalOwed = 0.0
         var totalOwes = 0.0
         var hasError = false
@@ -190,68 +163,47 @@ fun HomeScreen(navController: NavController? = null) {
             }
         }
 
-        // Only update state if we got at least some successful data, or if we have no cached state
+        // Only update state if we got data, or if we have no cached state
         if (!hasError || balanceState is UiState.Loading) {
             balanceState = UiState.Success(BalanceData(owed = totalOwed, owes = totalOwes))
         }
-        // If error and we have cached Success state, keep it (don't update to Error)
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        PullToRefreshBox(
-            isRefreshing = isRefreshing,
-            onRefresh = {
-                isRefreshing = true
-                refreshKey++
-            }
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(12.dp)
-                    .verticalScroll(rememberScrollState()),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                QuickStats(balanceState)
-                HorizontalDivider(
-                    Modifier
-                        .padding(10.dp)
-                        .background(MaterialTheme.colorScheme.primary),
-                    thickness = 2.dp
-                )
-                QuickActivities(navController, activitiesState, onRetry = { refreshKey++ })
-                HorizontalDivider(
-                    Modifier
-                        .padding(10.dp)
-                        .background(MaterialTheme.colorScheme.primary),
-                    thickness = 2.dp
-                )
-                QuickGroups(navController, groupsState, meState, onRetry = { refreshKey++ })
-            }
+    PullToRefreshBox(
+        isRefreshing = isRefreshing,
+        onRefresh = {
+            isRefreshing = true
+            refreshKey++
         }
-
-        // Show transient error message when refresh fails but cached data exists
-        errorMessage?.let { message ->
-            Snackbar(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(16.dp),
-                action = {
-                    TextButton(onClick = { errorMessage = null }) {
-                        Text("Dismiss")
-                    }
-                }
-            ) {
-                Text("Showing cached data: $message")
-            }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(12.dp)
+                .verticalScroll(rememberScrollState()),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            QuickStats(balanceState)
+            HorizontalDivider(
+                Modifier
+                    .padding(10.dp)
+                    .background(MaterialTheme.colorScheme.primary),
+                thickness = 2.dp
+            )
+            QuickActivities(navController, activitiesState, onRetry = { refreshKey++ })
+            HorizontalDivider(
+                Modifier
+                    .padding(10.dp)
+                    .background(MaterialTheme.colorScheme.primary),
+                thickness = 2.dp
+            )
+            QuickGroups(navController, groupsState, meState, onRetry = { refreshKey++ })
         }
     }
 }
 
 @Composable
-fun QuickStats(
-    balanceState: UiState<BalanceData>
-) {
+fun QuickStats(balanceState: UiState<BalanceData>) {
     Row(
         Modifier
             .fillMaxWidth()
@@ -306,7 +258,6 @@ fun QuickStats(
             }
 
             is UiState.Error -> {
-                // Should never reach here due to caching logic, but handle gracefully
                 LinearProgressIndicator(
                     Modifier.align(Alignment.CenterVertically),
                     color = MaterialTheme.colorScheme.secondary,
@@ -507,6 +458,7 @@ fun QuickGroups(
                         modifier = Modifier.padding(vertical = 8.dp)
                     )
                 } else {
+                    // Fixed: Use take(3) instead of slice to prevent IndexOutOfBounds
                     for (group in groups.take(3)) {
                         Group(group, me, navController)
                     }
@@ -574,7 +526,6 @@ fun Group(group: GroupDto, me: UserDto, navController: NavController? = null) {
     }
 }
 
-// Extra composables
 @SuppressLint("SimpleDateFormat")
 @Composable
 fun TimeText(

@@ -48,6 +48,7 @@ import com.japp.api.safeApiCall
 import com.japp.composables.ErrorWithRetry
 import com.japp.ui.state.UiState
 import com.japp.ui.theme.Dimens
+import com.japp.utils.LocalConnectivity
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -59,12 +60,27 @@ fun ProfileScreen(navController: NavController) {
     var isRefreshing by remember { mutableStateOf(false) }
     var refreshKey by remember { mutableIntStateOf(0) }
 
+    val isConnected = LocalConnectivity.current
+    var wasDisconnected by remember { mutableStateOf(false) }
+
+    LaunchedEffect(isConnected) {
+        if (isConnected && wasDisconnected) {
+            refreshKey++
+        }
+        wasDisconnected = !isConnected
+    }
+
     LaunchedEffect(refreshKey) {
-        userState = when (val result = safeApiCall("ProfileScreen.user") {
+        when (val result = safeApiCall("ProfileScreen.user") {
             RetrofitClient.userService.getMyUser()
         }) {
-            is NetworkResult.Success -> UiState.Success(result.data)
-            is NetworkResult.Error -> UiState.Error(result.message)
+            is NetworkResult.Success -> userState = UiState.Success(result.data)
+            is NetworkResult.Error -> {
+                if (userState !is UiState.Success) {
+                    userState = UiState.Error(result.message)
+                }
+                // else keep cached Success state
+            }
         }
         isRefreshing = false
     }
@@ -134,6 +150,20 @@ fun ProfileScreen(navController: NavController) {
                         Text(
                             text = user.firstname,
                             style = MaterialTheme.typography.titleLarge
+                        )
+
+                        Text(
+                            text = user.lastname,
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.secondary
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Text(
+                            text = user.username,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.secondary
                         )
 
                         Text(

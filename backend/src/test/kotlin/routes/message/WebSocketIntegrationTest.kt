@@ -77,42 +77,42 @@ class WebSocketIntegrationTest : AnnotationSpec() {
         val user1Response = client.post("/api/auth/signup") {
             contentType(ContentType.Application.Json)
             setBody("""
-                {
-                    "email": "user1@test.com",
-                    "username": "user1",
-                    "firstname": "Test",
-                    "lastname": "User1",
-                    "password": "Password123"
-                }
-            """.trimIndent())
+            {
+                "email": "user1@test.com",
+                "username": "user1",
+                "firstname": "Test",
+                "lastname": "User1",
+                "password": "Password123"
+            }
+        """.trimIndent())
         }
         val auth1 = json.decodeFromString<AuthResponse>(user1Response.bodyAsText())
 
         val user2Response = client.post("/api/auth/signup") {
             contentType(ContentType.Application.Json)
             setBody("""
-                {
-                    "email": "user2@test.com",
-                    "username": "user2",
-                    "firstname": "Test",
-                    "lastname": "User2",
-                    "password": "Password123"
-                }
-            """.trimIndent())
+            {
+                "email": "user2@test.com",
+                "username": "user2",
+                "firstname": "Test",
+                "lastname": "User2",
+                "password": "Password123"
+            }
+        """.trimIndent())
         }
         val auth2 = json.decodeFromString<AuthResponse>(user2Response.bodyAsText())
 
         val user3Response = client.post("/api/auth/signup") {
             contentType(ContentType.Application.Json)
             setBody("""
-                {
-                    "email": "user3@test.com",
-                    "username": "user3",
-                    "firstname": "Test",
-                    "lastname": "User3",
-                    "password": "Password123"
-                }
-            """.trimIndent())
+            {
+                "email": "user3@test.com",
+                "username": "user3",
+                "firstname": "Test",
+                "lastname": "User3",
+                "password": "Password123"
+            }
+        """.trimIndent())
         }
         val auth3 = json.decodeFromString<AuthResponse>(user3Response.bodyAsText())
 
@@ -127,12 +127,6 @@ class WebSocketIntegrationTest : AnnotationSpec() {
             contentType(ContentType.Application.Json)
             header("Authorization", "Bearer ${auth1.token}")
             setBody("""{"userId": ${auth2.user.id}}""")
-        }
-
-        client.post("/api/groups/${group.id}/members") {
-            contentType(ContentType.Application.Json)
-            header("Authorization", "Bearer ${auth1.token}")
-            setBody("""{"userId": ${auth3.user.id}}""")
         }
 
         return TestData(
@@ -289,9 +283,8 @@ class WebSocketIntegrationTest : AnnotationSpec() {
         client.webSocket("/api/ws/chat", request = {
             header("Authorization", "Bearer ${data.token3}")
         }) {
-            incoming.receive() // CONNECTED
+            incoming.receive()
 
-            // User3 tries to send message to group they are not part of
             val unauthorizedMessage = WebSocketMessage(
                 type = WebSocketMessageType.NEW_MESSAGE,
                 groupId = data.groupId,
@@ -309,7 +302,6 @@ class WebSocketIntegrationTest : AnnotationSpec() {
             )
             send(Frame.Text(json.encodeToString(WebSocketMessage.serializer(), unauthorizedMessage)))
 
-            // Should receive ERROR
             val errorFrame = incoming.receive() as Frame.Text
             val errorMsg = json.decodeFromString<WebSocketMessage>(errorFrame.readText())
             errorMsg.type shouldBe WebSocketMessageType.ERROR
@@ -444,6 +436,12 @@ class WebSocketIntegrationTest : AnnotationSpec() {
         application { module() }
         val data = setupTestData()
 
+        client.post("/api/groups/${data.groupId}/members") {
+            contentType(ContentType.Application.Json)
+            header("Authorization", "Bearer ${data.token1}")
+            setBody("""{"userId": ${data.user3Id}}""")
+        }
+
         val wsClient = createClient {
             install(WebSockets)
         }
@@ -453,13 +451,12 @@ class WebSocketIntegrationTest : AnnotationSpec() {
                 wsClient.webSocket("/api/ws/chat", request = {
                     header("Authorization", "Bearer ${data.token1}")
                 }) {
-                    // Note: Pattern that applies for all the tests:
-                    incoming.receive() // connected
+                    incoming.receive()
                     send(Frame.Text(json.encodeToString(
                         WebSocketMessage.serializer(),
                         WebSocketMessage(type = WebSocketMessageType.SUBSCRIBE, groupId = data.groupId)
                     )))
-                    incoming.receive() // subscribed
+                    incoming.receive()
 
                     val frame = incoming.receive() as Frame.Text
                     val message = json.decodeFromString<WebSocketMessage>(frame.readText())
@@ -506,6 +503,12 @@ class WebSocketIntegrationTest : AnnotationSpec() {
         setupTestConfig()
         application { module() }
         val data = setupTestData()
+
+        client.post("/api/groups/${data.groupId}/members") {
+            contentType(ContentType.Application.Json)
+            header("Authorization", "Bearer ${data.token1}")
+            setBody("""{"userId": ${data.user3Id}}""")
+        }
 
         val wsClient = createClient {
             install(WebSockets)
@@ -706,6 +709,12 @@ class WebSocketIntegrationTest : AnnotationSpec() {
         setupTestConfig()
         application { module() }
         val data = setupTestData()
+
+        client.post("/api/groups/${data.groupId}/members") {
+            contentType(ContentType.Application.Json)
+            header("Authorization", "Bearer ${data.token1}")
+            setBody("""{"userId": ${data.user3Id}}""")
+        }
 
         val wsClient = createClient {
             install(WebSockets)

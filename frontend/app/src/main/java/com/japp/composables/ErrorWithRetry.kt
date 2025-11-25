@@ -1,8 +1,10 @@
 package com.japp.composables
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
@@ -21,29 +23,41 @@ import androidx.compose.ui.unit.dp
  * @param onRetry Callback invoked when retry button is clicked. If null, no button is shown.
  * @param modifier Modifier for the container
  */
+/**
+ * Displays an error message with an optional retry button.
+ *
+ * @param message The error message to display
+ * @param onRetry Callback invoked when retry button is clicked. If null, no button is shown.
+ * @param modifier Modifier for the container
+ */
 @Composable
 fun ErrorWithRetry(
     message: String,
     onRetry: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
-    Column(
-        modifier = modifier.padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+    Box(
+        modifier = modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
     ) {
-        Text(
-            text = message,
-            color = MaterialTheme.colorScheme.error,
-            style = MaterialTheme.typography.bodyMedium,
-            textAlign = TextAlign.Center
-        )
+        Column(
+            modifier = Modifier.padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(
+                text = message,
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodyMedium,
+                textAlign = TextAlign.Center
+            )
 
-        if (onRetry != null) {
-            Spacer(modifier = Modifier.height(12.dp))
+            if (onRetry != null) {
+                Spacer(modifier = Modifier.height(12.dp))
 
-            Button(onClick = onRetry) {
-                Text("Retry")
+                Button(onClick = onRetry) {
+                    Text("Retry")
+                }
             }
         }
     }

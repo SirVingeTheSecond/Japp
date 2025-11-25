@@ -1,14 +1,16 @@
-package routes
+package routes.activity
 
 import com.japp.database.DatabaseSchema
 import com.japp.models.ActivityType
-import com.japp.models.dto.*
+import com.japp.models.dto.ActivityDto
+import com.japp.models.dto.AuthResponse
+import com.japp.models.dto.GroupActivitiesDto
+import com.japp.models.dto.GroupDto
 import com.japp.module
 import io.kotest.core.spec.style.AnnotationSpec
 import io.kotest.matchers.collections.shouldContain
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.shouldBe
-import io.kotest.matchers.shouldNotBe
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
@@ -17,7 +19,6 @@ import io.ktor.server.testing.*
 import kotlinx.serialization.json.Json
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
-import kotlin.collections.emptyList
 
 class ActivityIntegrationTest : AnnotationSpec() {
 
@@ -25,7 +26,7 @@ class ActivityIntegrationTest : AnnotationSpec() {
 
     @BeforeClass
     fun setupDatabase() {
-        Database.connect(
+        Database.Companion.connect(
             "jdbc:h2:mem:activity_test;DB_CLOSE_DELAY=-1",
             driver = "org.h2.Driver",
             user = "root",
@@ -129,21 +130,23 @@ class ActivityIntegrationTest : AnnotationSpec() {
         client.post("/api/expenses") {
             contentType(ContentType.Application.Json)
             header("Authorization", "Bearer ${data.token1}")
-            setBody("""
+            setBody(
+                """
             {
                 "groupId": ${data.groupId},
                 "amount": 100.0,
                 "description": "Test expense",
                 "splitType": "equal"
             }
-        """.trimIndent())
+        """.trimIndent()
+            )
         }
 
         val response = client.get("/api/activities") {
             header("Authorization", "Bearer ${data.token1}")
         }
 
-        response.status shouldBe HttpStatusCode.OK
+        response.status shouldBe HttpStatusCode.Companion.OK
         val activities = json.decodeFromString<List<ActivityDto>>(response.bodyAsText())
 
         activities shouldHaveSize 3
@@ -161,21 +164,23 @@ class ActivityIntegrationTest : AnnotationSpec() {
         client.post("/api/expenses") {
             contentType(ContentType.Application.Json)
             header("Authorization", "Bearer ${data.token1}")
-            setBody("""
+            setBody(
+                """
             {
                 "groupId": ${data.groupId},
                 "amount": 150.0,
                 "description": "Group dinner",
                 "splitType": "equal"
             }
-        """.trimIndent())
+        """.trimIndent()
+            )
         }
 
         val response = client.get("/api/activities/group/${data.groupId}") {
             header("Authorization", "Bearer ${data.token1}")
         }
 
-        response.status shouldBe HttpStatusCode.OK
+        response.status shouldBe HttpStatusCode.Companion.OK
         val groupActivities = json.decodeFromString<GroupActivitiesDto>(response.bodyAsText())
 
         groupActivities.groupId shouldBe data.groupId
@@ -195,7 +200,8 @@ class ActivityIntegrationTest : AnnotationSpec() {
         // Create a third user who is NOT in the group
         val user3Response = client.post("/api/auth/signup") {
             contentType(ContentType.Application.Json)
-            setBody("""
+            setBody(
+                """
             {
                 "email": "user3@test.com",
                 "username": "user3",
@@ -203,7 +209,8 @@ class ActivityIntegrationTest : AnnotationSpec() {
                 "lastname": "User3",
                 "password": "Password123"
             }
-        """.trimIndent())
+        """.trimIndent()
+            )
         }
         val auth3 = json.decodeFromString<AuthResponse>(user3Response.bodyAsText())
 
@@ -211,7 +218,7 @@ class ActivityIntegrationTest : AnnotationSpec() {
             header("Authorization", "Bearer ${auth3.token}")
         }
 
-        response.status shouldBe HttpStatusCode.Forbidden
+        response.status shouldBe HttpStatusCode.Companion.Forbidden
     }
 
     @Test
@@ -224,7 +231,7 @@ class ActivityIntegrationTest : AnnotationSpec() {
             header("Authorization", "Bearer ${data.token1}")
         }
 
-        response.status shouldBe HttpStatusCode.Forbidden
+        response.status shouldBe HttpStatusCode.Companion.Forbidden
     }
 
     @Test
@@ -235,7 +242,7 @@ class ActivityIntegrationTest : AnnotationSpec() {
 
         val response = client.get("/api/activities/group/${data.groupId}")
 
-        response.status shouldBe HttpStatusCode.Unauthorized
+        response.status shouldBe HttpStatusCode.Companion.Unauthorized
     }
 
     @Test
@@ -249,14 +256,16 @@ class ActivityIntegrationTest : AnnotationSpec() {
             client.post("/api/expenses") {
                 contentType(ContentType.Application.Json)
                 header("Authorization", "Bearer ${data.token1}")
-                setBody("""
+                setBody(
+                    """
                 {
                     "groupId": ${data.groupId},
                     "amount": ${(i + 1) * 10.0},
                     "description": "Expense $i",
                     "splitType": "equal"
                 }
-            """.trimIndent())
+            """.trimIndent()
+                )
             }
         }
 
@@ -266,7 +275,7 @@ class ActivityIntegrationTest : AnnotationSpec() {
             header("Authorization", "Bearer ${data.token1}")
         }
 
-        response.status shouldBe HttpStatusCode.OK
+        response.status shouldBe HttpStatusCode.Companion.OK
         val activities = json.decodeFromString<List<ActivityDto>>(response.bodyAsText())
 
         activities shouldHaveSize 3
@@ -283,14 +292,16 @@ class ActivityIntegrationTest : AnnotationSpec() {
             client.post("/api/expenses") {
                 contentType(ContentType.Application.Json)
                 header("Authorization", "Bearer ${data.token1}")
-                setBody("""
+                setBody(
+                    """
                 {
                     "groupId": ${data.groupId},
                     "amount": ${(i + 1) * 10.0},
                     "description": "Expense $i",
                     "splitType": "equal"
                 }
-            """.trimIndent())
+            """.trimIndent()
+                )
             }
         }
 
@@ -300,7 +311,7 @@ class ActivityIntegrationTest : AnnotationSpec() {
             header("Authorization", "Bearer ${data.token1}")
         }
 
-        response.status shouldBe HttpStatusCode.OK
+        response.status shouldBe HttpStatusCode.Companion.OK
         val groupActivities = json.decodeFromString<GroupActivitiesDto>(response.bodyAsText())
 
         groupActivities.activities shouldHaveSize 2

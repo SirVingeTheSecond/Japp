@@ -1,4 +1,4 @@
-package routes
+package routes.expense
 
 import com.japp.database.DatabaseSchema
 import com.japp.models.dto.*

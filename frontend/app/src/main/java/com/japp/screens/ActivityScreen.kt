@@ -30,6 +30,7 @@ import com.japp.api.safeApiCall
 import com.japp.composables.ActivityRow
 import com.japp.composables.ErrorWithRetry
 import com.japp.ui.state.UiState
+import com.japp.utils.LocalConnectivity
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Preview(showSystemUi = true)
@@ -39,12 +40,27 @@ fun ActivityScreen(navController: NavController? = null) {
     var isRefreshing by remember { mutableStateOf(false) }
     var refreshKey by remember { mutableIntStateOf(0) }
 
+    val isConnected = LocalConnectivity.current
+    var wasDisconnected by remember { mutableStateOf(false) }
+
+    LaunchedEffect(isConnected) {
+        if (isConnected && wasDisconnected) {
+            refreshKey++
+        }
+        wasDisconnected = !isConnected
+    }
+
     LaunchedEffect(refreshKey) {
-        activitiesState = when (val result = safeApiCall("ActivityScreen.activities") {
+        when (val result = safeApiCall("ActivityScreen.activities") {
             RetrofitClient.activityService.getUserActivities(limit = null)
         }) {
-            is NetworkResult.Success -> UiState.Success(result.data)
-            is NetworkResult.Error -> UiState.Error(result.message)
+            is NetworkResult.Success -> activitiesState = UiState.Success(result.data)
+            is NetworkResult.Error -> {
+                if (activitiesState !is UiState.Success) {
+                    activitiesState = UiState.Error(result.message)
+                }
+                // else keep cached Success state
+            }
         }
         isRefreshing = false
     }

@@ -23,13 +23,6 @@ import androidx.compose.ui.unit.dp
  * @param onRetry Callback invoked when retry button is clicked. If null, no button is shown.
  * @param modifier Modifier for the container
  */
-/**
- * Displays an error message with an optional retry button.
- *
- * @param message The error message to display
- * @param onRetry Callback invoked when retry button is clicked. If null, no button is shown.
- * @param modifier Modifier for the container
- */
 @Composable
 fun ErrorWithRetry(
     message: String,

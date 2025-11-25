@@ -1,11 +1,13 @@
-package routes
+package routes.message
 
 import com.japp.database.DatabaseSchema
+import com.japp.models.MessageType
 import com.japp.models.WebSocketMessageType
 import com.japp.models.dto.*
 import com.japp.module
 import io.kotest.core.spec.style.AnnotationSpec
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.shouldNotBe
 import io.ktor.client.plugins.websocket.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
@@ -150,6 +152,288 @@ class WebSocketIntegrationTest : AnnotationSpec() {
         val user3Id: Int,
         val groupId: Int
     )
+
+    @Test
+    fun `should connect to WebSocket and receive connected message`() = testApplication {
+        setupTestConfig()
+        application { module() }
+        val data = setupTestData()
+
+        val client = createClient {
+            install(WebSockets)
+        }
+
+        client.webSocket("/api/ws/chat", request = {
+            header("Authorization", "Bearer ${data.token1}")
+        }) {
+            val frame = incoming.receive() as Frame.Text
+            val message = json.decodeFromString<WebSocketMessage>(frame.readText())
+
+            message.type shouldBe WebSocketMessageType.CONNECTED
+            message.userId shouldBe data.user1Id
+        }
+    }
+
+    @Test
+    fun `should send message via WebSocket and receive MESSAGE_SENT acknowledgment`() = testApplication {
+        setupTestConfig()
+        application { module() }
+        val data = setupTestData()
+
+        val client = createClient {
+            install(WebSockets)
+        }
+
+        client.webSocket("/api/ws/chat", request = {
+            header("Authorization", "Bearer ${data.token1}")
+        }) {
+            // Receive CONNECTED message
+            val connectedFrame = incoming.receive() as Frame.Text
+            val connectedMsg = json.decodeFromString<WebSocketMessage>(connectedFrame.readText())
+            connectedMsg.type shouldBe WebSocketMessageType.CONNECTED
+
+            // Subscribe to group
+            val subscribeMessage = WebSocketMessage(
+                type = WebSocketMessageType.SUBSCRIBE,
+                groupId = data.groupId
+            )
+            send(Frame.Text(json.encodeToString(WebSocketMessage.serializer(), subscribeMessage)))
+
+            // Receive SUBSCRIBED confirmation
+            val subscribedFrame = incoming.receive() as Frame.Text
+            val subscribedMsg = json.decodeFromString<WebSocketMessage>(subscribedFrame.readText())
+            subscribedMsg.type shouldBe WebSocketMessageType.SUBSCRIBED
+
+            // Send NEW_MESSAGE via WebSocket
+            val newMessage = WebSocketMessage(
+                type = WebSocketMessageType.NEW_MESSAGE,
+                groupId = data.groupId,
+                message = MessageDto(
+                    id = 0,
+                    groupId = data.groupId,
+                    userId = null,
+                    userName = null,
+                    content = "WebSocket message test!",
+                    messageType = MessageType.USER,
+                    createdAt = "",
+                    editedAt = null,
+                    isDeleted = false
+                )
+            )
+            send(Frame.Text(json.encodeToString(WebSocketMessage.serializer(), newMessage)))
+
+            // Should receive MESSAGE_SENT acknowledgment
+            val ackFrame = incoming.receive() as Frame.Text
+            val ackMsg = json.decodeFromString<WebSocketMessage>(ackFrame.readText())
+            ackMsg.type shouldBe WebSocketMessageType.MESSAGE_SENT
+            ackMsg.message shouldNotBe null
+            ackMsg.message!!.content shouldBe "WebSocket message test!"
+            ackMsg.error shouldBe null
+        }
+    }
+
+    @Test
+    fun `should return ERROR when sending message with missing groupId`() = testApplication {
+        setupTestConfig()
+        application { module() }
+        val data = setupTestData()
+
+        val client = createClient {
+            install(WebSockets)
+        }
+
+        client.webSocket("/api/ws/chat", request = {
+            header("Authorization", "Bearer ${data.token1}")
+        }) {
+            incoming.receive() // CONNECTED
+
+            // Send message without groupId
+            val invalidMessage = WebSocketMessage(
+                type = WebSocketMessageType.NEW_MESSAGE,
+                groupId = null,
+                message = MessageDto(
+                    id = 0,
+                    groupId = 0,
+                    userId = null,
+                    userName = null,
+                    content = "This should fail",
+                    messageType = MessageType.USER,
+                    createdAt = "",
+                    editedAt = null,
+                    isDeleted = false
+                )
+            )
+            send(Frame.Text(json.encodeToString(WebSocketMessage.serializer(), invalidMessage)))
+
+            // Should receive ERROR
+            val errorFrame = incoming.receive() as Frame.Text
+            val errorMsg = json.decodeFromString<WebSocketMessage>(errorFrame.readText())
+            errorMsg.type shouldBe WebSocketMessageType.ERROR
+            errorMsg.error shouldBe "groupId and content are required"
+        }
+    }
+
+    @Test
+    fun `should return ERROR when sending message to group user is not member of`() = testApplication {
+        setupTestConfig()
+        application { module() }
+        val data = setupTestData()
+
+        val client = createClient {
+            install(WebSockets)
+        }
+
+        client.webSocket("/api/ws/chat", request = {
+            header("Authorization", "Bearer ${data.token3}")
+        }) {
+            incoming.receive() // CONNECTED
+
+            // User3 tries to send message to group they are not part of
+            val unauthorizedMessage = WebSocketMessage(
+                type = WebSocketMessageType.NEW_MESSAGE,
+                groupId = data.groupId,
+                message = MessageDto(
+                    id = 0,
+                    groupId = data.groupId,
+                    userId = null,
+                    userName = null,
+                    content = "I should not be able to send this",
+                    messageType = MessageType.USER,
+                    createdAt = "",
+                    editedAt = null,
+                    isDeleted = false
+                )
+            )
+            send(Frame.Text(json.encodeToString(WebSocketMessage.serializer(), unauthorizedMessage)))
+
+            // Should receive ERROR
+            val errorFrame = incoming.receive() as Frame.Text
+            val errorMsg = json.decodeFromString<WebSocketMessage>(errorFrame.readText())
+            errorMsg.type shouldBe WebSocketMessageType.ERROR
+            errorMsg.error shouldBe "Not a member of this group"
+        }
+    }
+
+    @Test
+    fun `should fail to subscribe to group when not a member`() = testApplication {
+        setupTestConfig()
+        application { module() }
+        val data = setupTestData()
+
+        val client = createClient {
+            install(WebSockets)
+        }
+
+        client.webSocket("/api/ws/chat", request = {
+            header("Authorization", "Bearer ${data.token3}")
+        }) {
+            incoming.receive()
+
+            send(Frame.Text(json.encodeToString(
+                WebSocketMessage.serializer(),
+                WebSocketMessage(
+                    type = WebSocketMessageType.SUBSCRIBE,
+                    groupId = data.groupId
+                )
+            )))
+
+            val frame = incoming.receive() as Frame.Text
+            val message = json.decodeFromString<WebSocketMessage>(frame.readText())
+
+            message.type shouldBe WebSocketMessageType.ERROR
+            message.groupId shouldBe data.groupId
+            message.error shouldBe "Not a member of this group"
+        }
+    }
+
+    @Test
+    fun `should unsubscribe from group successfully`() = testApplication {
+        setupTestConfig()
+        application { module() }
+        val data = setupTestData()
+
+        val client = createClient {
+            install(WebSockets)
+        }
+
+        client.webSocket("/api/ws/chat", request = {
+            header("Authorization", "Bearer ${data.token1}")
+        }) {
+            incoming.receive()
+
+            // Subscribe
+            send(Frame.Text(json.encodeToString(
+                WebSocketMessage.serializer(),
+                WebSocketMessage(
+                    type = WebSocketMessageType.SUBSCRIBE,
+                    groupId = data.groupId
+                )
+            )))
+            incoming.receive()
+
+            // Unsubscribe
+            send(Frame.Text(json.encodeToString(
+                WebSocketMessage.serializer(),
+                WebSocketMessage(
+                    type = WebSocketMessageType.UNSUBSCRIBE,
+                    groupId = data.groupId
+                )
+            )))
+
+            val frame = incoming.receive() as Frame.Text
+            val message = json.decodeFromString<WebSocketMessage>(frame.readText())
+
+            message.type shouldBe WebSocketMessageType.UNSUBSCRIBED
+            message.groupId shouldBe data.groupId
+        }
+    }
+
+    @Test
+    fun `should receive new message via WebSocket when subscribed`() = testApplication {
+        setupTestConfig()
+        application { module() }
+        val data = setupTestData()
+
+        val client = createClient {
+            install(WebSockets)
+        }
+
+        client.webSocket("/api/ws/chat", request = {
+            header("Authorization", "Bearer ${data.token1}")
+        }) {
+            incoming.receive() // connected
+
+            // Subscribe to group
+            send(Frame.Text(json.encodeToString(
+                WebSocketMessage.serializer(),
+                WebSocketMessage(
+                    type = WebSocketMessageType.SUBSCRIBE,
+                    groupId = data.groupId
+                )
+            )))
+            incoming.receive() // subscribed
+
+            // Create message via HTTP in parallel
+            val messageJob = async {
+                delay(100)
+                this@testApplication.client.post("/api/messages") {
+                    contentType(ContentType.Application.Json)
+                    header("Authorization", "Bearer ${data.token2}")
+                    setBody("""{"groupId": ${data.groupId}, "content": "WebSocket test!"}""")
+                }
+            }
+
+            // Should receive the new message via WebSocket
+            val frame = incoming.receive() as Frame.Text
+            val wsMessage = json.decodeFromString<WebSocketMessage>(frame.readText())
+
+            wsMessage.type shouldBe WebSocketMessageType.NEW_MESSAGE
+            wsMessage.message shouldNotBe null
+            wsMessage.message!!.content shouldBe "WebSocket test!"
+
+            messageJob.await()
+        }
+    }
 
     @Test
     fun `should broadcast TYPING_START to subscribed group members except sender`() = testApplication {

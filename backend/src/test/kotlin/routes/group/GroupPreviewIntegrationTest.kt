@@ -1,4 +1,4 @@
-package routes
+package routes.group
 
 import com.japp.database.DatabaseSchema
 import com.japp.models.dto.AuthResponse

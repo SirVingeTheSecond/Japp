@@ -215,6 +215,7 @@ class ApplicationTest : AnnotationSpec() {
         val userRepository = UserRepository()
         val expenseRepository = ExpenseRepository()
         val groupRepository = GroupRepository()
+        val settlementRepository = SettlementRepository()
         val activityRepository = mockk<ActivityRepository>()
         val messageRepository = mockk<MessageRepository>()
         val webSocketManager = mockk<WebSocketManager>()
@@ -224,7 +225,7 @@ class ApplicationTest : AnnotationSpec() {
 
         val activityService = ActivityService(activityRepository,userRepository, groupRepository)
         val messageService = MessageService(messageRepository,groupRepository, userRepository, webSocketManager)
-        val expenseService = ExpenseService(expenseRepository, groupRepository, userRepository, activityService, messageService)
+        val expenseService = ExpenseService(expenseRepository, groupRepository, userRepository, settlementRepository, activityService, messageService)
 
         transaction {
             userRepository.create(
@@ -257,6 +258,7 @@ class ApplicationTest : AnnotationSpec() {
         val userRepository = UserRepository()
         val expenseRepository = ExpenseRepository()
         val groupRepository = GroupRepository()
+        val settlementRepository = SettlementRepository()
         val activityRepository = mockk<ActivityRepository>()
         val messageRepository = mockk<MessageRepository>()
         val webSocketManager = mockk<WebSocketManager>()
@@ -265,7 +267,7 @@ class ApplicationTest : AnnotationSpec() {
 
         val activityService = ActivityService(activityRepository,userRepository, groupRepository)
         val messageService = MessageService(messageRepository,groupRepository, userRepository, webSocketManager)
-        val expenseService = ExpenseService(expenseRepository, groupRepository, userRepository, activityService, messageService)
+        val expenseService = ExpenseService(expenseRepository, groupRepository, userRepository, settlementRepository, activityService, messageService)
 
         transaction {
             userRepository.create(
@@ -302,6 +304,7 @@ class ApplicationTest : AnnotationSpec() {
         val expenseRepository = ExpenseRepository()
         val groupRepository = GroupRepository()
         val activityRepository = mockk<ActivityRepository>()
+        val settlementRepository = SettlementRepository()
         val messageRepository = mockk<MessageRepository>()
         val webSocketManager = mockk<WebSocketManager>()
         val passwordHasher = PasswordHasher()
@@ -309,7 +312,7 @@ class ApplicationTest : AnnotationSpec() {
 
         val activityService = ActivityService(activityRepository,userRepository, groupRepository)
         val messageService = MessageService(messageRepository,groupRepository, userRepository, webSocketManager)
-        val expenseService = ExpenseService(expenseRepository, groupRepository, userRepository, activityService, messageService)
+        val expenseService = ExpenseService(expenseRepository, groupRepository, userRepository, settlementRepository, activityService, messageService)
 
         transaction {
             userRepository.create(
@@ -459,9 +462,9 @@ class ApplicationTest : AnnotationSpec() {
 
     @Test
     suspend fun settlementSuggestions() {
-
-        val settlementRepository = SettlementRepository()
+        
         val userRepository = UserRepository()
+        val settlementRepository = SettlementRepository()
         val expenseRepository = ExpenseRepository()
         val groupRepository = GroupRepository()
         val passwordHasher = PasswordHasher()
@@ -472,12 +475,12 @@ class ApplicationTest : AnnotationSpec() {
 
         val activityService = ActivityService(activityRepository,userRepository, groupRepository)
         val messageService = MessageService(messageRepository,groupRepository, userRepository, webSocketManager)
-        val expenseService = ExpenseService(expenseRepository,groupRepository,userRepository,activityService, messageService)
+        val expenseService = ExpenseService(expenseRepository,groupRepository,userRepository, settlementRepository, activityService, messageService)
         val settlementService =
             SettlementService(settlementRepository, groupRepository, userRepository,
                 expenseRepository, activityService, messageService)
 
-        //create user
+        // create User
         transaction {
             userRepository.create(
                 User(
@@ -507,7 +510,7 @@ class ApplicationTest : AnnotationSpec() {
             )
         }
 
-        // create group
+        // create Group
         val createGroupRequest = CreateGroupRequest("group name", "group description")
         val groupService = GroupService(groupRepository, userRepository, activityService, messageService, expenseRepository, debtHistoryRepository)
         groupService.createGroup(createGroupRequest, 1)

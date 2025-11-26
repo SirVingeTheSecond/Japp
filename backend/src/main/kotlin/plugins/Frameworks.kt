@@ -130,6 +130,7 @@ fun appModule(application: Application) = module {
             expenseRepository = get(),
             groupRepository = get(),
             userRepository = get(),
+            settlementRepository = get(),
             activityService = get(),
             messageService = get()
         )

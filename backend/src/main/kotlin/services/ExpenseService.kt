@@ -2,6 +2,8 @@ package com.japp.services
 
 import com.japp.models.*
 import com.japp.models.domain.Expense
+import com.japp.models.domain.Group
+import com.japp.models.domain.User
 import com.japp.models.dto.*
 import com.japp.models.error.AppError
 import com.japp.services.interfaces.IExpenseRepository
@@ -12,8 +14,10 @@ import com.japp.utils.toDto
 import com.japp.utils.createBalanceDto
 import com.japp.validation.ExpenseValidator
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+
 
 class ExpenseService(
     private val expenseRepository: IExpenseRepository,
@@ -21,10 +25,18 @@ class ExpenseService(
     private val userRepository: IUserRepository,
     private val settlementRepository: ISettlementRepository,
     private val activityService: ActivityService,
-    private val messageService: MessageService
+    private val messageService: MessageService,
+    private val notificationService: NotificationService
 ) {
 
-    // There are most likely somewhere else that also need to apply this pattern
+    private data class ExpenseCreationData(
+        val expenseDto: ExpenseDto,
+        val user: User?,
+        val group: Group?,
+        val members: List<Int>
+    )
+
+    // HOLY SHIT THIS IS A HUGE FUNCTION
     suspend fun createExpense(
         request: CreateExpenseRequest,
         userId: Int
@@ -83,30 +95,55 @@ class ExpenseService(
                             groupRepository.updateTotalExpenses(request.groupId, request.amount)
 
                             val user = userRepository.findById(userId)
+                            val group = groupRepository.findById(request.groupId)
                             val expenseDto = toExpenseDto(expense, userId)
 
-                            Result.Success(Pair(expenseDto, user))
+                            Result.Success(
+                                ExpenseCreationData(
+                                    expenseDto = expenseDto,
+                                    user = user,
+                                    group = group,
+                                    members = members
+                                )
+                            )
                         }
 
                         when (result) {
                             is Result.Success -> {
-                                val (expenseDto, user) = result.value
+                                val data = result.value
 
+                                // Log activity
                                 activityService.logExpenseCreated(
                                     groupId = request.groupId,
                                     userId = userId,
-                                    expenseId = expenseDto.id,
+                                    expenseId = data.expenseDto.id,
                                     amount = request.amount,
                                     currency = request.currency.code,
                                     description = request.description
                                 )
 
+                                // System message
                                 messageService.createSystemMessage(
                                     groupId = request.groupId,
-                                    content = "${user?.username ?: "Someone"} added expense: ${request.description} - ${request.amount} ${request.currency.code}"
+                                    content = "${data.user?.username ?: "Someone"} added expense: ${request.description} - ${request.amount} ${request.currency.code}"
                                 )
 
-                                Result.Success(expenseDto)
+                                // Send notifications
+                                launch(Dispatchers.IO) {
+                                    if (data.group != null) {
+                                        notificationService.notifyExpenseCreated(
+                                            groupId = request.groupId,
+                                            groupName = data.group.name,
+                                            expenseDescription = request.description,
+                                            amount = request.amount,
+                                            createdByUsername = data.user?.username ?: "Someone",
+                                            memberUserIds = data.members,
+                                            excludeUserId = userId
+                                        )
+                                    }
+                                }
+
+                                Result.Success(data.expenseDto)
                             }
                             is Result.Failure -> result
                         }

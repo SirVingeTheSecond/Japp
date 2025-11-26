@@ -64,6 +64,7 @@ import com.japp.api.RetrofitClient
 import com.japp.api.responses.auth.AuthResponse
 import com.japp.api.responses.auth.LoginRequest
 import com.japp.api.responses.auth.SignupRequest
+import com.japp.messaging.JappMessagingService
 import com.japp.ui.theme.JappTheme
 import kotlinx.coroutines.launch
 import retrofit2.Call
@@ -141,8 +142,7 @@ fun LoginScreen(context: Context?, navController: NavController) {
 
         if (body != null && res.isSuccessful) {
             val token = body.token
-            val expiresAt =
-                Date(System.currentTimeMillis() + (600 * 1000)) // 600 seconds as none is given with request?
+            val expiresAt = Date(System.currentTimeMillis() + (600 * 1000)) // 600 seconds as none is given with request?
             CredentialsStorage.save(
                 context!!,
                 Credentials(
@@ -151,6 +151,8 @@ fun LoginScreen(context: Context?, navController: NavController) {
                     userId = body.user.id
                 )
             )
+
+            JappMessagingService.refreshToken(context)
 
             val intent = Intent(context, MainActivity::class.java)
             context.startActivity(intent)
@@ -260,10 +262,9 @@ fun SignupScreen(context: Context?, navController: NavController) {
             // and passing it to our modal class.
             val body = res.body()
             if (body != null && res.isSuccessful) {
-                // Save credentials directly after signup
                 val token = body.token
                 val expiresAt =
-                    Date(System.currentTimeMillis() + (600 * 1000)) // 600 seconds as none is given with request?
+                    Date(System.currentTimeMillis() + (600 * 1000))
                 CredentialsStorage.save(
                     context!!,
                     Credentials(
@@ -273,15 +274,14 @@ fun SignupScreen(context: Context?, navController: NavController) {
                     )
                 )
 
+                JappMessagingService.refreshToken(context)
+
                 val intent = Intent(context, MainActivity::class.java)
                 context.startActivity(intent)
             } else {
                 val errorResponse = ErrorUtils.parseError(res)
                 error = "Signup failed: ${errorResponse!!.message}"
             }
-        } else {
-            // Something went wrong
-            // ToDo: Show to user?
         }
     }
 

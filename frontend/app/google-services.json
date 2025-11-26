@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1046784765680",
+    "project_id": "japp-app-28409",
+    "storage_bucket": "japp-app-28409.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1046784765680:android:fa3f0c1d3417ee8b141c35",
+        "android_client_info": {
+          "package_name": "com.japp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBleVM4tySPx1bKQ1pgNNkQMPlhMMGxSjY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

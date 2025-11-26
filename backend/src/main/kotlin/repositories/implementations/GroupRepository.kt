@@ -93,6 +93,7 @@ class GroupRepository : IGroupRepository {
                         passwordHash = row[Users.passwordHash],
                         phone = row[Users.phone],
                         profilePicture = row[Users.profilePicture],
+                        fcmToken = row[Users.fcmToken],
                         createdAt = row[Users.createdAt]
                     ),
                     joinedAt = row[GroupMembers.joinedAt]

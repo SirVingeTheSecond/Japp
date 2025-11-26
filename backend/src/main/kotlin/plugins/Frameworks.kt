@@ -27,6 +27,10 @@ import org.koin.dsl.module
 import org.koin.ktor.plugin.Koin
 import org.koin.logger.slf4jLogger
 import kotlin.time.Duration.Companion.seconds
+import com.google.auth.oauth2.GoogleCredentials
+import com.google.firebase.FirebaseApp
+import com.google.firebase.FirebaseOptions
+import com.japp.services.NotificationService
 
 fun Application.configureFrameworks() {
     install(Koin) {
@@ -60,17 +64,60 @@ fun appModule(application: Application) = module {
             ?.toLongOrNull()
             ?: 20L
 
-        println("DEBUG: heartbeatSeconds = $heartbeatSeconds")
-
         val heartbeatInterval = if (heartbeatSeconds > 0) {
             heartbeatSeconds.seconds
         } else {
             null
         }
 
-        println("DEBUG: heartbeatInterval = $heartbeatInterval")
-
         WebSocketManager(heartbeatInterval = heartbeatInterval)
+    }
+
+
+    single {
+        // Init Firebase SDK
+        try {
+            val credentialPath = application.environment.config
+                .propertyOrNull("firebase.credentialPath")
+                ?.getString()
+                ?: "/secret/google/japp.json"
+
+            val credentialFile = java.io.File(credentialPath)
+
+            val credentials = if (credentialFile.exists()) {
+                // Production: read from Docker mount
+                application.log.info("Loading Firebase credentials from: $credentialPath")
+                GoogleCredentials.fromStream(credentialFile.inputStream())
+            } else {
+                // Development: classpath resource
+                application.log.info("Firebase credential file not found at $credentialPath, trying classpath...")
+                val serviceAccount = application.javaClass.classLoader
+                    .getResourceAsStream("firebase-service-account.json")
+                    ?: throw IllegalStateException("Firebase credentials not found in filesystem or classpath")
+                GoogleCredentials.fromStream(serviceAccount)
+            }
+
+            val options = FirebaseOptions.builder()
+                .setCredentials(credentials)
+                .build()
+
+            if (FirebaseApp.getApps().isEmpty()) {
+                FirebaseApp.initializeApp(options)
+                application.log.info("Firebase SDK initialized successfully")
+            }
+
+            FirebaseApp.getInstance()
+        } catch (e: Exception) {
+            application.log.error("Failed to initialize Firebase SDK", e)
+            throw e
+        }
+    }
+
+    single {
+        NotificationService(
+            firebaseApp = get(),
+            userRepository = get()
+        )
     }
 
     single {
@@ -102,7 +149,8 @@ fun appModule(application: Application) = module {
             messageRepository = get(),
             groupRepository = get(),
             userRepository = get(),
-            webSocketManager = get()
+            webSocketManager = get(),
+            notificationService = get()
         )
     }
 
@@ -121,7 +169,8 @@ fun appModule(application: Application) = module {
             activityService = get(),
             messageService = get(),
             expenseRepository = get(),
-            debtHistoryRepository = get()
+            debtHistoryRepository = get(),
+            notificationService = get()
         )
     }
 
@@ -132,7 +181,8 @@ fun appModule(application: Application) = module {
             userRepository = get(),
             settlementRepository = get(),
             activityService = get(),
-            messageService = get()
+            messageService = get(),
+            notificationService = get()
         )
     }
 
@@ -143,7 +193,8 @@ fun appModule(application: Application) = module {
             userRepository = get(),
             expenseRepository = get(),
             activityService = get(),
-            messageService = get()
+            messageService = get(),
+            notificationService = get()
         )
     }
 

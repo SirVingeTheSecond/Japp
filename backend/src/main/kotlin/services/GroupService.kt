@@ -12,6 +12,7 @@ import com.japp.validation.GroupValidator
 import com.japp.utils.toDto
 import com.japp.utils.createGroupMemberDto
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 
@@ -21,7 +22,8 @@ class GroupService(
     private val activityService: ActivityService,
     private val messageService: MessageService,
     private val expenseRepository: IExpenseRepository,
-    private val debtHistoryRepository: IDebtHistoryRepository
+    private val debtHistoryRepository: IDebtHistoryRepository,
+    private val notificationService: NotificationService
 ) {
 
     /**
@@ -141,8 +143,6 @@ class GroupService(
             is Result.Success -> {
                 withContext(Dispatchers.IO) {
                     try {
-                        var addedUsername: String? = null
-
                         val memberDto = transaction {
                             groupRepository.findById(groupId)
                                 ?: return@transaction Result.Failure(AppError.NotFound("Group", groupId))
@@ -158,8 +158,6 @@ class GroupService(
                                     AppError.Validation("User to add does not exist")
                                 )
 
-                            addedUsername = userToAdd.username
-
                             if (groupRepository.isMember(groupId, userIdToAdd)) {
                                 return@transaction Result.Failure(
                                     AppError.AlreadyMember()
@@ -168,25 +166,48 @@ class GroupService(
 
                             groupRepository.addMember(groupId, userIdToAdd)
 
+                            val group = groupRepository.findById(groupId)
+                            val addedBy = userRepository.findById(requestingUserId)
+
                             Result.Success(
-                                createGroupMemberDto(
-                                    user = userToAdd,
-                                    joinedAt = System.currentTimeMillis().toString(),
-                                    isOwner = false
+                                Triple(
+                                    createGroupMemberDto(
+                                        user = userToAdd,
+                                        joinedAt = System.currentTimeMillis().toString(),
+                                        isOwner = false
+                                    ),
+                                    group,
+                                    addedBy
                                 )
                             )
                         }
 
-                        if (memberDto is Result.Success) {
-                            activityService.logMemberAdded(groupId, requestingUserId, userIdToAdd)
+                        when (memberDto) {
+                            is Result.Success -> {
+                                val (member, group, addedBy) = memberDto.value
 
-                            messageService.createSystemMessage(
-                                groupId = groupId,
-                                content = "${addedUsername ?: "Someone"} was added to the group"
-                            )
+                                activityService.logMemberAdded(groupId, requestingUserId, userIdToAdd)
+
+                                messageService.createSystemMessage(
+                                    groupId = groupId,
+                                    content = "${member.username} was added to the group"
+                                )
+
+                                launch(Dispatchers.IO) {
+                                    if (group != null) {
+                                        notificationService.notifyAddedToGroup(
+                                            groupId = groupId,
+                                            groupName = group.name,
+                                            addedByUsername = addedBy?.username ?: "Someone",
+                                            newMemberUserId = userIdToAdd
+                                        )
+                                    }
+                                }
+
+                                Result.Success(member)
+                            }
+                            is Result.Failure -> memberDto
                         }
-
-                        memberDto
                     } catch (e: Exception) {
                         Result.Failure(
                             AppError.Internal(e.message ?: "Failed to add member")

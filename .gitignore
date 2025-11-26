@@ -58,3 +58,6 @@ out/
 !**/src/test/**/out/
 
 backend/.kotlin/
+
+# Firebase
+backend/src/main/resources/firebase-service-account.json

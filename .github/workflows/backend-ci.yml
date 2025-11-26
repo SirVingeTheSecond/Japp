@@ -1,4 +1,4 @@
-name: CI
+name: Backend CI
 on:
   pull_request:
     branches: [main]
@@ -20,14 +20,18 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '21'
+          # Only cache dependencies, not build outputs
           cache: 'gradle'
           cache-dependency-path: 'backend/gradle/wrapper/gradle-wrapper.properties'
       
       - name: Make gradlew executable
         run: chmod +x gradlew
       
+      - name: Clean previous builds
+        run: ./gradlew clean --no-daemon
+      
       - name: Build and Test
-        run: ./gradlew build --no-daemon
+        run: ./gradlew build --no-daemon --no-build-cache
 
       - name: Generate Kover Coverage reports
         run: ./gradlew koverHtmlReport --no-daemon

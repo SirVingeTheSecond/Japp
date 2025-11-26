@@ -16,6 +16,7 @@ import com.japp.utils.ResponseFactory
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.auth.authenticate
+import io.ktor.server.plugins.BadRequestException
 import io.ktor.server.plugins.calllogging.*
 import io.ktor.server.plugins.cors.maxAgeDuration
 import io.ktor.server.plugins.cors.routing.*
@@ -58,6 +59,16 @@ fun Application.configureRouting() {
     }
 
     install(StatusPages) {
+        exception<BadRequestException> { call, cause ->
+            call.application.log.warn("Bad request: ${cause.message}")
+            call.respond(
+                HttpStatusCode.BadRequest,
+                ResponseFactory.error(
+                    error = "BadRequest",
+                    message = cause.cause?.message ?: cause.message ?: "Invalid request body"
+                )
+            )
+        }
 
         // 400 Bad Request - Validation errors
         exception<IllegalArgumentException> { call, cause ->

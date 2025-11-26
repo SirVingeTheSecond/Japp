@@ -31,7 +31,7 @@ class ApplicationTest : AnnotationSpec() {
     }
 
     @After
-    fun drop(){
+    fun drop() {
         DatabaseSchema.dropTables()
     }
 
@@ -42,17 +42,20 @@ class ApplicationTest : AnnotationSpec() {
 
         // creating the mock user
         transaction {
-            userRepository.create(User(
-                id = 0,
-                username = "Niels69",
-                firstname = "Niels",
-                lastname = "Nielsen",
-                email = "hello@gmail.com",
-                passwordHash = passwordHasher.hash("secret12345"),
-                phone = "1234567890",
-                profilePicture = null,
-                createdAt = System.currentTimeMillis().toString()
-            ))
+            userRepository.create(
+                User(
+                    id = 0,
+                    username = "Niels69",
+                    firstname = "Niels",
+                    lastname = "Nielsen",
+                    email = "hello@gmail.com",
+                    passwordHash = passwordHasher.hash("secret12345"),
+                    phone = "1234567890",
+                    profilePicture = null,
+                    fcmToken = null,
+                    createdAt = System.currentTimeMillis().toString()
+                )
+            )
         }
 
         // check if user is created
@@ -67,17 +70,20 @@ class ApplicationTest : AnnotationSpec() {
 
         // creating the mock user
         transaction {
-            userRepository.create(User(
-                id = 0,
-                username = "Niels69",
-                firstname = "Niels",
-                lastname = "Nielsen",
-                email = "hello@gmail.com",
-                passwordHash = passwordHasher.hash("secret12345"),
-                phone = "1234567890",
-                profilePicture = null,
-                createdAt = System.currentTimeMillis().toString()
-            ))
+            userRepository.create(
+                User(
+                    id = 0,
+                    username = "Niels69",
+                    firstname = "Niels",
+                    lastname = "Nielsen",
+                    email = "hello@gmail.com",
+                    passwordHash = passwordHasher.hash("secret12345"),
+                    phone = "1234567890",
+                    profilePicture = null,
+                    fcmToken = null,
+                    createdAt = System.currentTimeMillis().toString()
+                )
+            )
         }
 
         // now that user is created delete that boi
@@ -139,31 +145,41 @@ class ApplicationTest : AnnotationSpec() {
         val expenseRepository = mockk<ExpenseRepository>()
         val debtHistoryRepository = mockk<DebtHistoryRepository>()
 
-        val activityService = ActivityService(activityRepository,userRepository, groupRepository)
-        val messageService = MessageService(messageRepository,groupRepository, userRepository, webSocketManager)
+        val activityService = ActivityService(activityRepository, userRepository, groupRepository)
+        val messageService = MessageService(messageRepository, groupRepository, userRepository, webSocketManager)
 
         // creating mock user for test
         transaction {
-            userRepository.create(User(
-                id = 0,
-                username = "Niels69",
-                firstname = "Niels",
-                lastname = "Nielsen",
-                email = "hello@gmail.com",
-                passwordHash = passwordHasher.hash("secret12345"),
-                phone = "1234567890",
-                profilePicture = null,
-                createdAt = System.currentTimeMillis().toString()
-            ))
+            userRepository.create(
+                User(
+                    id = 0,
+                    username = "Niels69",
+                    firstname = "Niels",
+                    lastname = "Nielsen",
+                    email = "hello@gmail.com",
+                    passwordHash = passwordHasher.hash("secret12345"),
+                    phone = "1234567890",
+                    profilePicture = null,
+                    fcmToken = null,
+                    createdAt = System.currentTimeMillis().toString()
+                )
+            )
         }
 
         // create group
         val createGroupRequest = CreateGroupRequest("group name", "group description")
-        val groupService = GroupService(groupRepository, userRepository, activityService,messageService, expenseRepository, debtHistoryRepository)
+        val groupService = GroupService(
+            groupRepository,
+            userRepository,
+            activityService,
+            messageService,
+            expenseRepository,
+            debtHistoryRepository
+        )
 
         // assert that group can be created and that user is in group
-        groupService.createGroup(createGroupRequest,0)
-        groupService.getGroupById(0,0)
+        groupService.createGroup(createGroupRequest, 0)
+        groupService.getGroupById(0, 0)
     }
 
     @Test
@@ -179,31 +195,41 @@ class ApplicationTest : AnnotationSpec() {
         val expenseRepository = mockk<ExpenseRepository>()
         val debtHistoryRepository = mockk<DebtHistoryRepository>()
 
-        val activityService = ActivityService(activityRepository,userRepository, groupRepository)
-        val messageService = MessageService(messageRepository,groupRepository, userRepository, webSocketManager)
+        val activityService = ActivityService(activityRepository, userRepository, groupRepository)
+        val messageService = MessageService(messageRepository, groupRepository, userRepository, webSocketManager)
 
         // creating mock user
         transaction {
-            userRepository.create(User(
-                id = 0,
-                username = "Niels69",
-                firstname = "Niels",
-                lastname = "Nielsen",
-                email = "hello@gmail.com",
-                passwordHash = passwordHasher.hash("secret12345"),
-                phone = "1234567890",
-                profilePicture = null,
-                createdAt = System.currentTimeMillis().toString()
-            ))
+            userRepository.create(
+                User(
+                    id = 0,
+                    username = "Niels69",
+                    firstname = "Niels",
+                    lastname = "Nielsen",
+                    email = "hello@gmail.com",
+                    passwordHash = passwordHasher.hash("secret12345"),
+                    phone = "1234567890",
+                    profilePicture = null,
+                    fcmToken = null,
+                    createdAt = System.currentTimeMillis().toString()
+                )
+            )
         }
 
         // create group
         val createGroupRequest = CreateGroupRequest("group name", "group description")
-        val groupService = GroupService(groupRepository, userRepository, activityService, messageService, expenseRepository, debtHistoryRepository)
-        groupService.createGroup(createGroupRequest,0)
+        val groupService = GroupService(
+            groupRepository,
+            userRepository,
+            activityService,
+            messageService,
+            expenseRepository,
+            debtHistoryRepository
+        )
+        groupService.createGroup(createGroupRequest, 0)
 
         // leave group and assert user has left group
-        groupService.leaveGroup(0,0)
+        groupService.leaveGroup(0, 0)
 
         // assert that the user is not part of group anymore TODO should be rewritten
         groupService.getUserGroups(0).toString().contains("[]")
@@ -223,33 +249,48 @@ class ApplicationTest : AnnotationSpec() {
 
         val passwordHasher = PasswordHasher()
 
-        val activityService = ActivityService(activityRepository,userRepository, groupRepository)
-        val messageService = MessageService(messageRepository,groupRepository, userRepository, webSocketManager)
-        val expenseService = ExpenseService(expenseRepository, groupRepository, userRepository, settlementRepository, activityService, messageService)
+        val activityService = ActivityService(activityRepository, userRepository, groupRepository)
+        val messageService = MessageService(messageRepository, groupRepository, userRepository, webSocketManager)
+        val expenseService = ExpenseService(
+            expenseRepository,
+            groupRepository,
+            userRepository,
+            settlementRepository,
+            activityService,
+            messageService
+        )
 
         transaction {
             userRepository.create(
                 User(
-                id = 0,
-                username = "Niels69",
-                firstname = "Niels",
-                lastname = "Nielsen",
-                email = "hello@gmail.com",
-                passwordHash = passwordHasher.hash("secret12345"),
-                phone = "1234567890",
-                profilePicture = null,
-                createdAt = System.currentTimeMillis().toString()
+                    id = 0,
+                    username = "Niels69",
+                    firstname = "Niels",
+                    lastname = "Nielsen",
+                    email = "hello@gmail.com",
+                    passwordHash = passwordHasher.hash("secret12345"),
+                    phone = "1234567890",
+                    profilePicture = null,
+                    fcmToken = null,
+                    createdAt = System.currentTimeMillis().toString()
                 )
             )
         }
         val createGroupRequest = CreateGroupRequest("group name", "group description")
-        val groupService = GroupService(groupRepository, userRepository, activityService, messageService, expenseRepository, debtHistoryRepository)
+        val groupService = GroupService(
+            groupRepository,
+            userRepository,
+            activityService,
+            messageService,
+            expenseRepository,
+            debtHistoryRepository
+        )
         groupService.createGroup(createGroupRequest, 1)
 
         val expenseRequest = CreateExpenseRequest(1, 300.0, "test expense", null, Currency.DKK, SplitType.EQUAL)
 
-        expenseService.createExpense(expenseRequest,1)
-        expenseService.getGroupExpenses(1,1)
+        expenseService.createExpense(expenseRequest, 1)
+        expenseService.getGroupExpenses(1, 1)
     }
 
     @Test
@@ -265,9 +306,16 @@ class ApplicationTest : AnnotationSpec() {
         val passwordHasher = PasswordHasher()
         val debtHistoryRepository = mockk<DebtHistoryRepository>()
 
-        val activityService = ActivityService(activityRepository,userRepository, groupRepository)
-        val messageService = MessageService(messageRepository,groupRepository, userRepository, webSocketManager)
-        val expenseService = ExpenseService(expenseRepository, groupRepository, userRepository, settlementRepository, activityService, messageService)
+        val activityService = ActivityService(activityRepository, userRepository, groupRepository)
+        val messageService = MessageService(messageRepository, groupRepository, userRepository, webSocketManager)
+        val expenseService = ExpenseService(
+            expenseRepository,
+            groupRepository,
+            userRepository,
+            settlementRepository,
+            activityService,
+            messageService
+        )
 
         transaction {
             userRepository.create(
@@ -280,21 +328,29 @@ class ApplicationTest : AnnotationSpec() {
                     passwordHash = passwordHasher.hash("secret12345"),
                     phone = "1234567890",
                     profilePicture = null,
+                    fcmToken = null,
                     createdAt = System.currentTimeMillis().toString()
                 )
             )
         }
         val createGroupRequest = CreateGroupRequest("group name", "group description")
-        val groupService = GroupService(groupRepository, userRepository, activityService, messageService, expenseRepository, debtHistoryRepository)
+        val groupService = GroupService(
+            groupRepository,
+            userRepository,
+            activityService,
+            messageService,
+            expenseRepository,
+            debtHistoryRepository
+        )
         groupService.createGroup(createGroupRequest, 1)
 
         val expenseRequest = CreateExpenseRequest(1, 300.0, "test expense", null, Currency.DKK, SplitType.EQUAL)
 
-        expenseService.createExpense(expenseRequest,1)
-        expenseService.deleteExpense(1,1)
+        expenseService.createExpense(expenseRequest, 1)
+        expenseService.deleteExpense(1, 1)
 
         // assert that the expense is deleted TODO should be rewritten
-        expenseService.getGroupExpenses(1,1).toString().contains("[]")
+        expenseService.getGroupExpenses(1, 1).toString().contains("[]")
     }
 
     @Test
@@ -310,9 +366,16 @@ class ApplicationTest : AnnotationSpec() {
         val passwordHasher = PasswordHasher()
         val debtHistoryRepository = mockk<DebtHistoryRepository>()
 
-        val activityService = ActivityService(activityRepository,userRepository, groupRepository)
-        val messageService = MessageService(messageRepository,groupRepository, userRepository, webSocketManager)
-        val expenseService = ExpenseService(expenseRepository, groupRepository, userRepository, settlementRepository, activityService, messageService)
+        val activityService = ActivityService(activityRepository, userRepository, groupRepository)
+        val messageService = MessageService(messageRepository, groupRepository, userRepository, webSocketManager)
+        val expenseService = ExpenseService(
+            expenseRepository,
+            groupRepository,
+            userRepository,
+            settlementRepository,
+            activityService,
+            messageService
+        )
 
         transaction {
             userRepository.create(
@@ -325,20 +388,28 @@ class ApplicationTest : AnnotationSpec() {
                     passwordHash = passwordHasher.hash("secret12345"),
                     phone = "1234567890",
                     profilePicture = null,
+                    fcmToken = null,
                     createdAt = System.currentTimeMillis().toString()
                 )
             )
         }
         val createGroupRequest = CreateGroupRequest("group name", "group description")
-        val groupService = GroupService(groupRepository, userRepository, activityService, messageService, expenseRepository, debtHistoryRepository)
+        val groupService = GroupService(
+            groupRepository,
+            userRepository,
+            activityService,
+            messageService,
+            expenseRepository,
+            debtHistoryRepository
+        )
         groupService.createGroup(createGroupRequest, 1)
 
         val expenseRequest = CreateExpenseRequest(1, 300.0, "test expense", null, Currency.DKK, SplitType.EQUAL)
 
-        expenseService.createExpense(expenseRequest,1)
+        expenseService.createExpense(expenseRequest, 1)
 
         // assert that the balance is the correct amount
-        expenseService.getGroupBalances(1,1).toString().contains("300.0")
+        expenseService.getGroupBalances(1, 1).toString().contains("300.0")
     }
 
 
@@ -355,11 +426,13 @@ class ApplicationTest : AnnotationSpec() {
         val webSocketManager = mockk<WebSocketManager>()
         val debtHistoryRepository = mockk<DebtHistoryRepository>()
 
-        val activityService = ActivityService(activityRepository,userRepository, groupRepository)
-        val messageService = MessageService(messageRepository,groupRepository, userRepository, webSocketManager)
+        val activityService = ActivityService(activityRepository, userRepository, groupRepository)
+        val messageService = MessageService(messageRepository, groupRepository, userRepository, webSocketManager)
         val settlementService =
-            SettlementService(settlementRepository, groupRepository, userRepository,
-                expenseRepository, activityService, messageService)
+            SettlementService(
+                settlementRepository, groupRepository, userRepository,
+                expenseRepository, activityService, messageService
+            )
 
         //create user
         transaction {
@@ -373,6 +446,7 @@ class ApplicationTest : AnnotationSpec() {
                     passwordHash = passwordHasher.hash("secret12345"),
                     phone = "1234567890",
                     profilePicture = null,
+                    fcmToken = null,
                     createdAt = System.currentTimeMillis().toString()
                 )
             )
@@ -386,6 +460,7 @@ class ApplicationTest : AnnotationSpec() {
                     passwordHash = passwordHasher.hash("secret12345"),
                     phone = "1234567890",
                     profilePicture = null,
+                    fcmToken = null,
                     createdAt = System.currentTimeMillis().toString()
                 )
             )
@@ -393,7 +468,14 @@ class ApplicationTest : AnnotationSpec() {
 
         // create group
         val createGroupRequest = CreateGroupRequest("group name", "group description")
-        val groupService = GroupService(groupRepository, userRepository, activityService, messageService, expenseRepository, debtHistoryRepository)
+        val groupService = GroupService(
+            groupRepository,
+            userRepository,
+            activityService,
+            messageService,
+            expenseRepository,
+            debtHistoryRepository
+        )
         groupService.createGroup(createGroupRequest, 1)
 
         // create settlement request
@@ -419,11 +501,13 @@ class ApplicationTest : AnnotationSpec() {
         val webSocketManager = mockk<WebSocketManager>()
         val debtHistoryRepository = mockk<DebtHistoryRepository>()
 
-        val activityService = ActivityService(activityRepository,userRepository, groupRepository)
-        val messageService = MessageService(messageRepository,groupRepository, userRepository, webSocketManager)
+        val activityService = ActivityService(activityRepository, userRepository, groupRepository)
+        val messageService = MessageService(messageRepository, groupRepository, userRepository, webSocketManager)
         val settlementService =
-            SettlementService(settlementRepository, groupRepository, userRepository,
-                expenseRepository, activityService, messageService)
+            SettlementService(
+                settlementRepository, groupRepository, userRepository,
+                expenseRepository, activityService, messageService
+            )
 
         //create user
         transaction {
@@ -437,6 +521,7 @@ class ApplicationTest : AnnotationSpec() {
                     passwordHash = passwordHasher.hash("secret12345"),
                     phone = "1234567890",
                     profilePicture = null,
+                    fcmToken = null,
                     createdAt = System.currentTimeMillis().toString()
                 )
             )
@@ -444,7 +529,14 @@ class ApplicationTest : AnnotationSpec() {
 
         // create group
         val createGroupRequest = CreateGroupRequest("group name", "group description")
-        val groupService = GroupService(groupRepository, userRepository, activityService, messageService, expenseRepository, debtHistoryRepository)
+        val groupService = GroupService(
+            groupRepository,
+            userRepository,
+            activityService,
+            messageService,
+            expenseRepository,
+            debtHistoryRepository
+        )
         groupService.createGroup(createGroupRequest, 1)
 
         // create settlement request
@@ -462,7 +554,7 @@ class ApplicationTest : AnnotationSpec() {
 
     @Test
     suspend fun settlementSuggestions() {
-        
+
         val userRepository = UserRepository()
         val settlementRepository = SettlementRepository()
         val expenseRepository = ExpenseRepository()
@@ -473,12 +565,21 @@ class ApplicationTest : AnnotationSpec() {
         val webSocketManager = mockk<WebSocketManager>(relaxed = true)
         val debtHistoryRepository = DebtHistoryRepository()
 
-        val activityService = ActivityService(activityRepository,userRepository, groupRepository)
-        val messageService = MessageService(messageRepository,groupRepository, userRepository, webSocketManager)
-        val expenseService = ExpenseService(expenseRepository,groupRepository,userRepository, settlementRepository, activityService, messageService)
+        val activityService = ActivityService(activityRepository, userRepository, groupRepository)
+        val messageService = MessageService(messageRepository, groupRepository, userRepository, webSocketManager)
+        val expenseService = ExpenseService(
+            expenseRepository,
+            groupRepository,
+            userRepository,
+            settlementRepository,
+            activityService,
+            messageService
+        )
         val settlementService =
-            SettlementService(settlementRepository, groupRepository, userRepository,
-                expenseRepository, activityService, messageService)
+            SettlementService(
+                settlementRepository, groupRepository, userRepository,
+                expenseRepository, activityService, messageService
+            )
 
         // create User
         transaction {
@@ -492,6 +593,7 @@ class ApplicationTest : AnnotationSpec() {
                     passwordHash = passwordHasher.hash("secret12345"),
                     phone = "1234567890",
                     profilePicture = null,
+                    fcmToken = null,
                     createdAt = System.currentTimeMillis().toString()
                 )
             )
@@ -505,6 +607,7 @@ class ApplicationTest : AnnotationSpec() {
                     passwordHash = passwordHasher.hash("secret12345"),
                     phone = "1234567890",
                     profilePicture = null,
+                    fcmToken = null,
                     createdAt = System.currentTimeMillis().toString()
                 )
             )
@@ -512,7 +615,14 @@ class ApplicationTest : AnnotationSpec() {
 
         // create Group
         val createGroupRequest = CreateGroupRequest("group name", "group description")
-        val groupService = GroupService(groupRepository, userRepository, activityService, messageService, expenseRepository, debtHistoryRepository)
+        val groupService = GroupService(
+            groupRepository,
+            userRepository,
+            activityService,
+            messageService,
+            expenseRepository,
+            debtHistoryRepository
+        )
         groupService.createGroup(createGroupRequest, 1)
 
         // get invite group and make user 2 join it

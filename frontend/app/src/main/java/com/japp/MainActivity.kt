@@ -45,6 +45,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NamedNavArgument
 import androidx.navigation.NavBackStackEntry
@@ -58,6 +59,7 @@ import androidx.navigation.navArgument
 import androidx.navigation.navDeepLink
 import com.japp.api.CredentialsStorage
 import com.japp.composables.OfflineBanner
+import com.japp.messaging.JappMessagingService
 import com.japp.screens.ActivityScreen
 import com.japp.screens.CreateExpenseScreen
 import com.japp.screens.CreateGroupScreen
@@ -71,6 +73,7 @@ import com.japp.screens.SettleGroup
 import com.japp.screens.ShowGroupsScreen
 import com.japp.ui.JappSnackbar
 import com.japp.ui.LocalSnackbarHost
+import com.japp.ui.NotificationPermissionHandler
 import com.japp.ui.theme.JappTheme
 import com.japp.utils.LocalConnectivity
 import com.japp.utils.rememberConnectivityState
@@ -137,8 +140,10 @@ fun rememberFabButton(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun JappApp() {
+    val context = LocalContext.current
     val navController = rememberNavController()
     var currentDestination by rememberSaveable { mutableStateOf<AppDestinations?>(AppDestinations.HOME) }
+    var notificationPermissionRequested by rememberSaveable { mutableStateOf(false) }
 
     // Connectivity state which is the single source of truth for entire app
     // Time constraints forced a pretty pragmatic solution ¯\_(ツ)_/¯
@@ -146,6 +151,15 @@ fun JappApp() {
 
     // Snackbar state for feedback messages
     val snackbarHostState = remember { SnackbarHostState() }
+
+    if (!notificationPermissionRequested) {
+        NotificationPermissionHandler { granted ->
+            notificationPermissionRequested = true
+            if (granted) {
+                JappMessagingService.refreshToken(context)
+            }
+        }
+    }
 
     navController.addOnDestinationChangedListener { _, destination, _ ->
         currentDestination = AppDestinations.entries.find { it.route == destination.route }
@@ -156,7 +170,7 @@ fun JappApp() {
             navController.navigate(route)
         }
     }
-
+    
     // Provide connectivity and snackbar state to all child composables
     CompositionLocalProvider(
         LocalConnectivity provides isConnected,

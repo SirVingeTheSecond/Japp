@@ -9,5 +9,6 @@ data class User(
     val passwordHash: String,
     val phone: String?,
     val profilePicture: String?,
+    val fcmToken: String?,
     val createdAt: String
 )

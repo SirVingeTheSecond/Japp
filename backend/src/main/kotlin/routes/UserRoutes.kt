@@ -1,5 +1,6 @@
 package com.japp.routes
 
+import com.japp.models.dto.FcmTokenRequest
 import com.japp.models.dto.UpdateUserRequest
 import com.japp.plugins.getUserId
 import com.japp.services.UserService
@@ -23,6 +24,19 @@ fun Route.userRoutes() {
             val userId = call.getUserId()
             val request = call.receive<UpdateUserRequest>()
             val result = userService.updateProfile(userId, request)
+            call.respondResult(result)
+        }
+
+        post("/me/fcm-token") {
+            val userId = call.getUserId()
+            val request = call.receive<FcmTokenRequest>()
+            val result = userService.updateFcmToken(userId, request.token)
+            call.respondResult(result)
+        }
+
+        delete("/me/fcm-token") {
+            val userId = call.getUserId()
+            val result = userService.clearFcmToken(userId)
             call.respondResult(result)
         }
 

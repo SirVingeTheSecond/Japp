@@ -46,6 +46,7 @@ import com.japp.api.RetrofitClient
 import com.japp.api.responses.auth.UserDto
 import com.japp.api.safeApiQuery
 import com.japp.composables.ErrorWithRetry
+import com.japp.messaging.JappMessagingService
 import com.japp.ui.state.UiState
 import com.japp.ui.theme.Dimens
 import com.japp.utils.LocalConnectivity
@@ -85,6 +86,7 @@ fun ProfileScreen(navController: NavController) {
     }
 
     fun logout() {
+        JappMessagingService.clearToken(context)
         CredentialsStorage.clear(context)
 
         val intent = Intent(context, StartupActivity::class.java)

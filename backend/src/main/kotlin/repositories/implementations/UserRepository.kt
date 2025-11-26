@@ -5,12 +5,10 @@ import com.japp.models.domain.User
 import com.japp.services.interfaces.IUserRepository
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.core.or
 import org.jetbrains.exposed.v1.jdbc.*
 
-/**
- * Handles all database operations for users
- */
 class UserRepository : IUserRepository {
 
     override fun create(user: User): Int {
@@ -22,6 +20,7 @@ class UserRepository : IUserRepository {
             it[passwordHash] = user.passwordHash
             it[phone] = user.phone
             it[profilePicture] = user.profilePicture
+            it[fcmToken] = user.fcmToken
             it[createdAt] = user.createdAt
         }[Users.id]
     }
@@ -55,17 +54,17 @@ class UserRepository : IUserRepository {
     }
 
     override fun findAll(): List<User> {
-        return Users.selectAll().map { rowToUser(it) }
+        return Users.selectAll()
+            .map { rowToUser(it) }
     }
 
     override fun update(id: Int, user: User): Int {
         return Users.update({ Users.id eq id }) {
-            it[email] = user.email
-            it[username] = user.username
             it[firstname] = user.firstname
             it[lastname] = user.lastname
             it[phone] = user.phone
             it[profilePicture] = user.profilePicture
+            it[fcmToken] = user.fcmToken
         }
     }
 
@@ -85,15 +84,34 @@ class UserRepository : IUserRepository {
             .count() > 0
     }
 
-    private fun rowToUser(row: ResultRow) = User(
-        id = row[Users.id],
-        email = row[Users.email],
-        username = row[Users.username],
-        firstname = row[Users.firstname],
-        lastname = row[Users.lastname],
-        passwordHash = row[Users.passwordHash],
-        phone = row[Users.phone],
-        profilePicture = row[Users.profilePicture],
-        createdAt = row[Users.createdAt]
-    )
+    override fun updateFcmToken(id: Int, token: String?): Int {
+        return Users.update({ Users.id eq id }) {
+            it[fcmToken] = token
+        }
+    }
+
+    // for sending notifications
+    override fun getFcmTokensForUsers(userIds: List<Int>): List<String> {
+        if (userIds.isEmpty()) return emptyList()
+
+        return Users.selectAll()
+            .where { Users.id inList userIds }
+            .mapNotNull { it[Users.fcmToken] }
+            .filter { it.isNotBlank() }
+    }
+
+    private fun rowToUser(row: ResultRow): User {
+        return User(
+            id = row[Users.id],
+            email = row[Users.email],
+            username = row[Users.username],
+            firstname = row[Users.firstname],
+            lastname = row[Users.lastname],
+            passwordHash = row[Users.passwordHash],
+            phone = row[Users.phone],
+            profilePicture = row[Users.profilePicture],
+            fcmToken = row[Users.fcmToken],
+            createdAt = row[Users.createdAt]
+        )
+    }
 }

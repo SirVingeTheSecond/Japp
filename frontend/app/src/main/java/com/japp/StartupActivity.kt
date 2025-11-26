@@ -64,6 +64,7 @@ import com.japp.api.RetrofitClient
 import com.japp.api.responses.auth.AuthResponse
 import com.japp.api.responses.auth.LoginRequest
 import com.japp.api.responses.auth.SignupRequest
+import com.japp.messaging.JappMessagingService
 import com.japp.ui.theme.JappTheme
 import kotlinx.coroutines.launch
 import retrofit2.Call
@@ -151,6 +152,8 @@ fun LoginScreen(context: Context?, navController: NavController) {
                     userId = body.user.id
                 )
             )
+
+            JappMessagingService.refreshToken(context)
 
             val intent = Intent(context, MainActivity::class.java)
             context.startActivity(intent)

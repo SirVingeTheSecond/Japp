@@ -11,6 +11,7 @@ object Users : Table("users") {
     val passwordHash = varchar("password_hash", 255)
     val phone = varchar("phone", 255).nullable()
     val profilePicture = varchar("profile_picture", 700).nullable()
+    val fcmToken = varchar("fcm_token", 255).nullable()
     val createdAt = varchar("created_at", 255)
 
     override val primaryKey = PrimaryKey(id)

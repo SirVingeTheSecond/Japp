@@ -77,4 +77,43 @@ class UserService(
             }
         }
     }
+
+    /**
+     * Register or update FCM token for push notifications
+     */
+    suspend fun updateFcmToken(userId: Int, token: String): Result<Unit, AppError> {
+        return withContext(Dispatchers.IO) {
+            try {
+                transaction {
+                    val user = userRepository.findById(userId)
+                        ?: return@transaction Result.Failure(AppError.NotFound("User", userId))
+
+                    userRepository.updateFcmToken(userId, token)
+                    Result.Success(Unit)
+                }
+            } catch (e: Exception) {
+                Result.Failure(
+                    AppError.Internal(e.message ?: "Failed to update FCM token")
+                )
+            }
+        }
+    }
+
+    /**
+     * Clear FCM token (on logout)
+     */
+    suspend fun clearFcmToken(userId: Int): Result<Unit, AppError> {
+        return withContext(Dispatchers.IO) {
+            try {
+                transaction {
+                    userRepository.updateFcmToken(userId, null)
+                    Result.Success(Unit)
+                }
+            } catch (e: Exception) {
+                Result.Failure(
+                    AppError.Internal(e.message ?: "Failed to clear FCM token")
+                )
+            }
+        }
+    }
 }

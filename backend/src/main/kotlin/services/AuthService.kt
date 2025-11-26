@@ -11,6 +11,7 @@ import com.japp.validation.AuthValidator
 import com.japp.utils.toDto
 import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
+import com.japp.database.tables.Users
 import com.japp.models.error.AppError
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -54,6 +55,7 @@ class AuthService(
                                         passwordHash = passwordHasher.hash(request.password),
                                         phone = request.phone,
                                         profilePicture = null,
+                                        fcmToken = null,
                                         createdAt = System.currentTimeMillis().toString()
                                     )
 

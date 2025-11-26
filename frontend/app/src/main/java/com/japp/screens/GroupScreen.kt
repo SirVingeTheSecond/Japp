@@ -62,11 +62,14 @@ import com.japp.api.responses.expense.GroupBalanceSummaryDto
 import com.japp.api.responses.group.GroupDto
 import com.japp.api.responses.group.GroupMemberDto
 import com.japp.api.safeApiCall
+import com.japp.api.safeApiMutation
+import com.japp.api.safeApiQuery
 import com.japp.composables.ErrorWithRetry
 import com.japp.composables.ExpenseDetailCard
 import com.japp.composables.GroupIcon
 import com.japp.composables.GroupMemberDetailCard
 import com.japp.rememberFabButton
+import com.japp.ui.rememberSnackbar
 import com.japp.ui.state.UiState
 import com.journeyapps.barcodescanner.BarcodeEncoder
 import kotlinx.coroutines.launch
@@ -97,7 +100,7 @@ fun GroupScreen(navController: NavController? = null) {
     }
 
     LaunchedEffect(Unit) {
-        safeApiCall("GroupScreen.me") {
+        safeApiQuery("GroupScreen.me") {
             RetrofitClient.userService.getMyUser()
         }.onSuccess { me = it }
     }
@@ -108,7 +111,7 @@ fun GroupScreen(navController: NavController? = null) {
         groupState = UiState.Loading
 
         // Group details
-        groupState = when (val result = safeApiCall("GroupScreen.group") {
+        groupState = when (val result = safeApiQuery("GroupScreen.group") {
             RetrofitClient.groupService.getGroup(GROUP_ID)
         }) {
             is NetworkResult.Success -> UiState.Success(result.data)
@@ -117,15 +120,15 @@ fun GroupScreen(navController: NavController? = null) {
 
         // Only fetch secondary data if group loaded successfully
         if (groupState is UiState.Success) {
-            safeApiCall("GroupScreen.members") {
+            safeApiQuery("GroupScreen.members") {
                 RetrofitClient.groupService.getGroupMembers(GROUP_ID)
             }.onSuccess { groupMembers.value = it }
 
-            safeApiCall("GroupScreen.balances") {
+            safeApiQuery("GroupScreen.balances") {
                 RetrofitClient.expenseService.getGroupBalances(GROUP_ID)
             }.onSuccess { groupBalance = it }
 
-            safeApiCall("GroupScreen.expenses") {
+            safeApiQuery("GroupScreen.expenses") {
                 RetrofitClient.expenseService.getGroupExpenses(GROUP_ID)
             }.onSuccess { groupExpenses = it }
         }
@@ -302,19 +305,19 @@ fun NavTab(
 ) {
     val navController = rememberNavController()
     val coroutineScope = rememberCoroutineScope()
+    val snackbar = rememberSnackbar()
     val groupOwner = groupMembers.value.find { dto -> dto.isOwner }
 
     var refreshGroupMembersKey by remember { mutableIntStateOf(0) }
     var leaving by remember { mutableStateOf(false) }
     var deleting by remember { mutableStateOf(false) }
-    var actionError by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(refreshGroupMembersKey) {
-        when (val result = safeApiCall("NavTab.refreshMembers") {
+        when (val result = safeApiQuery("NavTab.refreshMembers") {
             RetrofitClient.groupService.getGroupMembers(GROUP_ID)
         }) {
             is NetworkResult.Success -> groupMembers.value = result.data
-            is NetworkResult.Error -> actionError = result.message
+            is NetworkResult.Error -> snackbar.showError(result.message)
         }
     }
 
@@ -450,15 +453,6 @@ fun NavTab(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
 
-                    actionError?.let { error ->
-                        Text(
-                            text = error,
-                            color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.bodySmall,
-                            modifier = Modifier.padding(vertical = 8.dp)
-                        )
-                    }
-
                     Button(
                         onClick = { leaving = true },
                         colors = ButtonDefaults.buttonColors(
@@ -515,10 +509,11 @@ fun NavTab(
                             }
                             Button({
                                 coroutineScope.launch {
-                                    when (val result = safeApiCall("NavTab.leaveGroup") {
+                                    when (val result = safeApiMutation("NavTab.leaveGroup") {
                                         RetrofitClient.groupService.leaveGroup(groupId)
                                     }) {
                                         is NetworkResult.Success -> {
+                                            snackbar.showSuccess("Left the group")
                                             outerNavController?.popBackStack(
                                                 AppDestinations.HOME.route,
                                                 false
@@ -526,7 +521,7 @@ fun NavTab(
                                         }
 
                                         is NetworkResult.Error -> {
-                                            actionError = result.message
+                                            snackbar.showError(result.message)
                                             leaving = false
                                         }
                                     }
@@ -571,10 +566,11 @@ fun NavTab(
                             }
                             Button({
                                 coroutineScope.launch {
-                                    when (val result = safeApiCall("NavTab.deleteGroup") {
+                                    when (val result = safeApiMutation("NavTab.deleteGroup") {
                                         RetrofitClient.groupService.deleteGroup(groupId)
                                     }) {
                                         is NetworkResult.Success -> {
+                                            snackbar.showSuccess("Group deleted")
                                             outerNavController?.popBackStack(
                                                 AppDestinations.HOME.route,
                                                 false
@@ -582,7 +578,7 @@ fun NavTab(
                                         }
 
                                         is NetworkResult.Error -> {
-                                            actionError = result.message
+                                            snackbar.showError(result.message)
                                             deleting = false
                                         }
                                     }

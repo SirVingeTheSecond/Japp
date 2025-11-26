@@ -74,6 +74,7 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     implementation("com.google.accompanist:accompanist-permissions:0.32.0")
+    implementation("com.google.firebase:firebase-admin:9.2.0")
     implementation(platform("com.google.firebase:firebase-bom:32.2.0"))
     implementation("com.google.firebase:firebase-messaging-ktx")
     implementation("androidx.activity:activity-ktx:1.8.0")

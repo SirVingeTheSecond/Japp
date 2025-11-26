@@ -10,7 +10,7 @@ import java.net.UnknownHostException
 import javax.net.ssl.SSLException
 
 /**
- * Safely execute a network call with automatic retry for failures.
+ * Safely execute a network call with automatic retry for transient failures.
  *
  * @param tag Logging tag for debugging
  * @param maxRetries Maximum number of retry attempts (0 = no retries, just single attempt)
@@ -55,6 +55,47 @@ suspend fun <T> safeApiCall(
 
     return lastResult ?: NetworkResult.Error("Unknown error", isRetryable = false)
 }
+
+/**
+ * Execute a GET/read operation with automatic retry on failure.
+ *
+ * Queries are idempotent and safe to retry automatically.
+ * Default: 2 retries with exponential backoff (1s -> 2s -> 4s).
+ *
+ * @param tag Logging tag for debugging
+ * @param maxRetries Maximum retry attempts (default: 2)
+ * @param call The suspend function that makes the network request
+ */
+suspend fun <T> safeApiQuery(
+    tag: String,
+    maxRetries: Int = 2,
+    call: suspend () -> Response<T>
+): NetworkResult<T> = safeApiCall(
+    tag = tag,
+    maxRetries = maxRetries,
+    initialDelayMs = 1000L,
+    maxDelayMs = 8000L,
+    factor = 2.0,
+    call = call
+)
+
+/**
+ * Execute a POST/PUT/DELETE/write operation.
+ *
+ * Mutations are NOT automatically retried to prevent duplicate side effects.
+ * Callers should handle retry logic explicitly.
+ *
+ * @param tag Logging tag for debugging
+ * @param call The suspend function that makes the network request
+ */
+suspend fun <T> safeApiMutation(
+    tag: String,
+    call: suspend () -> Response<T>
+): NetworkResult<T> = safeApiCall(
+    tag = tag,
+    maxRetries = 0,
+    call = call
+)
 
 /**
  * Execute a single network call attempt.

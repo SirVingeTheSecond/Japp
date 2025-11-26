@@ -15,6 +15,9 @@ import io.mockk.mockk
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 
+
+// NOTE: The NotificationService is mocked out because it uses a websocket manager which is not mocked out.
+// It should not be like this, but time constraints prevented this.
 class ApplicationTest : AnnotationSpec() {
     @BeforeClass
     fun setup() {
@@ -146,7 +149,8 @@ class ApplicationTest : AnnotationSpec() {
         val debtHistoryRepository = mockk<DebtHistoryRepository>()
 
         val activityService = ActivityService(activityRepository, userRepository, groupRepository)
-        val messageService = MessageService(messageRepository, groupRepository, userRepository, webSocketManager)
+        val messageService = MessageService(messageRepository, groupRepository, userRepository,
+            webSocketManager, notificationService = mockk(relaxed = true))
 
         // creating mock user for test
         transaction {
@@ -174,7 +178,8 @@ class ApplicationTest : AnnotationSpec() {
             activityService,
             messageService,
             expenseRepository,
-            debtHistoryRepository
+            debtHistoryRepository,
+            notificationService = mockk(relaxed = true)
         )
 
         // assert that group can be created and that user is in group
@@ -196,7 +201,8 @@ class ApplicationTest : AnnotationSpec() {
         val debtHistoryRepository = mockk<DebtHistoryRepository>()
 
         val activityService = ActivityService(activityRepository, userRepository, groupRepository)
-        val messageService = MessageService(messageRepository, groupRepository, userRepository, webSocketManager)
+        val messageService = MessageService(messageRepository, groupRepository, userRepository, webSocketManager,
+            notificationService = mockk(relaxed = true))
 
         // creating mock user
         transaction {
@@ -224,7 +230,8 @@ class ApplicationTest : AnnotationSpec() {
             activityService,
             messageService,
             expenseRepository,
-            debtHistoryRepository
+            debtHistoryRepository,
+            notificationService = mockk(relaxed = true)
         )
         groupService.createGroup(createGroupRequest, 0)
 
@@ -250,14 +257,16 @@ class ApplicationTest : AnnotationSpec() {
         val passwordHasher = PasswordHasher()
 
         val activityService = ActivityService(activityRepository, userRepository, groupRepository)
-        val messageService = MessageService(messageRepository, groupRepository, userRepository, webSocketManager)
+        val messageService = MessageService(messageRepository, groupRepository, userRepository,
+            webSocketManager, notificationService = mockk(relaxed = true))
         val expenseService = ExpenseService(
             expenseRepository,
             groupRepository,
             userRepository,
             settlementRepository,
             activityService,
-            messageService
+            messageService,
+            notificationService = mockk(relaxed = true)
         )
 
         transaction {
@@ -283,7 +292,8 @@ class ApplicationTest : AnnotationSpec() {
             activityService,
             messageService,
             expenseRepository,
-            debtHistoryRepository
+            debtHistoryRepository,
+            notificationService = mockk(relaxed = true)
         )
         groupService.createGroup(createGroupRequest, 1)
 
@@ -307,14 +317,16 @@ class ApplicationTest : AnnotationSpec() {
         val debtHistoryRepository = mockk<DebtHistoryRepository>()
 
         val activityService = ActivityService(activityRepository, userRepository, groupRepository)
-        val messageService = MessageService(messageRepository, groupRepository, userRepository, webSocketManager)
+        val messageService = MessageService(messageRepository, groupRepository, userRepository, webSocketManager,
+            notificationService = mockk(relaxed = true))
         val expenseService = ExpenseService(
             expenseRepository,
             groupRepository,
             userRepository,
             settlementRepository,
             activityService,
-            messageService
+            messageService,
+            notificationService = mockk(relaxed = true)
         )
 
         transaction {
@@ -340,7 +352,8 @@ class ApplicationTest : AnnotationSpec() {
             activityService,
             messageService,
             expenseRepository,
-            debtHistoryRepository
+            debtHistoryRepository,
+            notificationService = mockk(relaxed = true)
         )
         groupService.createGroup(createGroupRequest, 1)
 
@@ -367,14 +380,16 @@ class ApplicationTest : AnnotationSpec() {
         val debtHistoryRepository = mockk<DebtHistoryRepository>()
 
         val activityService = ActivityService(activityRepository, userRepository, groupRepository)
-        val messageService = MessageService(messageRepository, groupRepository, userRepository, webSocketManager)
+        val messageService = MessageService(messageRepository, groupRepository, userRepository, webSocketManager,
+            notificationService = mockk(relaxed = true))
         val expenseService = ExpenseService(
             expenseRepository,
             groupRepository,
             userRepository,
             settlementRepository,
             activityService,
-            messageService
+            messageService,
+            notificationService = mockk(relaxed = true)
         )
 
         transaction {
@@ -400,7 +415,8 @@ class ApplicationTest : AnnotationSpec() {
             activityService,
             messageService,
             expenseRepository,
-            debtHistoryRepository
+            debtHistoryRepository,
+            notificationService = mockk(relaxed = true)
         )
         groupService.createGroup(createGroupRequest, 1)
 
@@ -427,11 +443,12 @@ class ApplicationTest : AnnotationSpec() {
         val debtHistoryRepository = mockk<DebtHistoryRepository>()
 
         val activityService = ActivityService(activityRepository, userRepository, groupRepository)
-        val messageService = MessageService(messageRepository, groupRepository, userRepository, webSocketManager)
+        val messageService = MessageService(messageRepository, groupRepository, userRepository,
+            webSocketManager, notificationService = mockk(relaxed = true))
         val settlementService =
             SettlementService(
                 settlementRepository, groupRepository, userRepository,
-                expenseRepository, activityService, messageService
+                expenseRepository, activityService, messageService, notificationService = mockk(relaxed = true)
             )
 
         //create user
@@ -474,7 +491,8 @@ class ApplicationTest : AnnotationSpec() {
             activityService,
             messageService,
             expenseRepository,
-            debtHistoryRepository
+            debtHistoryRepository,
+            notificationService = mockk(relaxed = true)
         )
         groupService.createGroup(createGroupRequest, 1)
 
@@ -502,11 +520,12 @@ class ApplicationTest : AnnotationSpec() {
         val debtHistoryRepository = mockk<DebtHistoryRepository>()
 
         val activityService = ActivityService(activityRepository, userRepository, groupRepository)
-        val messageService = MessageService(messageRepository, groupRepository, userRepository, webSocketManager)
+        val messageService = MessageService(messageRepository, groupRepository, userRepository,
+            webSocketManager, notificationService = mockk(relaxed = true))
         val settlementService =
             SettlementService(
                 settlementRepository, groupRepository, userRepository,
-                expenseRepository, activityService, messageService
+                expenseRepository, activityService, messageService, notificationService = mockk(relaxed = true)
             )
 
         //create user
@@ -535,7 +554,8 @@ class ApplicationTest : AnnotationSpec() {
             activityService,
             messageService,
             expenseRepository,
-            debtHistoryRepository
+            debtHistoryRepository,
+            notificationService = mockk(relaxed = true)
         )
         groupService.createGroup(createGroupRequest, 1)
 
@@ -566,19 +586,21 @@ class ApplicationTest : AnnotationSpec() {
         val debtHistoryRepository = DebtHistoryRepository()
 
         val activityService = ActivityService(activityRepository, userRepository, groupRepository)
-        val messageService = MessageService(messageRepository, groupRepository, userRepository, webSocketManager)
+        val messageService = MessageService(messageRepository, groupRepository, userRepository, webSocketManager,
+            notificationService = mockk(relaxed = true))
         val expenseService = ExpenseService(
             expenseRepository,
             groupRepository,
             userRepository,
             settlementRepository,
             activityService,
-            messageService
+            messageService,
+            notificationService = mockk(relaxed = true)
         )
         val settlementService =
             SettlementService(
                 settlementRepository, groupRepository, userRepository,
-                expenseRepository, activityService, messageService
+                expenseRepository, activityService, messageService, notificationService = mockk(relaxed = true)
             )
 
         // create User
@@ -621,7 +643,8 @@ class ApplicationTest : AnnotationSpec() {
             activityService,
             messageService,
             expenseRepository,
-            debtHistoryRepository
+            debtHistoryRepository,
+            notificationService = mockk(relaxed = true)
         )
         groupService.createGroup(createGroupRequest, 1)
 

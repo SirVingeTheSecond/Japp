@@ -6,6 +6,7 @@ import com.japp.models.dto.*
 import com.japp.models.error.AppError
 import com.japp.services.interfaces.IExpenseRepository
 import com.japp.services.interfaces.IGroupRepository
+import com.japp.services.interfaces.ISettlementRepository
 import com.japp.services.interfaces.IUserRepository
 import com.japp.utils.toDto
 import com.japp.utils.createBalanceDto
@@ -18,6 +19,7 @@ class ExpenseService(
     private val expenseRepository: IExpenseRepository,
     private val groupRepository: IGroupRepository,
     private val userRepository: IUserRepository,
+    private val settlementRepository: ISettlementRepository,
     private val activityService: ActivityService,
     private val messageService: MessageService
 ) {
@@ -156,11 +158,22 @@ class ExpenseService(
                     }
 
                     val group = groupRepository.findById(groupId)
-                        ?: return@transaction Result.Failure(
-                            AppError.Internal("Group not found")
-                        )
+                        ?: return@transaction Result.Failure(AppError.Internal("Group not found"))
 
-                    val balances = expenseRepository.calculateGroupBalances(groupId)
+                    // Get base balances from expenses
+                    val balances = expenseRepository.calculateGroupBalances(groupId).toMutableMap()
+
+                    // Get all completed settlements and apply them to balances
+                    val completedSettlements = settlementRepository.findByGroupId(groupId)
+                        .filter { it.status == SettlementStatus.COMPLETED }
+
+                    // When the settlement is completed
+                    completedSettlements.forEach { settlement ->
+                        balances[settlement.fromUserId] =
+                            balances.getOrDefault(settlement.fromUserId, 0.0) + settlement.amount
+                        balances[settlement.toUserId] =
+                            balances.getOrDefault(settlement.toUserId, 0.0) - settlement.amount
+                    }
 
                     val balanceDtos = balances.map { (userId, balance) ->
                         val user = userRepository.findById(userId)
@@ -180,9 +193,7 @@ class ExpenseService(
                     )
                 }
             } catch (e: Exception) {
-                Result.Failure(
-                    AppError.Internal(e.message ?: "Failed to calculate balances")
-                )
+                Result.Failure(AppError.Internal(e.message ?: "Failed to calculate balances"))
             }
         }
     }

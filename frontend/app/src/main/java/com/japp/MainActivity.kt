@@ -31,6 +31,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -38,6 +40,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -66,6 +69,8 @@ import com.japp.screens.ProfileScreen
 import com.japp.screens.ScanScreen
 import com.japp.screens.SettleGroup
 import com.japp.screens.ShowGroupsScreen
+import com.japp.ui.JappSnackbar
+import com.japp.ui.LocalSnackbarHost
 import com.japp.ui.theme.JappTheme
 import com.japp.utils.LocalConnectivity
 import com.japp.utils.rememberConnectivityState
@@ -136,6 +141,9 @@ fun JappApp() {
     // Time constraints forced a pretty pragmatic solution ¯\_(ツ)_/¯
     val isConnected by rememberConnectivityState()
 
+    // Snackbar state for feedback messages
+    val snackbarHostState = remember { SnackbarHostState() }
+
     navController.addOnDestinationChangedListener { _, destination, _ ->
         currentDestination = AppDestinations.entries.find { it.route == destination.route }
     }
@@ -146,9 +154,17 @@ fun JappApp() {
         }
     }
 
-    // Provide connectivity state to all child composables
-    CompositionLocalProvider(LocalConnectivity provides isConnected) {
+    // Provide connectivity and snackbar state to all child composables
+    CompositionLocalProvider(
+        LocalConnectivity provides isConnected,
+        LocalSnackbarHost provides snackbarHostState
+    ) {
         Scaffold(
+            snackbarHost = {
+                SnackbarHost(hostState = snackbarHostState) { data ->
+                    JappSnackbar(snackbarData = data)
+                }
+            },
             topBar = {
                 CenterAlignedTopAppBar(
                     colors = TopAppBarDefaults.topAppBarColors(
@@ -273,8 +289,8 @@ fun JappApp() {
                     }
                 }
             }
-        } // Scaffold
-    } // CompositionLocalProvider
+        }
+    }
 }
 
 enum class AppDestinations(

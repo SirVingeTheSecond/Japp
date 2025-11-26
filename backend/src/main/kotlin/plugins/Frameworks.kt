@@ -77,12 +77,28 @@ fun appModule(application: Application) = module {
     single {
         // Init Firebase SDK
         try {
-            val serviceAccount = application.javaClass.classLoader
-                .getResourceAsStream("firebase-service-account.json")
-                ?: throw IllegalStateException("firebase-service-account.json not found")
+            val credentialPath = application.environment.config
+                .propertyOrNull("firebase.credentialPath")
+                ?.getString()
+                ?: "/secret/google/japp.json"
+
+            val credentialFile = java.io.File(credentialPath)
+
+            val credentials = if (credentialFile.exists()) {
+                // Production: read from Docker mount
+                application.log.info("Loading Firebase credentials from: $credentialPath")
+                GoogleCredentials.fromStream(credentialFile.inputStream())
+            } else {
+                // Development: classpath resource
+                application.log.info("Firebase credential file not found at $credentialPath, trying classpath...")
+                val serviceAccount = application.javaClass.classLoader
+                    .getResourceAsStream("firebase-service-account.json")
+                    ?: throw IllegalStateException("Firebase credentials not found in filesystem or classpath")
+                GoogleCredentials.fromStream(serviceAccount)
+            }
 
             val options = FirebaseOptions.builder()
-                .setCredentials(GoogleCredentials.fromStream(serviceAccount))
+                .setCredentials(credentials)
                 .build()
 
             if (FirebaseApp.getApps().isEmpty()) {

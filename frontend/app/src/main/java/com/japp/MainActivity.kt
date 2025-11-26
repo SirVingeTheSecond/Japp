@@ -267,7 +267,6 @@ enum class AppDestinations(
     CREATEGROUP("Create Group", Icons.Default.GroupAdd, { navController -> CreateGroupScreen(navController) }),
     MYGROUPS("My Groups", Icons.Default.Groups, { navController -> ShowGroupsScreen(navController) }),
     GROUP("Group", Icons.Default.Group, { navController -> GroupScreen(navController) }),
-    SETTLE("Settle group", Icons.Default.Group, { navController -> SettleGroup(navController) }),
     ACTIVITY("Activity", Icons.Default.Notifications, { navController -> ActivityScreen(navController) }),
     EDITPROFILE("EditProfile", Icons.Default.ManageAccounts, { navController -> EditProfileScreen(navController) });
 
@@ -303,6 +302,17 @@ enum class AppDestinations(
             arguments = listOf(navArgument("groupId") { type = NavType.IntType }),
             screen = { navController, backStackEntry ->
                 CreateExpenseScreen(navController, backStackEntry.arguments?.getInt("groupId"))
+            }
+        ),
+        SETTLE_GROUP(
+            "Settle Group",
+            route = "settle/{groupId}",
+            buildRoute = { args ->
+                "settle/${args[0]}"
+            },
+            arguments = listOf(navArgument("groupId") { type = NavType.IntType }),
+            screen = { navController, backStackEntry ->
+                SettleGroup(navController, backStackEntry.arguments?.getInt("groupId"))
             }
         );
 

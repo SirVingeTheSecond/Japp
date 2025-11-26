@@ -1,26 +1,11 @@
 package com.japp.screens
 
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -30,161 +15,396 @@ import com.japp.api.NetworkResult
 import com.japp.api.RetrofitClient
 import com.japp.api.responses.settlement.CreateSettlementRequest
 import com.japp.api.responses.settlement.GroupSettlementSuggestionsDto
-import com.japp.api.responses.settlement.SettlementSuggestionDto
+import com.japp.api.responses.settlement.SettlementDto
 import com.japp.api.safeApiCall
+import com.japp.composables.ErrorWithRetry
+import com.japp.composables.SlideToConfirm
 import com.japp.ui.state.UiState
 import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettleGroup(
-    navController: NavController? = null
+    navController: NavController? = null,
+    groupId: Int? = null
 ) {
     val coroutineScope = rememberCoroutineScope()
 
     var suggestionsState by remember { mutableStateOf<UiState<GroupSettlementSuggestionsDto>>(UiState.Loading) }
-    var userId by remember { mutableStateOf<Int?>(null) }
-    var isSubmitting by remember { mutableStateOf(false) }
-    var actionError by remember { mutableStateOf<String?>(null) }
+    var pendingSettlementsState by remember { mutableStateOf<UiState<List<SettlementDto>>>(UiState.Loading) }
+    var currentUserId by remember { mutableStateOf<Int?>(null) }
 
-    LaunchedEffect(Unit) {
-        safeApiCall("SettleGroup.user") {
+    var isCreatingSettlements by remember { mutableStateOf(false) }
+    var createError by remember { mutableStateOf<String?>(null) }
+
+    var isRefreshing by remember { mutableStateOf(false) }
+    var refreshKey by remember { mutableIntStateOf(0) }
+
+    LaunchedEffect(refreshKey) {
+        if (groupId == null || groupId == -1) {
+            suggestionsState = UiState.Error("Invalid group ID")
+            pendingSettlementsState = UiState.Error("Invalid group ID")
+            isRefreshing = false
+            return@LaunchedEffect
+        }
+
+        // Load user
+        val userResult = safeApiCall("SettleGroup.user") {
             RetrofitClient.userService.getMyUser()
-        }.onSuccess { userId = it.id }
-    }
+        }
+        when (userResult) {
+            is NetworkResult.Success -> currentUserId = userResult.data.id
+            is NetworkResult.Error -> {
+                suggestionsState = UiState.Error(userResult.message)
+                isRefreshing = false
+                return@LaunchedEffect
+            }
+        }
 
-    LaunchedEffect(GROUP_ID) {
-        if (GROUP_ID == -1) return@LaunchedEffect
-
+        // Load suggestions
         suggestionsState = when (val result = safeApiCall("SettleGroup.suggestions") {
-            RetrofitClient.settlementService.getGroupSettlementSuggestions(GROUP_ID)
+            RetrofitClient.settlementService.getGroupSettlementSuggestions(groupId)
         }) {
             is NetworkResult.Success -> UiState.Success(result.data)
             is NetworkResult.Error -> UiState.Error(result.message)
         }
+
+        // Load pending settlements
+        pendingSettlementsState = when (val result = safeApiCall("SettleGroup.pending") {
+            RetrofitClient.settlementService.getGroupSettlements(groupId, pendingOnly = true)
+        }) {
+            is NetworkResult.Success -> UiState.Success(result.data)
+            is NetworkResult.Error -> UiState.Error(result.message)
+        }
+
+        isRefreshing = false
     }
 
     Box(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text("Settle Group", style = MaterialTheme.typography.titleLarge)
-            Spacer(Modifier.height(16.dp))
+        when {
+            suggestionsState is UiState.Loading || pendingSettlementsState is UiState.Loading -> {
+                CircularProgressIndicator()
+            }
 
-            when {
-                suggestionsState is UiState.Loading || userId == null -> {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        CircularProgressIndicator()
-                        Spacer(Modifier.width(12.dp))
-                        Text("Loading…")
+            suggestionsState is UiState.Error -> {
+                PullToRefreshBox(
+                    isRefreshing = isRefreshing,
+                    onRefresh = {
+                        isRefreshing = true
+                        refreshKey++
                     }
-                }
-                suggestionsState is UiState.Error -> {
-                    Text(
-                        text = (suggestionsState as UiState.Error).message,
-                        color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
-                suggestionsState is UiState.Success -> {
-                    val suggestionsData = (suggestionsState as UiState.Success<GroupSettlementSuggestionsDto>).data
-                    val suggestions: List<SettlementSuggestionDto> = suggestionsData.suggestions
-
-                    Text("Debts", style = MaterialTheme.typography.titleMedium)
-                    Spacer(Modifier.height(8.dp))
-
-                    if (suggestions.isEmpty()) {
-                        Text("No debts.")
-                    } else {
-                        suggestions.forEach { suggestion ->
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 4.dp)
-                            ) {
-                                Text(
-                                    "${suggestion.fromUserName} → ${suggestion.toUserName}",
-                                    style = MaterialTheme.typography.bodyLarge
-                                )
-                                Text(
-                                    "Amount: ${suggestion.amount}",
-                                    style = MaterialTheme.typography.bodyMedium
-                                )
-                            }
-                            HorizontalDivider(
-                                thickness = 1.dp,
-                                color = Color.LightGray,
-                                modifier = Modifier.padding(vertical = 4.dp)
-                            )
-                        }
-
-                        Spacer(Modifier.height(12.dp))
-
-                        Button(
-                            onClick = {
-                                actionError = null
-
-                                val currentUserId = userId
-                                if (currentUserId == null) {
-                                    actionError = "User info not loaded yet"
-                                    return@Button
-                                }
-
-                                val mySuggestions = suggestions.filter { it.fromUserId == currentUserId }
-
-                                if (mySuggestions.isEmpty()) {
-                                    actionError = "You can only settle your own debts. You do not owe anything in this group."
-                                    return@Button
-                                }
-
-                                isSubmitting = true
-                                var remaining = mySuggestions.size
-                                var hasError = false
-
-                                mySuggestions.forEach { suggestion ->
-                                    val request = CreateSettlementRequest(
-                                        groupId = GROUP_ID,
-                                        toUserId = suggestion.toUserId,
-                                        amount = suggestion.amount
-                                    )
-                                    coroutineScope.launch {
-                                        when (val result = safeApiCall("SettleGroup.create") {
-                                            RetrofitClient.settlementService.createSettlement(request, pendingOnly = true)
-                                        }) {
-                                            is NetworkResult.Success -> { /* Settlement created */ }
-                                            is NetworkResult.Error -> {
-                                                hasError = true
-                                                actionError = result.message
-                                            }
-                                        }
-                                        remaining -= 1
-                                        if (remaining == 0) {
-                                            isSubmitting = false
-                                            if (!hasError) {
-                                                navController?.navigateUp()
-                                            }
-                                        }
-                                    }
-                                }
-                            },
-                            enabled = !isSubmitting,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(if (isSubmitting) "Creating…" else "Settle Group")
-                        }
+                ) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        ErrorWithRetry(
+                            message = (suggestionsState as UiState.Error).message,
+                            onRetry = { refreshKey++ }
+                        )
                     }
                 }
             }
 
-            Spacer(Modifier.height(12.dp))
+            pendingSettlementsState is UiState.Error -> {
+                PullToRefreshBox(
+                    isRefreshing = isRefreshing,
+                    onRefresh = {
+                        isRefreshing = true
+                        refreshKey++
+                    }
+                ) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        ErrorWithRetry(
+                            message = (pendingSettlementsState as UiState.Error).message,
+                            onRetry = { refreshKey++ }
+                        )
+                    }
+                }
+            }
 
-            actionError?.let {
-                Text(it, color = MaterialTheme.colorScheme.error)
+            currentUserId == null -> {
+                ErrorWithRetry(
+                    message = "Failed to load user information",
+                    onRetry = { refreshKey++ }
+                )
+            }
+
+            else -> {
+                val suggestions = (suggestionsState as UiState.Success<GroupSettlementSuggestionsDto>).data.suggestions
+                val pendingSettlements = (pendingSettlementsState as UiState.Success<List<SettlementDto>>).data
+                val userId = currentUserId!!
+
+                PullToRefreshBox(
+                    isRefreshing = isRefreshing,
+                    onRefresh = {
+                        isRefreshing = true
+                        refreshKey++
+                    }
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp)
+                            .verticalScroll(rememberScrollState()),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text("Settle Group", style = MaterialTheme.typography.titleLarge)
+                        Spacer(Modifier.height(16.dp))
+
+                        // Section 1: Payments to Confirm
+                        val pendingToConfirm = pendingSettlements.filter { it.toUserId == userId }
+
+                        if (pendingToConfirm.isNotEmpty()) {
+                            Text(
+                                "Payments to Confirm",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Text(
+                                "Confirm when you have received payment",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(Modifier.height(12.dp))
+
+                            pendingToConfirm.forEach { settlement ->
+                                Card(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 4.dp),
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = MaterialTheme.colorScheme.secondaryContainer
+                                    )
+                                ) {
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(16.dp)
+                                    ) {
+                                        Text(
+                                            "${settlement.fromUserName} paid you",
+                                            style = MaterialTheme.typography.bodyLarge,
+                                            color = MaterialTheme.colorScheme.onSecondaryContainer
+                                        )
+                                        Text(
+                                            "${settlement.amount} DKK",
+                                            style = MaterialTheme.typography.headlineSmall,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                        Spacer(Modifier.height(8.dp))
+
+                                        SlideToConfirm(
+                                            onConfirm = {
+                                                coroutineScope.launch {
+                                                    when (safeApiCall("SettleGroup.complete") {
+                                                        RetrofitClient.settlementService.completeSettlement(settlement.id)
+                                                    }) {
+                                                        is NetworkResult.Success -> {
+                                                            refreshKey++
+                                                        }
+                                                        is NetworkResult.Error -> {
+                                                            createError = "Failed to confirm payment"
+                                                        }
+                                                    }
+                                                }
+                                            },
+                                            text = "Slide to confirm received",
+                                            enabled = !isCreatingSettlements
+                                        )
+                                    }
+                                }
+                            }
+
+                            Spacer(Modifier.height(24.dp))
+                            HorizontalDivider()
+                            Spacer(Modifier.height(24.dp))
+                        }
+
+                        // Section 2: Pending Settlements User Created
+                        val pendingByUser = pendingSettlements.filter { it.fromUserId == userId }
+
+                        if (pendingByUser.isNotEmpty()) {
+                            Text(
+                                "Your Pending Payments",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.tertiary
+                            )
+                            Text(
+                                "Waiting for recipient confirmation",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(Modifier.height(12.dp))
+
+                            pendingByUser.forEach { settlement ->
+                                Card(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 4.dp),
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = MaterialTheme.colorScheme.tertiaryContainer
+                                    )
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(12.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column {
+                                            Text(
+                                                "Paid ${settlement.toUserName}",
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                color = MaterialTheme.colorScheme.onTertiaryContainer
+                                            )
+                                            Text(
+                                                "${settlement.amount} DKK",
+                                                style = MaterialTheme.typography.titleMedium,
+                                                color = MaterialTheme.colorScheme.tertiary
+                                            )
+                                        }
+                                        Text(
+                                            "Pending",
+                                            style = MaterialTheme.typography.labelMedium,
+                                            color = MaterialTheme.colorScheme.tertiary
+                                        )
+                                    }
+                                }
+                            }
+
+                            Spacer(Modifier.height(24.dp))
+                            HorizontalDivider()
+                            Spacer(Modifier.height(24.dp))
+                        }
+
+                        // Section 3: Debt Overview
+                        Text("Debt Overview", style = MaterialTheme.typography.titleMedium)
+                        Spacer(Modifier.height(8.dp))
+
+                        if (suggestions.isEmpty()) {
+                            Text(
+                                "No debts in this group",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        } else {
+                            suggestions.forEach { suggestion ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 4.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        "${suggestion.fromUserName} → ${suggestion.toUserName}",
+                                        style = MaterialTheme.typography.bodyLarge
+                                    )
+                                    Text(
+                                        "${suggestion.amount} DKK",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                                HorizontalDivider(
+                                    thickness = 1.dp,
+                                    color = Color.LightGray,
+                                    modifier = Modifier.padding(vertical = 4.dp)
+                                )
+                            }
+
+                            Spacer(Modifier.height(16.dp))
+
+                            val mySuggestions = suggestions.filter { it.fromUserId == userId }
+
+                            if (mySuggestions.isNotEmpty()) {
+                                Button(
+                                    onClick = {
+                                        createError = null
+                                        isCreatingSettlements = true
+
+                                        coroutineScope.launch {
+                                            var errorOccurred = false
+
+                                            mySuggestions.forEach { suggestion ->
+                                                val request = CreateSettlementRequest(
+                                                    groupId = groupId!!,
+                                                    toUserId = suggestion.toUserId,
+                                                    amount = suggestion.amount
+                                                )
+
+                                                when (safeApiCall("SettleGroup.create") {
+                                                    RetrofitClient.settlementService.createSettlement(
+                                                        request,
+                                                        pendingOnly = true
+                                                    )
+                                                }) {
+                                                    is NetworkResult.Success -> {}
+                                                    is NetworkResult.Error -> {
+                                                        errorOccurred = true
+                                                        createError = "Failed to create settlements"
+                                                    }
+                                                }
+                                            }
+
+                                            isCreatingSettlements = false
+
+                                            if (!errorOccurred) {
+                                                refreshKey++
+                                            }
+                                        }
+                                    },
+                                    enabled = !isCreatingSettlements,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text(
+                                        if (isCreatingSettlements) "Recording Payments..."
+                                        else "Record My Payments (${mySuggestions.size})"
+                                    )
+                                }
+                            } else {
+                                Card(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = MaterialTheme.colorScheme.primaryContainer
+                                    )
+                                ) {
+                                    Text(
+                                        "You do not owe anything in this group",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                        modifier = Modifier.padding(16.dp)
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(Modifier.height(12.dp))
+
+                        createError?.let {
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.errorContainer
+                                )
+                            ) {
+                                Text(
+                                    text = it,
+                                    color = MaterialTheme.colorScheme.onErrorContainer,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    modifier = Modifier.padding(12.dp)
+                                )
+                            }
+                        }
+                    }
+                }
             }
         }
     }

@@ -237,7 +237,13 @@ fun GroupScreen(navController: NavController? = null) {
                             }
 
                             Button(
-                                onClick = { navController?.navigate("SettleGroup") },
+                                onClick = {
+                                    group?.let {
+                                        navController?.navigate(
+                                            AppDestinations.CustomRoutes.SETTLE_GROUP.withArgs(it.id)
+                                        )
+                                    }
+                                },
                                 modifier = Modifier.padding(horizontal = 8.dp)
                             ) {
                                 Text("Settle Group")

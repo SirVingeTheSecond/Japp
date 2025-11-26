@@ -12,6 +12,7 @@ import com.japp.utils.toDto
 import com.japp.utils.createBalanceDto
 import com.japp.validation.ExpenseValidator
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 
@@ -21,10 +22,11 @@ class ExpenseService(
     private val userRepository: IUserRepository,
     private val settlementRepository: ISettlementRepository,
     private val activityService: ActivityService,
-    private val messageService: MessageService
+    private val messageService: MessageService,
+    private val notificationService: NotificationService
 ) {
 
-    // There are most likely somewhere else that also need to apply this pattern
+    // HOLY SHIT THIS IS A HUGE FUNCTION
     suspend fun createExpense(
         request: CreateExpenseRequest,
         userId: Int
@@ -105,6 +107,27 @@ class ExpenseService(
                                     groupId = request.groupId,
                                     content = "${user?.username ?: "Someone"} added expense: ${request.description} - ${request.amount} ${request.currency.code}"
                                 )
+
+                                launch(Dispatchers.IO) {
+                                    try {
+                                        val group = groupRepository.findById(request.groupId)
+                                        val members = groupRepository.getMembers(request.groupId)
+
+                                        if (group != null) {
+                                            notificationService.notifyExpenseCreated(
+                                                groupId = request.groupId,
+                                                groupName = group.name,
+                                                expenseDescription = request.description,
+                                                amount = request.amount,
+                                                createdByUsername = user?.username ?: "Someone",
+                                                memberUserIds = members,
+                                                excludeUserId = userId
+                                            )
+                                        }
+                                    } catch (_: Exception) {
+                                        // Welp
+                                    }
+                                }
 
                                 Result.Success(expenseDto)
                             }

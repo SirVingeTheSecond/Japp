@@ -10,6 +10,7 @@ import com.japp.services.interfaces.IExpenseRepository
 import com.japp.utils.toDto
 import com.japp.validation.SettlementValidator
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import kotlin.math.abs
@@ -21,7 +22,8 @@ class SettlementService(
     private val userRepository: IUserRepository,
     private val expenseRepository: IExpenseRepository,
     private val activityService: ActivityService,
-    private val messageService: MessageService
+    private val messageService: MessageService,
+    private val notificationService: NotificationService
 ) {
 
     suspend fun createSettlement(
@@ -209,9 +211,29 @@ class SettlementService(
                     )
 
                     messageService.createSystemMessage(
-                        groupId = groupId!!,
+                        groupId = groupId,
                         content = "${currentUsername ?: "Someone"} confirmed payment from ${fromUsername ?: "Someone"} - ${amount ?: 0.0} DKK"
                     )
+
+                    launch(Dispatchers.IO) {
+                        try {
+                            val group = groupRepository.findById(groupId!!)
+                            val members = groupRepository.getMembers(groupId!!)
+
+                            if (group != null) {
+                                notificationService.notifySettlementCompleted(
+                                    groupId = groupId,
+                                    groupName = group.name,
+                                    fromUsername = fromUsername ?: "Someone",
+                                    toUsername = currentUsername ?: "Someone",
+                                    amount = amount ?: 0.0,
+                                    notifyUserIds = members
+                                )
+                            }
+                        } catch (_: Exception) {
+
+                        }
+                    }
                 }
 
                 completionResult

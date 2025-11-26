@@ -23,6 +23,10 @@ class WebSocketManager(
         val subscribedGroups: MutableSet<Int> = mutableSetOf()
     )
 
+    fun isUserConnected(userId: Int): Boolean {
+        return sessions.values.any { it.userId == userId }
+    }
+
     fun registerSession(userId: Int, session: WebSocketSession) {
         sessions[session] = SessionInfo(userId)
         logger.info("WebSocket session registered - User: $userId")

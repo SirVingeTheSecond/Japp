@@ -12,6 +12,7 @@ import com.japp.validation.GroupValidator
 import com.japp.utils.toDto
 import com.japp.utils.createGroupMemberDto
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 
@@ -21,7 +22,8 @@ class GroupService(
     private val activityService: ActivityService,
     private val messageService: MessageService,
     private val expenseRepository: IExpenseRepository,
-    private val debtHistoryRepository: IDebtHistoryRepository
+    private val debtHistoryRepository: IDebtHistoryRepository,
+    private val notificationService: NotificationService
 ) {
 
     /**
@@ -184,9 +186,28 @@ class GroupService(
                                 groupId = groupId,
                                 content = "${addedUsername ?: "Someone"} was added to the group"
                             )
+
+                            // Notify the added user
+                            launch(Dispatchers.IO) {
+                                try {
+                                    val group = groupRepository.findById(groupId)
+                                    val addedBy = userRepository.findById(requestingUserId)
+
+                                    if (group != null) {
+                                        notificationService.notifyAddedToGroup(
+                                            groupId = groupId,
+                                            groupName = group.name,
+                                            addedByUsername = addedBy?.username ?: "Someone",
+                                            newMemberUserId = userIdToAdd
+                                        )
+                                    }
+                                } catch (_: Exception) {
+
+                                }
+                            }
                         }
 
-                        memberDto
+                        return@withContext memberDto
                     } catch (e: Exception) {
                         Result.Failure(
                             AppError.Internal(e.message ?: "Failed to add member")

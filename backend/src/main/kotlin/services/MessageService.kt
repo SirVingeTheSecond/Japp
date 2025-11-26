@@ -12,6 +12,7 @@ import com.japp.validation.MessageValidator
 import com.japp.websocket.WebSocketManager
 import io.ktor.websocket.*
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 
@@ -19,7 +20,8 @@ class MessageService(
     private val messageRepository: IMessageRepository,
     private val groupRepository: IGroupRepository,
     private val userRepository: IUserRepository,
-    private val webSocketManager: WebSocketManager
+    private val webSocketManager: WebSocketManager,
+    private val notificationService: NotificationService
 ) {
 
     suspend fun createMessage(
@@ -64,6 +66,33 @@ class MessageService(
                             ),
                             excludeUserId = userId
                         )
+
+                        launch(Dispatchers.IO) {
+                            try {
+                                val group = groupRepository.findById(request.groupId)
+                                val sender = userRepository.findById(userId)
+                                val members = groupRepository.getMembers(request.groupId)
+
+                                // Only notify users who are NOT connected via WebSocket
+                                val offlineMembers = members.filter { memberId ->
+                                    memberId != userId && !webSocketManager.isUserConnected(memberId)
+                                }
+
+                                if (group != null && offlineMembers.isNotEmpty()) {
+                                    offlineMembers.forEach { memberId ->
+                                        notificationService.notifyNewMessage(
+                                            groupId = request.groupId,
+                                            groupName = group.name,
+                                            senderUsername = sender?.username ?: "Someone",
+                                            messagePreview = request.content,
+                                            recipientUserId = memberId
+                                        )
+                                    }
+                                }
+                            } catch (_: Exception) {
+
+                            }
+                        }
 
                         Result.Success(messageDto)
                     } catch (e: Exception) {

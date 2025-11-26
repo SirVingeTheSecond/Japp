@@ -30,6 +30,7 @@ services:
             APP_ENV: production
         volumes:
             - japp-backend-data:/var/japp
+            - /prod/google-services/japp-app-28409-21398dac045b.json:/secret/google/japp.json
         networks:
             japp-app-backend-network:
                 ipv4_address: 10.23.45.3

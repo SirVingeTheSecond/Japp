@@ -21,7 +21,8 @@ import com.japp.api.RetrofitClient
 import com.japp.api.responses.settlement.CreateSettlementRequest
 import com.japp.api.responses.settlement.GroupSettlementSuggestionsDto
 import com.japp.api.responses.settlement.SettlementDto
-import com.japp.api.safeApiCall
+import com.japp.api.safeApiMutation
+import com.japp.api.safeApiQuery
 import com.japp.composables.ErrorWithRetry
 import com.japp.composables.SlideToConfirm
 import com.japp.ui.state.UiState
@@ -54,7 +55,7 @@ fun SettleGroup(
         }
 
         // Load user
-        val userResult = safeApiCall("SettleGroup.user") {
+        val userResult = safeApiQuery("SettleGroup.user") {
             RetrofitClient.userService.getMyUser()
         }
         when (userResult) {
@@ -67,7 +68,7 @@ fun SettleGroup(
         }
 
         // Load suggestions
-        suggestionsState = when (val result = safeApiCall("SettleGroup.suggestions") {
+        suggestionsState = when (val result = safeApiQuery("SettleGroup.suggestions") {
             RetrofitClient.settlementService.getGroupSettlementSuggestions(groupId)
         }) {
             is NetworkResult.Success -> UiState.Success(result.data)
@@ -75,7 +76,7 @@ fun SettleGroup(
         }
 
         // Load pending settlements
-        pendingSettlementsState = when (val result = safeApiCall("SettleGroup.pending") {
+        pendingSettlementsState = when (val result = safeApiQuery("SettleGroup.pending") {
             RetrofitClient.settlementService.getGroupSettlements(groupId, pendingOnly = true)
         }) {
             is NetworkResult.Success -> UiState.Success(result.data)
@@ -169,79 +170,69 @@ fun SettleGroup(
                         if (pendingToConfirm.isNotEmpty()) {
                             Text(
                                 "Payments to Confirm",
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.primary
+                                style = MaterialTheme.typography.titleMedium
                             )
-                            Text(
-                                "Confirm when you have received payment",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Spacer(Modifier.height(12.dp))
+                            Spacer(Modifier.height(8.dp))
 
                             pendingToConfirm.forEach { settlement ->
-                                key (settlement.id) {
-                                    var expanded by remember { mutableStateOf(false) }
-                                    Card(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(vertical = 4.dp)
-                                            .clickable(onClick = { expanded = !expanded }),
-                                        colors = CardDefaults.cardColors(
-                                            containerColor = MaterialTheme.colorScheme.secondaryContainer
-                                        )
-                                    ) {
-                                        Column(
+                                var expanded by remember { mutableStateOf(false) }
+
+                                Card(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 4.dp),
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = MaterialTheme.colorScheme.secondaryContainer
+                                    )
+                                ) {
+                                    Column(modifier = Modifier.padding(12.dp)) {
+                                        Row(
                                             modifier = Modifier
                                                 .fillMaxWidth()
-                                                .padding(16.dp)
+                                                .clickable { expanded = !expanded },
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            Row(
-                                                Modifier.fillMaxWidth(),
-                                                horizontalArrangement = Arrangement.SpaceBetween,
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                Column() {
-                                                    Text(
-                                                        "${settlement.fromUserName} paid you",
-                                                        style = MaterialTheme.typography.bodyLarge,
-                                                        color = MaterialTheme.colorScheme.onSecondaryContainer
-                                                    )
-                                                    Text(
-                                                        "${settlement.amount} DKK",
-                                                        style = MaterialTheme.typography.headlineSmall,
-                                                        color = MaterialTheme.colorScheme.primary
-                                                    )
-                                                }
+                                            Column {
                                                 Text(
-                                                    if (expanded) "Tap to collapse" else "Tap to expand",
-                                                    style = MaterialTheme.typography.labelMedium,
-                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                    "${settlement.fromUserName} paid you",
+                                                    style = MaterialTheme.typography.bodyMedium,
+                                                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                                                )
+                                                Text(
+                                                    "${settlement.amount} DKK",
+                                                    style = MaterialTheme.typography.titleMedium,
+                                                    color = MaterialTheme.colorScheme.secondary
                                                 )
                                             }
-                                            if (expanded) {
-                                                Spacer(Modifier.height(8.dp))
+                                            Icon(
+                                                if (expanded) Icons.Default.ArrowForward else Icons.Default.ArrowForward,
+                                                contentDescription = "Expand",
+                                                tint = MaterialTheme.colorScheme.onSecondaryContainer
+                                            )
+                                        }
+                                        if (expanded) {
+                                            Spacer(Modifier.height(8.dp))
 
-                                                SlideToConfirm(
-                                                    onConfirm = {
-                                                        coroutineScope.launch {
-                                                            when (safeApiCall("SettleGroup.complete") {
-                                                                RetrofitClient.settlementService.completeSettlement(settlement.id)
-                                                            }) {
-                                                                is NetworkResult.Success -> {
-                                                                    refreshKey++
-                                                                }
-                                                                is NetworkResult.Error -> {
-                                                                    createError = "Failed to confirm payment"
-                                                                }
+                                            SlideToConfirm(
+                                                onConfirm = {
+                                                    coroutineScope.launch {
+                                                        when (safeApiMutation("SettleGroup.complete") {
+                                                            RetrofitClient.settlementService.completeSettlement(settlement.id)
+                                                        }) {
+                                                            is NetworkResult.Success -> {
+                                                                refreshKey++
+                                                            }
+                                                            is NetworkResult.Error -> {
+                                                                createError = "Failed to confirm payment"
                                                             }
                                                         }
-                                                    },
-                                                    trackColor = MaterialTheme.colorScheme.onSecondary,
-                                                    text = "Slide to confirm received",
-                                                    enabled = !isCreatingSettlements
-                                                )
-                                            }
+                                                    }
+                                                },
+                                                trackColor = MaterialTheme.colorScheme.onSecondary,
+                                                text = "Slide to confirm received",
+                                                enabled = !isCreatingSettlements
+                                            )
                                         }
                                     }
                                 }
@@ -252,23 +243,17 @@ fun SettleGroup(
                             Spacer(Modifier.height(24.dp))
                         }
 
-                        // Section 2: Pending Settlements User Created
-                        val pendingByUser = pendingSettlements.filter { it.fromUserId == userId }
+                        // Section 2: Awaiting Confirmation
+                        val awaitingConfirmation = pendingSettlements.filter { it.fromUserId == userId }
 
-                        if (pendingByUser.isNotEmpty()) {
+                        if (awaitingConfirmation.isNotEmpty()) {
                             Text(
-                                "Your Pending Payments",
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.tertiary
+                                "Awaiting Confirmation",
+                                style = MaterialTheme.typography.titleMedium
                             )
-                            Text(
-                                "Waiting for recipient confirmation",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Spacer(Modifier.height(12.dp))
+                            Spacer(Modifier.height(8.dp))
 
-                            pendingByUser.forEach { settlement ->
+                            awaitingConfirmation.forEach { settlement ->
                                 Card(
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -377,7 +362,7 @@ fun SettleGroup(
                                                     amount = suggestion.amount
                                                 )
 
-                                                when (safeApiCall("SettleGroup.create") {
+                                                when (safeApiMutation("SettleGroup.create") {
                                                     RetrofitClient.settlementService.createSettlement(
                                                         request,
                                                         pendingOnly = true

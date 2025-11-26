@@ -42,10 +42,11 @@ import com.japp.AppDestinations
 import com.japp.api.NetworkResult
 import com.japp.api.RetrofitClient
 import com.japp.api.responses.group.GroupDto
-import com.japp.api.safeApiCall
+import com.japp.api.safeApiQuery
 import com.japp.composables.ErrorWithRetry
 import com.japp.composables.GroupIcon
 import com.japp.ui.state.UiState
+import com.japp.utils.LocalConnectivity
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Preview(showBackground = true, showSystemUi = true)
@@ -55,12 +56,26 @@ fun ShowGroupsScreen(navController: NavController? = null) {
     var isRefreshing by remember { mutableStateOf(false) }
     var refreshKey by remember { mutableIntStateOf(0) }
 
+    val isConnected = LocalConnectivity.current
+    var wasDisconnected by remember { mutableStateOf(false) }
+
+    LaunchedEffect(isConnected) {
+        if (isConnected && wasDisconnected) {
+            refreshKey++
+        }
+        wasDisconnected = !isConnected
+    }
+
     LaunchedEffect(refreshKey) {
-        groupsState = when (val result = safeApiCall("ShowGroupsScreen.groups") {
+        when (val result = safeApiQuery("ShowGroupsScreen.groups") {
             RetrofitClient.groupService.getMyGroups()
         }) {
-            is NetworkResult.Success -> UiState.Success(result.data)
-            is NetworkResult.Error -> UiState.Error(result.message)
+            is NetworkResult.Success -> groupsState = UiState.Success(result.data)
+            is NetworkResult.Error -> {
+                if (groupsState !is UiState.Success) {
+                    groupsState = UiState.Error(result.message)
+                }
+            }
         }
         isRefreshing = false
     }

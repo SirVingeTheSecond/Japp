@@ -51,15 +51,25 @@ import com.japp.api.responses.activity.ActivityDto
 import com.japp.api.responses.auth.UserDto
 import com.japp.api.responses.group.GroupDto
 import com.japp.api.safeApiCall
+import com.japp.api.safeApiQuery
 import com.japp.composables.ErrorWithRetry
 import com.japp.composables.GroupIcon
 import com.japp.composables.getActivityIcon
 import com.japp.ui.state.UiState
+import com.japp.utils.LocalConnectivity
 import java.text.SimpleDateFormat
 import java.util.Date
 import kotlin.math.absoluteValue
 import kotlin.math.round
 import kotlin.math.roundToInt
+
+/**
+ * Data class for QuickStats.
+ */
+data class BalanceData(
+    val owed: Double,
+    val owes: Double
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Preview(showSystemUi = true)
@@ -68,65 +78,96 @@ fun HomeScreen(navController: NavController? = null) {
     var activitiesState by remember { mutableStateOf<UiState<List<ActivityDto>>>(UiState.Loading) }
     var groupsState by remember { mutableStateOf<UiState<List<GroupDto>>>(UiState.Loading) }
     var meState by remember { mutableStateOf<UiState<UserDto>>(UiState.Loading) }
-
-    var owed by remember { mutableStateOf<Double?>(null) }
-    var owes by remember { mutableStateOf<Double?>(null) }
+    var balanceState by remember { mutableStateOf<UiState<BalanceData>>(UiState.Loading) }
 
     var isRefreshing by remember { mutableStateOf(false) }
     var refreshKey by remember { mutableIntStateOf(0) }
 
+    val isConnected = LocalConnectivity.current
+    var wasDisconnected by remember { mutableStateOf(false) }
+
+    LaunchedEffect(isConnected) {
+        if (isConnected && wasDisconnected) {
+            refreshKey++
+        }
+        wasDisconnected = !isConnected
+    }
+
     LaunchedEffect(refreshKey) {
         // Activity call
-        activitiesState = when (val result = safeApiCall("HomeScreen.activities") {
+        when (val result = safeApiQuery("HomeScreen.activities") {
             RetrofitClient.activityService.getUserActivities(limit = 3)
         }) {
-            is NetworkResult.Success -> UiState.Success(result.data)
-            is NetworkResult.Error -> UiState.Error(result.message)
+            is NetworkResult.Success -> activitiesState = UiState.Success(result.data)
+            is NetworkResult.Error -> {
+                if (activitiesState !is UiState.Success) {
+                    activitiesState = UiState.Error(result.message)
+                }
+            }
         }
 
         // Group call
-        groupsState = when (val result = safeApiCall("HomeScreen.groups") {
+        when (val result = safeApiQuery("HomeScreen.groups") {
             RetrofitClient.groupService.getMyGroups()
         }) {
-            is NetworkResult.Success -> UiState.Success(result.data)
-            is NetworkResult.Error -> UiState.Error(result.message)
+            is NetworkResult.Success -> groupsState = UiState.Success(result.data)
+            is NetworkResult.Error -> {
+                if (groupsState !is UiState.Success) {
+                    groupsState = UiState.Error(result.message)
+                }
+            }
         }
 
         // Me call
-        meState = when (val result = safeApiCall("HomeScreen.me") {
+        when (val result = safeApiQuery("HomeScreen.me") {
             RetrofitClient.userService.getMyUser()
         }) {
-            is NetworkResult.Success -> UiState.Success(result.data)
-            is NetworkResult.Error -> UiState.Error(result.message)
+            is NetworkResult.Success -> meState = UiState.Success(result.data)
+            is NetworkResult.Error -> {
+                if (meState !is UiState.Success) {
+                    meState = UiState.Error(result.message)
+                }
+            }
         }
 
         isRefreshing = false
     }
 
+    // Calculate balances when groups and user data are available
     LaunchedEffect(groupsState, meState, refreshKey) {
         val groups = groupsState.getOrNull() ?: return@LaunchedEffect
         val me = meState.getOrNull() ?: return@LaunchedEffect
 
-        // Calculate balances across all groups
         var totalOwed = 0.0
         var totalOwes = 0.0
+        var hasError = false
 
         for (group in groups) {
-            val result = safeApiCall("HomeScreen.balance.${group.id}") {
+            val result = safeApiQuery("HomeScreen.balance.${group.id}") {
                 RetrofitClient.expenseService.getGroupBalances(group.id)
             }
-            if (result is NetworkResult.Success) {
-                val balanceSummaryDto = result.data
-                val myBal = balanceSummaryDto.balances.find { (userId, _, _) -> userId == me.id }
-                if (myBal != null) {
-                    if (myBal.balance < 0) totalOwes += myBal.balance.absoluteValue else totalOwed += myBal.balance.absoluteValue
+            when (result) {
+                is NetworkResult.Success -> {
+                    val balanceSummaryDto = result.data
+                    val myBal = balanceSummaryDto.balances.find { (userId, _, _) -> userId == me.id }
+                    if (myBal != null) {
+                        if (myBal.balance < 0) {
+                            totalOwes += myBal.balance.absoluteValue
+                        } else {
+                            totalOwed += myBal.balance.absoluteValue
+                        }
+                    }
+                }
+                is NetworkResult.Error -> {
+                    hasError = true
                 }
             }
-            // Silently skip failed balance fetches to avoid blocking the entire screen
         }
 
-        owed = totalOwed
-        owes = totalOwes
+        // Only update state if we got data, or if we have no cached state
+        if (!hasError || balanceState is UiState.Loading) {
+            balanceState = UiState.Success(BalanceData(owed = totalOwed, owes = totalOwes))
+        }
     }
 
     PullToRefreshBox(
@@ -143,7 +184,7 @@ fun HomeScreen(navController: NavController? = null) {
                 .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            QuickStats(owed, owes)
+            QuickStats(balanceState)
             HorizontalDivider(
                 Modifier
                     .padding(10.dp)
@@ -163,12 +204,7 @@ fun HomeScreen(navController: NavController? = null) {
 }
 
 @Composable
-fun QuickStats(
-    owed: Double?,
-    owes: Double?
-) {
-    var ratio by remember { mutableStateOf<Double?>(null) }
-    var difference by remember { mutableStateOf<Double?>(null) }
+fun QuickStats(balanceState: UiState<BalanceData>) {
     Row(
         Modifier
             .fillMaxWidth()
@@ -176,45 +212,59 @@ fun QuickStats(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceAround
     ) {
-        if (owed != null && owes != null) {
-            ratio = if (owed + owes > 0) round((owes / (owed + owes)) * 100) / 100 else 0.0
-            difference = owed - owes
-            val acceptColor = Color(0xFF20DF6C)
-            val errorColor = Color(0xFFDF2020)
-            val ratioColorInt =
-                ratio?.let {
-                    ColorUtils.blendARGB(
-                        acceptColor.toArgb(),
-                        errorColor.toArgb(),
-                        it.toFloat()
-                    )
-                }
-            val ratioColor = Color(ratioColorInt ?: Color.Yellow.toArgb())
+        when (balanceState) {
+            is UiState.Loading -> {
+                LinearProgressIndicator(
+                    Modifier.align(Alignment.CenterVertically),
+                    color = MaterialTheme.colorScheme.secondary,
+                    trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                )
+            }
 
-            Pill(
-                ((owed * 10).roundToInt() / 10.0).toString(),
-                label = "Owed",
-                color = acceptColor,
-                textColor = MaterialTheme.colorScheme.onPrimaryContainer
-            )
-            Pill(
-                ((difference!! * 10).roundToInt() / 10.0).toString(),
-                label = "Ratio",
-                color = ratioColor,
-                textColor = MaterialTheme.colorScheme.onTertiaryContainer
-            )
-            Pill(
-                ((-owes * 10).roundToInt() / 10.0).toString(),
-                label = "Owes",
-                color = errorColor,
-                textColor = MaterialTheme.colorScheme.onSecondaryContainer
-            )
-        } else {
-            LinearProgressIndicator(
-                Modifier.align(Alignment.CenterVertically),
-                color = MaterialTheme.colorScheme.secondary,
-                trackColor = MaterialTheme.colorScheme.surfaceVariant,
-            )
+            is UiState.Success -> {
+                val balance = balanceState.data
+                val owed = balance.owed
+                val owes = balance.owes
+
+                val ratio = if (owed + owes > 0) round((owes / (owed + owes)) * 100) / 100 else 0.0
+                val difference = owed - owes
+
+                val acceptColor = Color(0xFF20DF6C)
+                val errorColor = Color(0xFFDF2020)
+                val ratioColorInt = ColorUtils.blendARGB(
+                    acceptColor.toArgb(),
+                    errorColor.toArgb(),
+                    ratio.toFloat()
+                )
+                val ratioColor = Color(ratioColorInt)
+
+                Pill(
+                    ((owed * 10).roundToInt() / 10.0).toString(),
+                    label = "Owed",
+                    color = acceptColor,
+                    textColor = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+                Pill(
+                    ((difference * 10).roundToInt() / 10.0).toString(),
+                    label = "Ratio",
+                    color = ratioColor,
+                    textColor = MaterialTheme.colorScheme.onTertiaryContainer
+                )
+                Pill(
+                    ((-owes * 10).roundToInt() / 10.0).toString(),
+                    label = "Owes",
+                    color = errorColor,
+                    textColor = MaterialTheme.colorScheme.onSecondaryContainer
+                )
+            }
+
+            is UiState.Error -> {
+                LinearProgressIndicator(
+                    Modifier.align(Alignment.CenterVertically),
+                    color = MaterialTheme.colorScheme.secondary,
+                    trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                )
+            }
         }
     }
 }
@@ -245,7 +295,7 @@ fun Pill(
 fun QuickActivities(
     navController: NavController?,
     activitiesState: UiState<List<ActivityDto>>,
-    onRetry: () -> Unit  // ADD this parameter
+    onRetry: () -> Unit
 ) {
     Column(
         horizontalAlignment = Alignment.Start
@@ -302,7 +352,7 @@ fun Activity(activity: ActivityDto) {
     var group by remember { mutableStateOf<GroupDto?>(null) }
 
     LaunchedEffect(Unit) {
-        safeApiCall("Activity.group.${activity.groupId}") {
+        safeApiQuery("Activity.group.${activity.groupId}") {
             RetrofitClient.groupService.getGroup(activity.groupId)
         }.onSuccess { group = it }
     }
@@ -355,7 +405,7 @@ fun QuickGroups(
     navController: NavController?,
     groupsState: UiState<List<GroupDto>>,
     meState: UiState<UserDto>,
-    onRetry: () -> Unit  // ADD this parameter
+    onRetry: () -> Unit
 ) {
     Column(
         horizontalAlignment = Alignment.Start,
@@ -384,7 +434,6 @@ fun QuickGroups(
             }
 
             groupsState is UiState.Error -> {
-                // REPLACE Text with ErrorWithRetry
                 ErrorWithRetry(
                     message = groupsState.message,
                     onRetry = onRetry
@@ -392,7 +441,6 @@ fun QuickGroups(
             }
 
             meState is UiState.Error -> {
-                // REPLACE Text with ErrorWithRetry
                 ErrorWithRetry(
                     message = meState.message,
                     onRetry = onRetry
@@ -411,12 +459,8 @@ fun QuickGroups(
                         modifier = Modifier.padding(vertical = 8.dp)
                     )
                 } else {
-                    for (group in (if (groups.size <= 3) groups else groups.slice(
-                        IntRange(
-                            0,
-                            2
-                        )
-                    ))) {
+                    // Fixed: Use take(3) instead of slice to prevent IndexOutOfBounds
+                    for (group in groups.take(3)) {
                         Group(group, me, navController)
                     }
                 }
@@ -430,7 +474,7 @@ fun Group(group: GroupDto, me: UserDto, navController: NavController? = null) {
     var groupBalance by remember { mutableStateOf<Double?>(null) }
 
     LaunchedEffect(Unit) {
-        safeApiCall("Group.balance.${group.id}") {
+        safeApiQuery("Group.balance.${group.id}") {
             RetrofitClient.expenseService.getGroupBalances(group.id)
         }.onSuccess { summaryDto ->
             val myBal = summaryDto.balances.find { (userId, _, _) -> userId == me.id }
@@ -438,10 +482,9 @@ fun Group(group: GroupDto, me: UserDto, navController: NavController? = null) {
         }
     }
 
-    var colorTint = Color.Transparent
     var cardColor = CardDefaults.cardColors()
     if (groupBalance != null) {
-        colorTint = if (groupBalance!! >= 0) Color(0xFF20DF6C) else Color(0xFFDF2020)
+        val colorTint = if (groupBalance!! >= 0) Color(0xFF20DF6C) else Color(0xFFDF2020)
         cardColor = CardDefaults.cardColors(
             Color(
                 ColorUtils.blendARGB(
@@ -484,7 +527,6 @@ fun Group(group: GroupDto, me: UserDto, navController: NavController? = null) {
     }
 }
 
-// Extra composables
 @SuppressLint("SimpleDateFormat")
 @Composable
 fun TimeText(

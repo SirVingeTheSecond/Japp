@@ -41,7 +41,7 @@ import com.japp.api.NetworkResult
 import com.japp.api.RetrofitClient
 import com.japp.api.responses.WebSocketMessageType
 import com.japp.api.responses.message.MessageDto
-import com.japp.api.safeApiCall
+import com.japp.api.safeApiQuery
 import com.japp.composables.MessageBubble
 import com.japp.composables.TypingIndicator
 import com.japp.websocket.ChatWebSocketClient
@@ -85,7 +85,7 @@ fun ChatScreen(groupId: Int) {
         isLoading = true
         errorMessage = null
 
-        when (val result = safeApiCall("ChatScreen.messages") {
+        when (val result = safeApiQuery("ChatScreen.messages") {
             RetrofitClient.messageService.getGroupMessages(groupId)
         }) {
             is NetworkResult.Success -> {

@@ -41,8 +41,10 @@ import com.japp.api.NetworkResult
 import com.japp.api.RetrofitClient
 import com.japp.api.responses.group.GroupPreviewDto
 import com.japp.api.responses.group.JoinGroupRequest
-import com.japp.api.safeApiCall
+import com.japp.api.safeApiMutation
+import com.japp.api.safeApiQuery
 import com.japp.composables.GroupIcon
+import com.japp.ui.rememberSnackbar
 import com.japp.ui.state.UiState
 import com.journeyapps.barcodescanner.CaptureManager
 import com.journeyapps.barcodescanner.CompoundBarcodeView
@@ -143,13 +145,13 @@ private fun ScanResultDialog(
     onJoinSuccess: (Int) -> Unit
 ) {
     val coroutineScope = rememberCoroutineScope()
+    val snackbar = rememberSnackbar()
 
     var groupState by remember { mutableStateOf<UiState<GroupPreviewDto>>(UiState.Loading) }
     var isJoining by remember { mutableStateOf(false) }
-    var joinError by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(inviteCode) {
-        groupState = when (val result = safeApiCall("ScanScreen.groupPreview") {
+        groupState = when (val result = safeApiQuery("ScanScreen.groupPreview") {
             RetrofitClient.groupService.getGroup(inviteCode)
         }) {
             is NetworkResult.Success -> UiState.Success(result.data)
@@ -159,17 +161,18 @@ private fun ScanResultDialog(
 
     fun joinGroup() {
         isJoining = true
-        joinError = null
 
         coroutineScope.launch {
-            when (val result = safeApiCall("ScanScreen.join") {
+            when (val result = safeApiMutation("ScanScreen.join") {
                 RetrofitClient.groupService.joinGroup(JoinGroupRequest(inviteCode))
             }) {
                 is NetworkResult.Success -> {
+                    val groupName = (groupState as? UiState.Success)?.data?.name ?: "the group"
+                    snackbar.showSuccess("Joined $groupName!")
                     onJoinSuccess(result.data.id)
                 }
                 is NetworkResult.Error -> {
-                    joinError = result.message
+                    snackbar.showError(result.message, onRetry = { joinGroup() })
                     isJoining = false
                 }
             }
@@ -221,15 +224,6 @@ private fun ScanResultDialog(
                                 )
                                 Text("${group.memberCount} members")
                             }
-                        }
-
-                        joinError?.let {
-                            Text(
-                                text = it,
-                                color = MaterialTheme.colorScheme.error,
-                                style = MaterialTheme.typography.bodySmall,
-                                modifier = Modifier.padding(vertical = 8.dp)
-                            )
                         }
 
                         Row(

@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -30,13 +31,16 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -53,6 +57,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import androidx.navigation.navDeepLink
 import com.japp.api.CredentialsStorage
+import com.japp.composables.OfflineBanner
 import com.japp.screens.ActivityScreen
 import com.japp.screens.CreateExpenseScreen
 import com.japp.screens.CreateGroupScreen
@@ -64,7 +69,11 @@ import com.japp.screens.ProfileScreen
 import com.japp.screens.ScanScreen
 import com.japp.screens.SettleGroup
 import com.japp.screens.ShowGroupsScreen
+import com.japp.ui.JappSnackbar
+import com.japp.ui.LocalSnackbarHost
 import com.japp.ui.theme.JappTheme
+import com.japp.utils.LocalConnectivity
+import com.japp.utils.rememberConnectivityState
 import com.japp.websocket.ChatWebSocketClient
 
 class MainActivity : ComponentActivity() {
@@ -128,6 +137,13 @@ fun JappApp() {
     val navController = rememberNavController()
     var currentDestination by rememberSaveable { mutableStateOf<AppDestinations?>(AppDestinations.HOME) }
 
+    // Connectivity state which is the single source of truth for entire app
+    // Time constraints forced a pretty pragmatic solution ¯\_(ツ)_/¯
+    val isConnected by rememberConnectivityState()
+
+    // Snackbar state for feedback messages
+    val snackbarHostState = remember { SnackbarHostState() }
+
     navController.addOnDestinationChangedListener { _, destination, _ ->
         currentDestination = AppDestinations.entries.find { it.route == destination.route }
     }
@@ -138,118 +154,139 @@ fun JappApp() {
         }
     }
 
-    Scaffold(
-        topBar = {
-            CenterAlignedTopAppBar(
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                    titleContentColor = MaterialTheme.colorScheme.onSurface,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onSurface,
-                    actionIconContentColor = MaterialTheme.colorScheme.onSurface
-                ),
-                title = {
-                    Text(currentDestination?.label ?: "")
-                },
-                navigationIcon = {
-                    IconButton(onClick = { navigate(AppDestinations.ACTIVITY.route) }) {
-                        // Lil red dot on top left icon
-                        BadgedBox(
-                            badge = {
-                                Badge()
+    // Provide connectivity and snackbar state to all child composables
+    CompositionLocalProvider(
+        LocalConnectivity provides isConnected,
+        LocalSnackbarHost provides snackbarHostState
+    ) {
+        Scaffold(
+            snackbarHost = {
+                SnackbarHost(hostState = snackbarHostState) { data ->
+                    JappSnackbar(snackbarData = data)
+                }
+            },
+            topBar = {
+                CenterAlignedTopAppBar(
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                        titleContentColor = MaterialTheme.colorScheme.onSurface,
+                        navigationIconContentColor = MaterialTheme.colorScheme.onSurface,
+                        actionIconContentColor = MaterialTheme.colorScheme.onSurface
+                    ),
+                    title = {
+                        Text(currentDestination?.label ?: "")
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = { navigate(AppDestinations.ACTIVITY.route) }) {
+                            // Lil red dot on top left icon
+                            BadgedBox(
+                                badge = {
+                                    Badge()
+                                }
+                            ) {
+                                Icon(
+                                    imageVector = AppDestinations.ACTIVITY.icon,
+                                    contentDescription = "Activities",
+                                )
                             }
-                        ) {
+                        }
+                    },
+                    actions = {
+                        IconButton(onClick = { navigate(AppDestinations.CREATEGROUP.route) }) {
                             Icon(
-                                imageVector = AppDestinations.ACTIVITY.icon,
-                                contentDescription = "Activities",
+                                imageVector = AppDestinations.CREATEGROUP.icon,
+                                contentDescription = "Create Group"
                             )
                         }
-                    }
-                },
-                actions = {
-                    IconButton(onClick = { navigate(AppDestinations.CREATEGROUP.route) }) {
-                        Icon(
-                            imageVector = AppDestinations.CREATEGROUP.icon,
-                            contentDescription = "Create Group"
-                        )
-                    }
-                },
-            )
-        },
-        bottomBar = {
-            NavigationBar {
-                NavigationBarItem(
-                    selected = AppDestinations.HOME.route == currentDestination?.route,
-                    onClick = { navigate(AppDestinations.HOME.route) },
-                    icon = {
-                        Icon(
-                            imageVector = if (AppDestinations.HOME.route == currentDestination?.route)
-                                Icons.Filled.Home
-                            else
-                                Icons.Outlined.Home,
-                            contentDescription = "Navigate to Home",
-                            modifier = Modifier.size(32.dp)
-                        )
                     },
-                    label = {
-                        Text(AppDestinations.HOME.label)
-                    },
-                    alwaysShowLabel = true,
-                    modifier = Modifier.padding(top = 4.dp)
                 )
+            },
+            bottomBar = {
+                NavigationBar {
+                    NavigationBarItem(
+                        selected = AppDestinations.HOME.route == currentDestination?.route,
+                        onClick = { navigate(AppDestinations.HOME.route) },
+                        icon = {
+                            Icon(
+                                imageVector = if (AppDestinations.HOME.route == currentDestination?.route)
+                                    Icons.Filled.Home
+                                else
+                                    Icons.Outlined.Home,
+                                contentDescription = "Navigate to Home",
+                                modifier = Modifier.size(32.dp)
+                            )
+                        },
+                        label = {
+                            Text(AppDestinations.HOME.label)
+                        },
+                        alwaysShowLabel = true,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
 
-                val fab = FabController.state
-                val actionButton = NavigationActionButtons.entries
-                    .find { it.route == currentDestination?.route }
-                    ?: NavigationActionButtons.DEFAULT
-                FloatingActionButton(
-                    onClick = {
-                        fab.onClick?.invoke() ?: navigate(actionButton.destination.route)
-                    },
-                    modifier = Modifier.padding(horizontal = 12.dp)
-                ) {
-                    Icon(fab.icon ?: actionButton.icon, null)
+                    val fab = FabController.state
+                    val actionButton = NavigationActionButtons.entries
+                        .find { it.route == currentDestination?.route }
+                        ?: NavigationActionButtons.DEFAULT
+                    FloatingActionButton(
+                        onClick = {
+                            fab.onClick?.invoke() ?: navigate(actionButton.destination.route)
+                        },
+                        modifier = Modifier.padding(horizontal = 12.dp)
+                    ) {
+                        Icon(fab.icon ?: actionButton.icon, null)
+                    }
+
+                    NavigationBarItem(
+                        selected = AppDestinations.PROFILE.route == currentDestination?.route,
+                        onClick = { navigate(AppDestinations.PROFILE.route) },
+                        icon = {
+                            Icon(
+                                imageVector = if (AppDestinations.PROFILE.route == currentDestination?.route)
+                                    Icons.Filled.Person
+                                else
+                                    Icons.Outlined.Person,
+                                contentDescription = "Navigate to Profile",
+                                modifier = Modifier.size(32.dp)
+                            )
+                        },
+                        label = {
+                            Text(AppDestinations.PROFILE.label)
+                        },
+                        alwaysShowLabel = true,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
                 }
+            },
+            modifier = Modifier.fillMaxSize(),
+            containerColor = MaterialTheme.colorScheme.surface
+        ) { innerPadding ->
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+            ) {
+                // Offline banner which shows constantly when disconnected
+                OfflineBanner(isOffline = !isConnected)
 
-                NavigationBarItem(
-                    selected = AppDestinations.PROFILE.route == currentDestination?.route,
-                    onClick = { navigate(AppDestinations.PROFILE.route) },
-                    icon = {
-                        Icon(
-                            imageVector = if (AppDestinations.PROFILE.route == currentDestination?.route)
-                                Icons.Filled.Person
-                            else
-                                Icons.Outlined.Person,
-                            contentDescription = "Navigate to Profile",
-                            modifier = Modifier.size(32.dp)
-                        )
-                    },
-                    label = {
-                        Text(AppDestinations.PROFILE.label)
-                    },
-                    alwaysShowLabel = true,
-                    modifier = Modifier.padding(top = 4.dp)
-                )
-            }
-        },
-        modifier = Modifier.fillMaxSize(),
-        containerColor = MaterialTheme.colorScheme.surface
-    ) { innerPadding ->
-        NavHost(
-            navController = navController,
-            startDestination = AppDestinations.HOME.route,
-            modifier = Modifier.padding(innerPadding)
-        ) {
-            for (destination in AppDestinations.entries) {
-                composable(destination.route) { destination.screen(navController) }
-            }
-
-            for (destination in AppDestinations.CustomRoutes.entries) {
-                composable(
-                    route = destination.route,
-                    arguments = destination.arguments,
-                    deepLinks = destination.deepLinks
+                // Main content
+                NavHost(
+                    navController = navController,
+                    startDestination = AppDestinations.HOME.route,
+                    modifier = Modifier.weight(1f)
                 ) {
-                    destination.screen(navController, it)
+                    for (destination in AppDestinations.entries) {
+                        composable(destination.route) { destination.screen(navController) }
+                    }
+
+                    for (destination in AppDestinations.CustomRoutes.entries) {
+                        composable(
+                            route = destination.route,
+                            arguments = destination.arguments,
+                            deepLinks = destination.deepLinks
+                        ) {
+                            destination.screen(navController, it)
+                        }
+                    }
                 }
             }
         }

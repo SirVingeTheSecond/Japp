@@ -1,5 +1,7 @@
 package com.japp.screens
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.Arrangement
@@ -7,12 +9,14 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowRight
+import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
@@ -176,11 +180,16 @@ fun SettleGroup(
 
                             pendingToConfirm.forEach { settlement ->
                                 var expanded by remember { mutableStateOf(false) }
+                                val arrowRotation by animateFloatAsState(
+                                    targetValue = if (expanded) 180f else 0f,
+                                    animationSpec = tween(durationMillis = 300),
+                                )
 
                                 Card(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(vertical = 4.dp),
+                                        .padding(vertical = 4.dp)
+                                        .clickable { expanded = !expanded },
                                     colors = CardDefaults.cardColors(
                                         containerColor = MaterialTheme.colorScheme.secondaryContainer
                                     )
@@ -188,8 +197,7 @@ fun SettleGroup(
                                     Column(modifier = Modifier.padding(12.dp)) {
                                         Row(
                                             modifier = Modifier
-                                                .fillMaxWidth()
-                                                .clickable { expanded = !expanded },
+                                                .fillMaxWidth(),
                                             horizontalArrangement = Arrangement.SpaceBetween,
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
@@ -206,9 +214,10 @@ fun SettleGroup(
                                                 )
                                             }
                                             Icon(
-                                                if (expanded) Icons.Default.ArrowForward else Icons.Default.ArrowForward,
+                                                Icons.Default.ArrowDownward,
                                                 contentDescription = "Expand",
-                                                tint = MaterialTheme.colorScheme.onSecondaryContainer
+                                                Modifier.rotate(arrowRotation),
+                                                tint = MaterialTheme.colorScheme.onSecondaryContainer,
                                             )
                                         }
                                         if (expanded) {

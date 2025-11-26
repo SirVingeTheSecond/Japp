@@ -26,7 +26,7 @@ import androidx.navigation.NavController
 import com.japp.api.NetworkResult
 import com.japp.api.RetrofitClient
 import com.japp.api.responses.activity.ActivityDto
-import com.japp.api.safeApiCall
+import com.japp.api.safeApiQuery
 import com.japp.composables.ActivityRow
 import com.japp.composables.ErrorWithRetry
 import com.japp.ui.state.UiState
@@ -51,7 +51,7 @@ fun ActivityScreen(navController: NavController? = null) {
     }
 
     LaunchedEffect(refreshKey) {
-        when (val result = safeApiCall("ActivityScreen.activities") {
+        when (val result = safeApiQuery("ActivityScreen.activities") {
             RetrofitClient.activityService.getUserActivities(limit = null)
         }) {
             is NetworkResult.Success -> activitiesState = UiState.Success(result.data)
@@ -59,7 +59,6 @@ fun ActivityScreen(navController: NavController? = null) {
                 if (activitiesState !is UiState.Success) {
                     activitiesState = UiState.Error(result.message)
                 }
-                // else keep cached Success state
             }
         }
         isRefreshing = false

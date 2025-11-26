@@ -42,7 +42,7 @@ import com.japp.AppDestinations
 import com.japp.api.NetworkResult
 import com.japp.api.RetrofitClient
 import com.japp.api.responses.group.GroupDto
-import com.japp.api.safeApiCall
+import com.japp.api.safeApiQuery
 import com.japp.composables.ErrorWithRetry
 import com.japp.composables.GroupIcon
 import com.japp.ui.state.UiState
@@ -67,7 +67,7 @@ fun ShowGroupsScreen(navController: NavController? = null) {
     }
 
     LaunchedEffect(refreshKey) {
-        when (val result = safeApiCall("ShowGroupsScreen.groups") {
+        when (val result = safeApiQuery("ShowGroupsScreen.groups") {
             RetrofitClient.groupService.getMyGroups()
         }) {
             is NetworkResult.Success -> groupsState = UiState.Success(result.data)
@@ -75,7 +75,6 @@ fun ShowGroupsScreen(navController: NavController? = null) {
                 if (groupsState !is UiState.Success) {
                     groupsState = UiState.Error(result.message)
                 }
-                // else keep cached Success state
             }
         }
         isRefreshing = false

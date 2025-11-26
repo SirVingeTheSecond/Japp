@@ -35,7 +35,8 @@ import com.japp.api.NetworkResult
 import com.japp.api.RetrofitClient
 import com.japp.api.responses.auth.UserDto
 import com.japp.api.responses.user.UpdateUserRequest
-import com.japp.api.safeApiCall
+import com.japp.api.safeApiMutation
+import com.japp.api.safeApiQuery
 import com.japp.ui.rememberSnackbar
 import com.japp.ui.state.UiState
 import kotlinx.coroutines.launch
@@ -56,7 +57,7 @@ fun EditProfileScreen(navController: NavController) {
     var saving by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
-        userState = when (val result = safeApiCall("EditProfile.load") {
+        userState = when (val result = safeApiQuery("EditProfile.load") {
             RetrofitClient.userService.getMyUser()
         }) {
             is NetworkResult.Success -> {
@@ -83,7 +84,7 @@ fun EditProfileScreen(navController: NavController) {
                 profilePicture = profilePicture.ifBlank { null }
             )
 
-            when (val result = safeApiCall("EditProfile.save") {
+            when (val result = safeApiMutation("EditProfile.save") {
                 RetrofitClient.userService.updateMyUser(request)
             }) {
                 is NetworkResult.Success -> {

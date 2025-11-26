@@ -35,7 +35,8 @@ import com.japp.api.NetworkResult
 import com.japp.api.RetrofitClient
 import com.japp.api.responses.auth.UserDto
 import com.japp.api.responses.group.GroupMemberDto
-import com.japp.api.safeApiCall
+import com.japp.api.safeApiMutation
+import com.japp.api.safeApiQuery
 import com.japp.ui.rememberSnackbar
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
@@ -67,7 +68,7 @@ fun GroupMemberDetailCard(
     }
 
     LaunchedEffect(Unit) {
-        when (val result = safeApiCall("GroupMemberDetailCard.user") {
+        when (val result = safeApiQuery("GroupMemberDetailCard.user") {
             RetrofitClient.userService.getUser(groupMember.userId)
         }) {
             is NetworkResult.Success -> user = result.data
@@ -203,7 +204,7 @@ fun GroupMemberDetailCard(
                         }
                         Button({
                             coroutineScope.launch {
-                                when (val result = safeApiCall("GroupMemberDetailCard.kick") {
+                                when (val result = safeApiMutation("GroupMemberDetailCard.kick") {
                                     RetrofitClient.groupService.kickGroupMember(groupId, memberToKick.userId)
                                 }) {
                                     is NetworkResult.Success -> {

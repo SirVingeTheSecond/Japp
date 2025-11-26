@@ -61,6 +61,8 @@ import com.japp.api.responses.expense.ExpenseSplitRequest
 import com.japp.api.responses.group.GroupDto
 import com.japp.api.responses.group.GroupMemberDto
 import com.japp.api.safeApiCall
+import com.japp.api.safeApiMutation
+import com.japp.api.safeApiQuery
 import com.japp.ui.rememberSnackbar
 import com.japp.ui.state.UiState
 import kotlinx.coroutines.launch
@@ -128,7 +130,7 @@ fun CreateExpenseScreen(
     }
 
     LaunchedEffect(Unit) {
-        groupsState = when (val result = safeApiCall("CreateExpense.groups") {
+        groupsState = when (val result = safeApiQuery("CreateExpense.groups") {
             RetrofitClient.groupService.getMyGroups()
         }) {
             is NetworkResult.Success -> {
@@ -145,7 +147,7 @@ fun CreateExpenseScreen(
 
     LaunchedEffect(selectedGroup?.id) {
         val group = selectedGroup ?: return@LaunchedEffect
-        safeApiCall("CreateExpense.members") {
+        safeApiQuery("CreateExpense.members") {
             RetrofitClient.groupService.getGroupMembers(group.id)
         }.onSuccess {
             groupMembers = it
@@ -558,7 +560,7 @@ fun CreateExpenseScreen(
 
                             isSubmitting = true
                             coroutineScope.launch {
-                                when (val result = safeApiCall("CreateExpense.create") {
+                                when (val result = safeApiMutation("CreateExpense.create") {
                                     RetrofitClient.expenseService.createExpense(request)
                                 }) {
                                     is NetworkResult.Success -> {

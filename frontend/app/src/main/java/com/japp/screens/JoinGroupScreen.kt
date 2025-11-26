@@ -28,7 +28,8 @@ import com.japp.api.NetworkResult
 import com.japp.api.RetrofitClient
 import com.japp.api.responses.group.GroupPreviewDto
 import com.japp.api.responses.group.JoinGroupRequest
-import com.japp.api.safeApiCall
+import com.japp.api.safeApiMutation
+import com.japp.api.safeApiQuery
 import com.japp.composables.GroupIcon
 import com.japp.ui.rememberSnackbar
 import com.japp.ui.state.UiState
@@ -50,7 +51,7 @@ fun JoinGroupScreen(navController: NavController? = null, inviteCode: String?) {
 
     // Fetch group!
     LaunchedEffect(Unit) {
-        groupState = when (val result = safeApiCall("JoinGroupScreen.group") {
+        groupState = when (val result = safeApiQuery("JoinGroupScreen.group") {
             RetrofitClient.groupService.getGroup(inviteCode)
         }) {
             is NetworkResult.Success -> UiState.Success(result.data)
@@ -62,7 +63,7 @@ fun JoinGroupScreen(navController: NavController? = null, inviteCode: String?) {
         isJoining = true
 
         coroutineScope.launch {
-            when (val result = safeApiCall("JoinGroupScreen.join") {
+            when (val result = safeApiMutation("JoinGroupScreen.join") {
                 RetrofitClient.groupService.joinGroup(JoinGroupRequest(code))
             }) {
                 is NetworkResult.Success -> {
@@ -108,7 +109,7 @@ fun JoinGroupScreen(navController: NavController? = null, inviteCode: String?) {
                     verticalArrangement = Arrangement.spacedBy(30.dp)
                 ) {
                     Text(
-                        "You have been invited to join",
+                        "You have been invited to join:",
                         style = MaterialTheme.typography.headlineSmall,
                         textAlign = TextAlign.Center
                     )
@@ -130,7 +131,7 @@ fun JoinGroupScreen(navController: NavController? = null, inviteCode: String?) {
                         onClick = { joinGroup() },
                         enabled = !isJoining
                     ) {
-                        Text(if (isJoining) "Joining..." else "Join group")
+                        Text(if (isJoining) "Joining..." else "Join group!")
                     }
                 }
             }

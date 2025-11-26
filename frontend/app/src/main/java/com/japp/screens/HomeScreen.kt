@@ -51,6 +51,7 @@ import com.japp.api.responses.activity.ActivityDto
 import com.japp.api.responses.auth.UserDto
 import com.japp.api.responses.group.GroupDto
 import com.japp.api.safeApiCall
+import com.japp.api.safeApiQuery
 import com.japp.composables.ErrorWithRetry
 import com.japp.composables.GroupIcon
 import com.japp.composables.getActivityIcon
@@ -94,7 +95,7 @@ fun HomeScreen(navController: NavController? = null) {
 
     LaunchedEffect(refreshKey) {
         // Activity call
-        when (val result = safeApiCall("HomeScreen.activities") {
+        when (val result = safeApiQuery("HomeScreen.activities") {
             RetrofitClient.activityService.getUserActivities(limit = 3)
         }) {
             is NetworkResult.Success -> activitiesState = UiState.Success(result.data)
@@ -106,7 +107,7 @@ fun HomeScreen(navController: NavController? = null) {
         }
 
         // Group call
-        when (val result = safeApiCall("HomeScreen.groups") {
+        when (val result = safeApiQuery("HomeScreen.groups") {
             RetrofitClient.groupService.getMyGroups()
         }) {
             is NetworkResult.Success -> groupsState = UiState.Success(result.data)
@@ -118,7 +119,7 @@ fun HomeScreen(navController: NavController? = null) {
         }
 
         // Me call
-        when (val result = safeApiCall("HomeScreen.me") {
+        when (val result = safeApiQuery("HomeScreen.me") {
             RetrofitClient.userService.getMyUser()
         }) {
             is NetworkResult.Success -> meState = UiState.Success(result.data)
@@ -142,7 +143,7 @@ fun HomeScreen(navController: NavController? = null) {
         var hasError = false
 
         for (group in groups) {
-            val result = safeApiCall("HomeScreen.balance.${group.id}") {
+            val result = safeApiQuery("HomeScreen.balance.${group.id}") {
                 RetrofitClient.expenseService.getGroupBalances(group.id)
             }
             when (result) {
@@ -351,7 +352,7 @@ fun Activity(activity: ActivityDto) {
     var group by remember { mutableStateOf<GroupDto?>(null) }
 
     LaunchedEffect(Unit) {
-        safeApiCall("Activity.group.${activity.groupId}") {
+        safeApiQuery("Activity.group.${activity.groupId}") {
             RetrofitClient.groupService.getGroup(activity.groupId)
         }.onSuccess { group = it }
     }
@@ -473,7 +474,7 @@ fun Group(group: GroupDto, me: UserDto, navController: NavController? = null) {
     var groupBalance by remember { mutableStateOf<Double?>(null) }
 
     LaunchedEffect(Unit) {
-        safeApiCall("Group.balance.${group.id}") {
+        safeApiQuery("Group.balance.${group.id}") {
             RetrofitClient.expenseService.getGroupBalances(group.id)
         }.onSuccess { summaryDto ->
             val myBal = summaryDto.balances.find { (userId, _, _) -> userId == me.id }

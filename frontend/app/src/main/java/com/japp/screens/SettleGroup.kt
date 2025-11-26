@@ -31,7 +31,8 @@ import com.japp.api.RetrofitClient
 import com.japp.api.responses.settlement.CreateSettlementRequest
 import com.japp.api.responses.settlement.GroupSettlementSuggestionsDto
 import com.japp.api.responses.settlement.SettlementSuggestionDto
-import com.japp.api.safeApiCall
+import com.japp.api.safeApiMutation
+import com.japp.api.safeApiQuery
 import com.japp.ui.rememberSnackbar
 import com.japp.ui.state.UiState
 import kotlinx.coroutines.launch
@@ -48,7 +49,7 @@ fun SettleGroup(
     var isSubmitting by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
-        safeApiCall("SettleGroup.user") {
+        safeApiQuery("SettleGroup.user") {
             RetrofitClient.userService.getMyUser()
         }.onSuccess { userId = it.id }
     }
@@ -56,7 +57,7 @@ fun SettleGroup(
     LaunchedEffect(GROUP_ID) {
         if (GROUP_ID == -1) return@LaunchedEffect
 
-        suggestionsState = when (val result = safeApiCall("SettleGroup.suggestions") {
+        suggestionsState = when (val result = safeApiQuery("SettleGroup.suggestions") {
             RetrofitClient.settlementService.getGroupSettlementSuggestions(GROUP_ID)
         }) {
             is NetworkResult.Success -> UiState.Success(result.data)
@@ -152,7 +153,7 @@ fun SettleGroup(
                                         amount = suggestion.amount
                                     )
                                     coroutineScope.launch {
-                                        when (val result = safeApiCall("SettleGroup.create") {
+                                        when (val result = safeApiMutation("SettleGroup.create") {
                                             RetrofitClient.settlementService.createSettlement(request, pendingOnly = true)
                                         }) {
                                             is NetworkResult.Success -> { /* Settlement created */ }

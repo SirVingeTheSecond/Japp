@@ -62,6 +62,8 @@ import com.japp.api.responses.expense.GroupBalanceSummaryDto
 import com.japp.api.responses.group.GroupDto
 import com.japp.api.responses.group.GroupMemberDto
 import com.japp.api.safeApiCall
+import com.japp.api.safeApiMutation
+import com.japp.api.safeApiQuery
 import com.japp.composables.ErrorWithRetry
 import com.japp.composables.ExpenseDetailCard
 import com.japp.composables.GroupIcon
@@ -98,7 +100,7 @@ fun GroupScreen(navController: NavController? = null) {
     }
 
     LaunchedEffect(Unit) {
-        safeApiCall("GroupScreen.me") {
+        safeApiQuery("GroupScreen.me") {
             RetrofitClient.userService.getMyUser()
         }.onSuccess { me = it }
     }
@@ -109,7 +111,7 @@ fun GroupScreen(navController: NavController? = null) {
         groupState = UiState.Loading
 
         // Group details
-        groupState = when (val result = safeApiCall("GroupScreen.group") {
+        groupState = when (val result = safeApiQuery("GroupScreen.group") {
             RetrofitClient.groupService.getGroup(GROUP_ID)
         }) {
             is NetworkResult.Success -> UiState.Success(result.data)
@@ -118,15 +120,15 @@ fun GroupScreen(navController: NavController? = null) {
 
         // Only fetch secondary data if group loaded successfully
         if (groupState is UiState.Success) {
-            safeApiCall("GroupScreen.members") {
+            safeApiQuery("GroupScreen.members") {
                 RetrofitClient.groupService.getGroupMembers(GROUP_ID)
             }.onSuccess { groupMembers.value = it }
 
-            safeApiCall("GroupScreen.balances") {
+            safeApiQuery("GroupScreen.balances") {
                 RetrofitClient.expenseService.getGroupBalances(GROUP_ID)
             }.onSuccess { groupBalance = it }
 
-            safeApiCall("GroupScreen.expenses") {
+            safeApiQuery("GroupScreen.expenses") {
                 RetrofitClient.expenseService.getGroupExpenses(GROUP_ID)
             }.onSuccess { groupExpenses = it }
         }
@@ -311,7 +313,7 @@ fun NavTab(
     var deleting by remember { mutableStateOf(false) }
 
     LaunchedEffect(refreshGroupMembersKey) {
-        when (val result = safeApiCall("NavTab.refreshMembers") {
+        when (val result = safeApiQuery("NavTab.refreshMembers") {
             RetrofitClient.groupService.getGroupMembers(GROUP_ID)
         }) {
             is NetworkResult.Success -> groupMembers.value = result.data
@@ -507,7 +509,7 @@ fun NavTab(
                             }
                             Button({
                                 coroutineScope.launch {
-                                    when (val result = safeApiCall("NavTab.leaveGroup") {
+                                    when (val result = safeApiMutation("NavTab.leaveGroup") {
                                         RetrofitClient.groupService.leaveGroup(groupId)
                                     }) {
                                         is NetworkResult.Success -> {
@@ -564,7 +566,7 @@ fun NavTab(
                             }
                             Button({
                                 coroutineScope.launch {
-                                    when (val result = safeApiCall("NavTab.deleteGroup") {
+                                    when (val result = safeApiMutation("NavTab.deleteGroup") {
                                         RetrofitClient.groupService.deleteGroup(groupId)
                                     }) {
                                         is NetworkResult.Success -> {

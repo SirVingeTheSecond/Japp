@@ -26,7 +26,7 @@ import com.japp.AppDestinations
 import com.japp.api.NetworkResult
 import com.japp.api.RetrofitClient
 import com.japp.api.responses.group.CreateGroupRequest
-import com.japp.api.safeApiCall
+import com.japp.api.safeApiMutation
 import com.japp.composables.GroupIcon
 import com.japp.ui.rememberSnackbar
 import kotlinx.coroutines.launch
@@ -54,7 +54,7 @@ fun CreateGroupScreen(navController: NavController? = null) {
         isSubmitting = true
 
         coroutineScope.launch {
-            when (val result = safeApiCall("CreateGroupScreen.create") {
+            when (val result = safeApiMutation("CreateGroupScreen.create") {
                 RetrofitClient.groupService.createGroup(
                     CreateGroupRequest(name, descript)
                 )

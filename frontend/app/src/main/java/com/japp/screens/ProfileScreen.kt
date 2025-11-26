@@ -44,7 +44,7 @@ import com.japp.api.CredentialsStorage
 import com.japp.api.NetworkResult
 import com.japp.api.RetrofitClient
 import com.japp.api.responses.auth.UserDto
-import com.japp.api.safeApiCall
+import com.japp.api.safeApiQuery
 import com.japp.composables.ErrorWithRetry
 import com.japp.ui.state.UiState
 import com.japp.ui.theme.Dimens
@@ -71,7 +71,7 @@ fun ProfileScreen(navController: NavController) {
     }
 
     LaunchedEffect(refreshKey) {
-        when (val result = safeApiCall("ProfileScreen.user") {
+        when (val result = safeApiQuery("ProfileScreen.user") {
             RetrofitClient.userService.getMyUser()
         }) {
             is NetworkResult.Success -> userState = UiState.Success(result.data)
@@ -79,7 +79,6 @@ fun ProfileScreen(navController: NavController) {
                 if (userState !is UiState.Success) {
                     userState = UiState.Error(result.message)
                 }
-                // else keep cached Success state
             }
         }
         isRefreshing = false

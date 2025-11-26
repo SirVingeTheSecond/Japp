@@ -67,6 +67,7 @@ import com.japp.composables.ExpenseDetailCard
 import com.japp.composables.GroupIcon
 import com.japp.composables.GroupMemberDetailCard
 import com.japp.rememberFabButton
+import com.japp.ui.rememberSnackbar
 import com.japp.ui.state.UiState
 import com.journeyapps.barcodescanner.BarcodeEncoder
 import kotlinx.coroutines.launch
@@ -302,19 +303,19 @@ fun NavTab(
 ) {
     val navController = rememberNavController()
     val coroutineScope = rememberCoroutineScope()
+    val snackbar = rememberSnackbar()
     val groupOwner = groupMembers.value.find { dto -> dto.isOwner }
 
     var refreshGroupMembersKey by remember { mutableIntStateOf(0) }
     var leaving by remember { mutableStateOf(false) }
     var deleting by remember { mutableStateOf(false) }
-    var actionError by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(refreshGroupMembersKey) {
         when (val result = safeApiCall("NavTab.refreshMembers") {
             RetrofitClient.groupService.getGroupMembers(GROUP_ID)
         }) {
             is NetworkResult.Success -> groupMembers.value = result.data
-            is NetworkResult.Error -> actionError = result.message
+            is NetworkResult.Error -> snackbar.showError(result.message)
         }
     }
 
@@ -450,15 +451,6 @@ fun NavTab(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
 
-                    actionError?.let { error ->
-                        Text(
-                            text = error,
-                            color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.bodySmall,
-                            modifier = Modifier.padding(vertical = 8.dp)
-                        )
-                    }
-
                     Button(
                         onClick = { leaving = true },
                         colors = ButtonDefaults.buttonColors(
@@ -519,6 +511,7 @@ fun NavTab(
                                         RetrofitClient.groupService.leaveGroup(groupId)
                                     }) {
                                         is NetworkResult.Success -> {
+                                            snackbar.showSuccess("Left the group")
                                             outerNavController?.popBackStack(
                                                 AppDestinations.HOME.route,
                                                 false
@@ -526,7 +519,7 @@ fun NavTab(
                                         }
 
                                         is NetworkResult.Error -> {
-                                            actionError = result.message
+                                            snackbar.showError(result.message)
                                             leaving = false
                                         }
                                     }
@@ -575,6 +568,7 @@ fun NavTab(
                                         RetrofitClient.groupService.deleteGroup(groupId)
                                     }) {
                                         is NetworkResult.Success -> {
+                                            snackbar.showSuccess("Group deleted")
                                             outerNavController?.popBackStack(
                                                 AppDestinations.HOME.route,
                                                 false
@@ -582,7 +576,7 @@ fun NavTab(
                                         }
 
                                         is NetworkResult.Error -> {
-                                            actionError = result.message
+                                            snackbar.showError(result.message)
                                             deleting = false
                                         }
                                     }

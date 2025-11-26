@@ -30,6 +30,7 @@ import com.japp.api.responses.group.GroupPreviewDto
 import com.japp.api.responses.group.JoinGroupRequest
 import com.japp.api.safeApiCall
 import com.japp.composables.GroupIcon
+import com.japp.ui.rememberSnackbar
 import com.japp.ui.state.UiState
 import kotlinx.coroutines.launch
 
@@ -42,10 +43,10 @@ fun JoinGroupScreen(navController: NavController? = null, inviteCode: String?) {
 
     val code = inviteCode.split("-").last()
     val coroutineScope = rememberCoroutineScope()
+    val snackbar = rememberSnackbar()
 
     var groupState by remember { mutableStateOf<UiState<GroupPreviewDto>>(UiState.Loading) }
     var isJoining by remember { mutableStateOf(false) }
-    var joinError by remember { mutableStateOf<String?>(null) }
 
     // Fetch group!
     LaunchedEffect(Unit) {
@@ -59,18 +60,19 @@ fun JoinGroupScreen(navController: NavController? = null, inviteCode: String?) {
 
     fun joinGroup() {
         isJoining = true
-        joinError = null
 
         coroutineScope.launch {
             when (val result = safeApiCall("JoinGroupScreen.join") {
                 RetrofitClient.groupService.joinGroup(JoinGroupRequest(code))
             }) {
                 is NetworkResult.Success -> {
+                    val groupName = (groupState as? UiState.Success)?.data?.name ?: "the group"
+                    snackbar.showSuccess("Joined $groupName!")
                     GROUP_ID = result.data.id
                     navController?.navigate(AppDestinations.GROUP.route)
                 }
                 is NetworkResult.Error -> {
-                    joinError = result.message
+                    snackbar.showError(result.message, onRetry = { joinGroup() })
                     isJoining = false
                 }
             }
@@ -106,7 +108,7 @@ fun JoinGroupScreen(navController: NavController? = null, inviteCode: String?) {
                     verticalArrangement = Arrangement.spacedBy(30.dp)
                 ) {
                     Text(
-                        "You have been invited to join:",
+                        "You have been invited to join",
                         style = MaterialTheme.typography.headlineSmall,
                         textAlign = TextAlign.Center
                     )
@@ -124,19 +126,11 @@ fun JoinGroupScreen(navController: NavController? = null, inviteCode: String?) {
                         Text("Member count: ${group.memberCount}")
                     }
 
-                    joinError?.let {
-                        Text(
-                            text = it,
-                            color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                    }
-
                     Button(
                         onClick = { joinGroup() },
                         enabled = !isJoining
                     ) {
-                        Text(if (isJoining) "Joining..." else "Join group!")
+                        Text(if (isJoining) "Joining..." else "Join group")
                     }
                 }
             }

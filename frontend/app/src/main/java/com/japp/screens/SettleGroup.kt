@@ -32,6 +32,7 @@ import com.japp.api.responses.settlement.CreateSettlementRequest
 import com.japp.api.responses.settlement.GroupSettlementSuggestionsDto
 import com.japp.api.responses.settlement.SettlementSuggestionDto
 import com.japp.api.safeApiCall
+import com.japp.ui.rememberSnackbar
 import com.japp.ui.state.UiState
 import kotlinx.coroutines.launch
 
@@ -40,11 +41,11 @@ fun SettleGroup(
     navController: NavController? = null
 ) {
     val coroutineScope = rememberCoroutineScope()
+    val snackbar = rememberSnackbar()
 
     var suggestionsState by remember { mutableStateOf<UiState<GroupSettlementSuggestionsDto>>(UiState.Loading) }
     var userId by remember { mutableStateOf<Int?>(null) }
     var isSubmitting by remember { mutableStateOf(false) }
-    var actionError by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
         safeApiCall("SettleGroup.user") {
@@ -127,18 +128,16 @@ fun SettleGroup(
 
                         Button(
                             onClick = {
-                                actionError = null
-
                                 val currentUserId = userId
                                 if (currentUserId == null) {
-                                    actionError = "User info not loaded yet"
+                                    snackbar.showError("User info not loaded yet")
                                     return@Button
                                 }
 
                                 val mySuggestions = suggestions.filter { it.fromUserId == currentUserId }
 
                                 if (mySuggestions.isEmpty()) {
-                                    actionError = "You can only settle your own debts. You do not owe anything in this group."
+                                    snackbar.showError("You can only settle your own debts. You do not owe anything in this group.")
                                     return@Button
                                 }
 
@@ -159,13 +158,14 @@ fun SettleGroup(
                                             is NetworkResult.Success -> { /* Settlement created */ }
                                             is NetworkResult.Error -> {
                                                 hasError = true
-                                                actionError = result.message
+                                                snackbar.showError(result.message)
                                             }
                                         }
                                         remaining -= 1
                                         if (remaining == 0) {
                                             isSubmitting = false
                                             if (!hasError) {
+                                                snackbar.showSuccess("Settlements created!")
                                                 navController?.navigateUp()
                                             }
                                         }
@@ -179,12 +179,6 @@ fun SettleGroup(
                         }
                     }
                 }
-            }
-
-            Spacer(Modifier.height(12.dp))
-
-            actionError?.let {
-                Text(it, color = MaterialTheme.colorScheme.error)
             }
         }
     }

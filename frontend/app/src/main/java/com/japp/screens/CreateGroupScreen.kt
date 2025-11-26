@@ -28,6 +28,7 @@ import com.japp.api.RetrofitClient
 import com.japp.api.responses.group.CreateGroupRequest
 import com.japp.api.safeApiCall
 import com.japp.composables.GroupIcon
+import com.japp.ui.rememberSnackbar
 import kotlinx.coroutines.launch
 
 
@@ -35,13 +36,13 @@ import kotlinx.coroutines.launch
 @Composable
 fun CreateGroupScreen(navController: NavController? = null) {
     val coroutineScope = rememberCoroutineScope()
+    val snackbar = rememberSnackbar()
 
     var name by remember { mutableStateOf("") }
     var descript by remember { mutableStateOf("") }
     var nameValid by remember { mutableStateOf(true) }
     var descriptValid by remember { mutableStateOf(true) }
     var isSubmitting by remember { mutableStateOf(false) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
 
     fun createGroup() {
         if (!nameValid || !descriptValid) return
@@ -51,7 +52,6 @@ fun CreateGroupScreen(navController: NavController? = null) {
         }
 
         isSubmitting = true
-        errorMessage = null
 
         coroutineScope.launch {
             when (val result = safeApiCall("CreateGroupScreen.create") {
@@ -60,10 +60,11 @@ fun CreateGroupScreen(navController: NavController? = null) {
                 )
             }) {
                 is NetworkResult.Success -> {
+                    snackbar.showSuccess("Group \"$name\" created!")
                     navController?.navigate(AppDestinations.HOME.route)
                 }
                 is NetworkResult.Error -> {
-                    errorMessage = result.message
+                    snackbar.showError(result.message, onRetry = { createGroup() })
                     isSubmitting = false
                 }
             }
@@ -116,14 +117,6 @@ fun CreateGroupScreen(navController: NavController? = null) {
                         }
                     }
                 )
-
-                errorMessage?.let {
-                    Text(
-                        text = it,
-                        color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
 
                 Button(
                     onClick = { createGroup() },

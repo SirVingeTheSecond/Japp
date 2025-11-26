@@ -1,8 +1,13 @@
 package com.japp.screens
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowRight
+import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
@@ -175,49 +180,69 @@ fun SettleGroup(
                             Spacer(Modifier.height(12.dp))
 
                             pendingToConfirm.forEach { settlement ->
-                                Card(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(vertical = 4.dp),
-                                    colors = CardDefaults.cardColors(
-                                        containerColor = MaterialTheme.colorScheme.secondaryContainer
-                                    )
-                                ) {
-                                    Column(
+                                key (settlement.id) {
+                                    var expanded by remember { mutableStateOf(false) }
+                                    Card(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .padding(16.dp)
+                                            .padding(vertical = 4.dp)
+                                            .clickable(onClick = { expanded = !expanded }),
+                                        colors = CardDefaults.cardColors(
+                                            containerColor = MaterialTheme.colorScheme.secondaryContainer
+                                        )
                                     ) {
-                                        Text(
-                                            "${settlement.fromUserName} paid you",
-                                            style = MaterialTheme.typography.bodyLarge,
-                                            color = MaterialTheme.colorScheme.onSecondaryContainer
-                                        )
-                                        Text(
-                                            "${settlement.amount} DKK",
-                                            style = MaterialTheme.typography.headlineSmall,
-                                            color = MaterialTheme.colorScheme.primary
-                                        )
-                                        Spacer(Modifier.height(8.dp))
-
-                                        SlideToConfirm(
-                                            onConfirm = {
-                                                coroutineScope.launch {
-                                                    when (safeApiCall("SettleGroup.complete") {
-                                                        RetrofitClient.settlementService.completeSettlement(settlement.id)
-                                                    }) {
-                                                        is NetworkResult.Success -> {
-                                                            refreshKey++
-                                                        }
-                                                        is NetworkResult.Error -> {
-                                                            createError = "Failed to confirm payment"
-                                                        }
-                                                    }
+                                        Column(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(16.dp)
+                                        ) {
+                                            Row(
+                                                Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Column() {
+                                                    Text(
+                                                        "${settlement.fromUserName} paid you",
+                                                        style = MaterialTheme.typography.bodyLarge,
+                                                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                                                    )
+                                                    Text(
+                                                        "${settlement.amount} DKK",
+                                                        style = MaterialTheme.typography.headlineSmall,
+                                                        color = MaterialTheme.colorScheme.primary
+                                                    )
                                                 }
-                                            },
-                                            text = "Slide to confirm received",
-                                            enabled = !isCreatingSettlements
-                                        )
+                                                Text(
+                                                    if (expanded) "Tap to collapse" else "Tap to expand",
+                                                    style = MaterialTheme.typography.labelMedium,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                            }
+                                            if (expanded) {
+                                                Spacer(Modifier.height(8.dp))
+
+                                                SlideToConfirm(
+                                                    onConfirm = {
+                                                        coroutineScope.launch {
+                                                            when (safeApiCall("SettleGroup.complete") {
+                                                                RetrofitClient.settlementService.completeSettlement(settlement.id)
+                                                            }) {
+                                                                is NetworkResult.Success -> {
+                                                                    refreshKey++
+                                                                }
+                                                                is NetworkResult.Error -> {
+                                                                    createError = "Failed to confirm payment"
+                                                                }
+                                                            }
+                                                        }
+                                                    },
+                                                    trackColor = MaterialTheme.colorScheme.onSecondary,
+                                                    text = "Slide to confirm received",
+                                                    enabled = !isCreatingSettlements
+                                                )
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -303,10 +328,22 @@ fun SettleGroup(
                                         .padding(vertical = 4.dp),
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
-                                    Text(
-                                        "${suggestion.fromUserName} → ${suggestion.toUserName}",
-                                        style = MaterialTheme.typography.bodyLarge
-                                    )
+                                    Row(
+
+                                    ) {
+                                        Text(
+                                            suggestion.fromUserName,
+                                            style = MaterialTheme.typography.bodyLarge
+                                        )
+                                        Icon(
+                                            Icons.AutoMirrored.Default.ArrowRight,
+                                            ""
+                                        )
+                                        Text(
+                                            suggestion.toUserName,
+                                            style = MaterialTheme.typography.bodyLarge
+                                        )
+                                    }
                                     Text(
                                         "${suggestion.amount} DKK",
                                         style = MaterialTheme.typography.bodyMedium,

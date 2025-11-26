@@ -1,6 +1,7 @@
 package com.japp.services
 
 import com.japp.models.*
+import com.japp.models.domain.Group
 import com.japp.models.dto.*
 import com.japp.models.error.AppError
 import com.japp.services.interfaces.ISettlementRepository
@@ -25,6 +26,16 @@ class SettlementService(
     private val messageService: MessageService,
     private val notificationService: NotificationService
 ) {
+
+    private data class SettlementCompletionData(
+        val settlementDto: SettlementDto,
+        val currentUsername: String?,
+        val fromUsername: String?,
+        val group: Group?,
+        val members: List<Int>,
+        val groupId: Int,
+        val amount: Double
+    )
 
     suspend fun createSettlement(
         request: CreateSettlementRequest,
@@ -154,11 +165,6 @@ class SettlementService(
     ): Result<SettlementDto, AppError> {
         return withContext(Dispatchers.IO) {
             try {
-                var currentUsername: String? = null
-                var fromUsername: String? = null
-                var groupId: Int? = null
-                var amount: Double? = null
-
                 val completionResult = transaction {
                     val settlement = settlementRepository.findById(settlementId)
                         ?: return@transaction Result.Failure(AppError.NotFound("Settlement", settlementId))
@@ -189,54 +195,59 @@ class SettlementService(
                     val currentUser = userRepository.findById(userId)
                     val fromUser = userRepository.findById(settlement.fromUserId)
                     val toUser = userRepository.findById(updatedSettlement.toUserId)
+                    val group = groupRepository.findById(settlement.groupId)
+                    val members = groupRepository.getMembers(settlement.groupId)
 
-                    currentUsername = currentUser?.username
-                    fromUsername = fromUser?.username
-                    groupId = settlement.groupId
-                    amount = settlement.amount
-
-                    Result.Success(updatedSettlement.toDto(
-                        fromUserName = fromUser?.username ?: "Unknown",
-                        toUserName = toUser?.username ?: "Unknown"
-                    ))
+                    Result.Success(
+                        SettlementCompletionData(
+                            settlementDto = updatedSettlement.toDto(
+                                fromUserName = fromUser?.username ?: "Unknown",
+                                toUserName = toUser?.username ?: "Unknown"
+                            ),
+                            currentUsername = currentUser?.username,
+                            fromUsername = fromUser?.username,
+                            group = group,
+                            members = members,
+                            groupId = settlement.groupId,
+                            amount = settlement.amount
+                        )
+                    )
                 }
 
-                if (completionResult is Result.Success && groupId != null) {
-                    activityService.logSettlementCompleted(
-                        groupId = groupId!!,
-                        userId = userId,
-                        settlementId = settlementId,
-                        fromUserId = completionResult.value.fromUserId,
-                        amount = amount ?: 0.0
-                    )
+                when (completionResult) {
+                    is Result.Success -> {
+                        val data = completionResult.value
 
-                    messageService.createSystemMessage(
-                        groupId = groupId,
-                        content = "${currentUsername ?: "Someone"} confirmed payment from ${fromUsername ?: "Someone"} - ${amount ?: 0.0} DKK"
-                    )
+                        activityService.logSettlementCompleted(
+                            groupId = data.groupId,
+                            userId = userId,
+                            settlementId = settlementId,
+                            fromUserId = data.settlementDto.fromUserId,
+                            amount = data.amount
+                        )
 
-                    launch(Dispatchers.IO) {
-                        try {
-                            val group = groupRepository.findById(groupId!!)
-                            val members = groupRepository.getMembers(groupId!!)
+                        messageService.createSystemMessage(
+                            groupId = data.groupId,
+                            content = "${data.currentUsername ?: "Someone"} confirmed payment from ${data.fromUsername ?: "Someone"} - ${data.amount} DKK"
+                        )
 
-                            if (group != null) {
+                        launch(Dispatchers.IO) {
+                            if (data.group != null) {
                                 notificationService.notifySettlementCompleted(
-                                    groupId = groupId,
-                                    groupName = group.name,
-                                    fromUsername = fromUsername ?: "Someone",
-                                    toUsername = currentUsername ?: "Someone",
-                                    amount = amount ?: 0.0,
-                                    notifyUserIds = members
+                                    groupId = data.groupId,
+                                    groupName = data.group.name,
+                                    fromUsername = data.fromUsername ?: "Someone",
+                                    toUsername = data.currentUsername ?: "Someone",
+                                    amount = data.amount,
+                                    notifyUserIds = data.members
                                 )
                             }
-                        } catch (_: Exception) {
-
                         }
-                    }
-                }
 
-                completionResult
+                        Result.Success(data.settlementDto)
+                    }
+                    is Result.Failure -> completionResult
+                }
             } catch (e: Exception) {
                 Result.Failure(
                     AppError.Internal(e.message ?: "Failed to complete settlement")

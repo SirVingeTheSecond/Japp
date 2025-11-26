@@ -1,7 +1,9 @@
 package com.japp.services
 
 import com.japp.models.*
+import com.japp.models.domain.Group
 import com.japp.models.domain.Message
+import com.japp.models.domain.User
 import com.japp.models.dto.*
 import com.japp.models.error.AppError
 import com.japp.services.interfaces.IGroupRepository
@@ -24,6 +26,13 @@ class MessageService(
     private val notificationService: NotificationService
 ) {
 
+    private data class MessageCreationData(
+        val messageDto: MessageDto,
+        val group: Group?,
+        val sender: User?,
+        val members: List<Int>
+    )
+
     suspend fun createMessage(
         request: CreateMessageRequest,
         userId: Int
@@ -33,7 +42,7 @@ class MessageService(
             is Result.Success -> {
                 withContext(Dispatchers.IO) {
                     try {
-                        val messageDto = transaction {
+                        val result = transaction {
                             if (!groupRepository.isMember(request.groupId, userId)) {
                                 return@transaction null
                             }
@@ -45,10 +54,20 @@ class MessageService(
                                 messageType = MessageType.USER
                             )
 
-                            toMessageDto(message)
+                            val messageDto = toMessageDto(message)
+                            val group = groupRepository.findById(request.groupId)
+                            val sender = userRepository.findById(userId)
+                            val members = groupRepository.getMembers(request.groupId)
+
+                            MessageCreationData(
+                                messageDto = messageDto,
+                                group = group,
+                                sender = sender,
+                                members = members
+                            )
                         }
 
-                        if (messageDto == null) {
+                        if (result == null) {
                             return@withContext Result.Failure(
                                 AppError.NotMember(request.groupId)
                             )
@@ -62,39 +81,31 @@ class MessageService(
                                 type = WebSocketMessageType.NEW_MESSAGE,
                                 groupId = request.groupId,
                                 userId = userId,
-                                message = messageDto
+                                message = result.messageDto
                             ),
                             excludeUserId = userId
                         )
 
                         launch(Dispatchers.IO) {
-                            try {
-                                val group = groupRepository.findById(request.groupId)
-                                val sender = userRepository.findById(userId)
-                                val members = groupRepository.getMembers(request.groupId)
+                            // Only notify users who are NOT connected via WebSocket
+                            val offlineMembers = result.members.filter { memberId ->
+                                memberId != userId && !webSocketManager.isUserConnected(memberId)
+                            }
 
-                                // Only notify users who are NOT connected via WebSocket
-                                val offlineMembers = members.filter { memberId ->
-                                    memberId != userId && !webSocketManager.isUserConnected(memberId)
+                            if (result.group != null && offlineMembers.isNotEmpty()) {
+                                offlineMembers.forEach { memberId ->
+                                    notificationService.notifyNewMessage(
+                                        groupId = request.groupId,
+                                        groupName = result.group.name,
+                                        senderUsername = result.sender?.username ?: "Someone",
+                                        messagePreview = request.content,
+                                        recipientUserId = memberId
+                                    )
                                 }
-
-                                if (group != null && offlineMembers.isNotEmpty()) {
-                                    offlineMembers.forEach { memberId ->
-                                        notificationService.notifyNewMessage(
-                                            groupId = request.groupId,
-                                            groupName = group.name,
-                                            senderUsername = sender?.username ?: "Someone",
-                                            messagePreview = request.content,
-                                            recipientUserId = memberId
-                                        )
-                                    }
-                                }
-                            } catch (_: Exception) {
-
                             }
                         }
 
-                        Result.Success(messageDto)
+                        Result.Success(result.messageDto)
                     } catch (e: Exception) {
                         Result.Failure(
                             AppError.Internal(e.message ?: "Failed to create message")

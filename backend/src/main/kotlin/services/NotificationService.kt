@@ -5,52 +5,19 @@ import com.google.firebase.messaging.FirebaseMessaging
 import com.google.firebase.messaging.Message
 import com.google.firebase.messaging.Notification
 import com.japp.services.interfaces.IUserRepository
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.slf4j.LoggerFactory
 
 /**
  * Service for sending push notifications via Firebase Cloud Messaging.
  */
-// Could utilize org.slf4j.LoggerFactory for logging but I digress
 class NotificationService(
     private val firebaseApp: FirebaseApp,
     private val userRepository: IUserRepository
 ) {
     private val logger = LoggerFactory.getLogger(NotificationService::class.java)
-
-    /**
-     * Send notification to a single user
-     */
-    suspend fun sendToUser(
-        userId: Int,
-        title: String,
-        body: String,
-        data: Map<String, String> = emptyMap()
-    ): Boolean {
-        return sendToUsers(listOf(userId), title, body, data)
-    }
-
-    /**
-     * Send notification to multiple users
-     */
-    suspend fun sendToUsers(
-        userIds: List<Int>,
-        title: String,
-        body: String,
-        data: Map<String, String> = emptyMap()
-    ): Boolean {
-        if (userIds.isEmpty()) {
-            logger.debug("No users to notify")
-            return false
-        }
-
-        val tokens = userRepository.getFcmTokensForUsers(userIds)
-        if (tokens.isEmpty()) {
-            logger.debug("No FCM tokens found for users: $userIds")
-            return false
-        }
-
-        return sendToTokens(tokens, title, body, data)
-    }
 
     /**
      * Send notification to specific FCM tokens
@@ -87,7 +54,6 @@ class NotificationService(
                 logger.error("Failed to send notification to token: ${token.take(20)}...", e)
                 failureCount++
 
-                // Invalid token - could queue for cleanup
                 if (e.message?.contains("registration-token-not-registered") == true) {
                     logger.warn("Invalid FCM token detected: ${token.take(20)}...")
                 }
@@ -108,29 +74,42 @@ class NotificationService(
         amount: Double,
         createdByUsername: String,
         memberUserIds: List<Int>,
-        excludeUserId: Int? = null
+        excludeUserId: Int?
     ) {
-        val targetUsers = if (excludeUserId != null) {
-            memberUserIds.filter { it != excludeUserId }
-        } else {
-            memberUserIds
-        }
+        withContext(Dispatchers.IO) {
+            try {
+                val targetUsers = if (excludeUserId != null) {
+                    memberUserIds.filter { it != excludeUserId }
+                } else {
+                    memberUserIds
+                }
 
-        sendToUsers(
-            userIds = targetUsers,
-            title = "New expense in $groupName",
-            body = "$createdByUsername added: $expenseDescription (${formatAmount(amount)})",
-            data = mapOf(
-                "type" to "expense_created",
-                "groupId" to groupId.toString(),
-                "groupName" to groupName
-            )
-        )
+                val tokens = transaction {
+                    userRepository.getFcmTokensForUsers(targetUsers)
+                }
+
+                if (tokens.isNotEmpty()) {
+                    sendToTokens(
+                        tokens = tokens,
+                        title = "New expense in $groupName",
+                        body = "$createdByUsername added: $expenseDescription (${formatAmount(amount)})",
+                        data = mapOf(
+                            "type" to "expense_created",
+                            "groupId" to groupId.toString(),
+                            "groupName" to groupName
+                        )
+                    )
+                }
+            } catch (e: Exception) {
+                logger.error("Failed to send expense notification", e)
+            }
+        }
     }
 
     /**
      * Notify users about a completed settlement
      */
+
     suspend fun notifySettlementCompleted(
         groupId: Int,
         groupName: String,
@@ -139,21 +118,34 @@ class NotificationService(
         amount: Double,
         notifyUserIds: List<Int>
     ) {
-        sendToUsers(
-            userIds = notifyUserIds,
-            title = "Settlement completed in $groupName",
-            body = "$fromUsername paid $toUsername ${formatAmount(amount)}",
-            data = mapOf(
-                "type" to "settlement_completed",
-                "groupId" to groupId.toString(),
-                "groupName" to groupName
-            )
-        )
+        withContext(Dispatchers.IO) {
+            try {
+                val tokens = transaction {
+                    userRepository.getFcmTokensForUsers(notifyUserIds)
+                }
+
+                if (tokens.isNotEmpty()) {
+                    sendToTokens(
+                        tokens = tokens,
+                        title = "Settlement completed in $groupName",
+                        body = "$fromUsername paid $toUsername ${formatAmount(amount)}",
+                        data = mapOf(
+                            "type" to "settlement_completed",
+                            "groupId" to groupId.toString(),
+                            "groupName" to groupName
+                        )
+                    )
+                }
+            } catch (e: Exception) {
+                logger.error("Failed to send settlement notification", e)
+            }
+        }
     }
 
     /**
      * Notify user about a new chat message
      */
+
     suspend fun notifyNewMessage(
         groupId: Int,
         groupName: String,
@@ -161,22 +153,34 @@ class NotificationService(
         messagePreview: String,
         recipientUserId: Int
     ) {
-        val preview = if (messagePreview.length > 50) {
-            messagePreview.take(50) + "..."
-        } else {
-            messagePreview
-        }
+        withContext(Dispatchers.IO) {
+            try {
+                val preview = if (messagePreview.length > 50) {
+                    messagePreview.take(50) + "..."
+                } else {
+                    messagePreview
+                }
 
-        sendToUser(
-            userId = recipientUserId,
-            title = "$senderUsername in $groupName",
-            body = preview,
-            data = mapOf(
-                "type" to "message_received",
-                "groupId" to groupId.toString(),
-                "groupName" to groupName
-            )
-        )
+                val tokens = transaction {
+                    userRepository.getFcmTokensForUsers(listOf(recipientUserId))
+                }
+
+                if (tokens.isNotEmpty()) {
+                    sendToTokens(
+                        tokens = tokens,
+                        title = "$senderUsername in $groupName",
+                        body = preview,
+                        data = mapOf(
+                            "type" to "message_received",
+                            "groupId" to groupId.toString(),
+                            "groupName" to groupName
+                        )
+                    )
+                }
+            } catch (e: Exception) {
+                logger.error("Failed to send message notification", e)
+            }
+        }
     }
 
     /**
@@ -188,16 +192,28 @@ class NotificationService(
         addedByUsername: String,
         newMemberUserId: Int
     ) {
-        sendToUser(
-            userId = newMemberUserId,
-            title = "Added to group",
-            body = "$addedByUsername added you to $groupName",
-            data = mapOf(
-                "type" to "added_to_group",
-                "groupId" to groupId.toString(),
-                "groupName" to groupName
-            )
-        )
+        withContext(Dispatchers.IO) {
+            try {
+                val tokens = transaction {
+                    userRepository.getFcmTokensForUsers(listOf(newMemberUserId))
+                }
+
+                if (tokens.isNotEmpty()) {
+                    sendToTokens(
+                        tokens = tokens,
+                        title = "Added to group",
+                        body = "$addedByUsername added you to $groupName",
+                        data = mapOf(
+                            "type" to "added_to_group",
+                            "groupId" to groupId.toString(),
+                            "groupName" to groupName
+                        )
+                    )
+                }
+            } catch (e: Exception) {
+                logger.error("Failed to send add member notification", e)
+            }
+        }
     }
 
     private fun formatAmount(amount: Double): String {

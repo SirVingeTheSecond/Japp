@@ -2,6 +2,8 @@ package com.japp.services
 
 import com.japp.models.*
 import com.japp.models.domain.Expense
+import com.japp.models.domain.Group
+import com.japp.models.domain.User
 import com.japp.models.dto.*
 import com.japp.models.error.AppError
 import com.japp.services.interfaces.IExpenseRepository
@@ -16,6 +18,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 
+
 class ExpenseService(
     private val expenseRepository: IExpenseRepository,
     private val groupRepository: IGroupRepository,
@@ -25,6 +28,13 @@ class ExpenseService(
     private val messageService: MessageService,
     private val notificationService: NotificationService
 ) {
+
+    private data class ExpenseCreationData(
+        val expenseDto: ExpenseDto,
+        val user: User?,
+        val group: Group?,
+        val members: List<Int>
+    )
 
     // HOLY SHIT THIS IS A HUGE FUNCTION
     suspend fun createExpense(
@@ -85,51 +95,55 @@ class ExpenseService(
                             groupRepository.updateTotalExpenses(request.groupId, request.amount)
 
                             val user = userRepository.findById(userId)
+                            val group = groupRepository.findById(request.groupId)
                             val expenseDto = toExpenseDto(expense, userId)
 
-                            Result.Success(Pair(expenseDto, user))
+                            Result.Success(
+                                ExpenseCreationData(
+                                    expenseDto = expenseDto,
+                                    user = user,
+                                    group = group,
+                                    members = members
+                                )
+                            )
                         }
 
                         when (result) {
                             is Result.Success -> {
-                                val (expenseDto, user) = result.value
+                                val data = result.value
 
+                                // Log activity
                                 activityService.logExpenseCreated(
                                     groupId = request.groupId,
                                     userId = userId,
-                                    expenseId = expenseDto.id,
+                                    expenseId = data.expenseDto.id,
                                     amount = request.amount,
                                     currency = request.currency.code,
                                     description = request.description
                                 )
 
+                                // System message
                                 messageService.createSystemMessage(
                                     groupId = request.groupId,
-                                    content = "${user?.username ?: "Someone"} added expense: ${request.description} - ${request.amount} ${request.currency.code}"
+                                    content = "${data.user?.username ?: "Someone"} added expense: ${request.description} - ${request.amount} ${request.currency.code}"
                                 )
 
+                                // Send notifications
                                 launch(Dispatchers.IO) {
-                                    try {
-                                        val group = groupRepository.findById(request.groupId)
-                                        val members = groupRepository.getMembers(request.groupId)
-
-                                        if (group != null) {
-                                            notificationService.notifyExpenseCreated(
-                                                groupId = request.groupId,
-                                                groupName = group.name,
-                                                expenseDescription = request.description,
-                                                amount = request.amount,
-                                                createdByUsername = user?.username ?: "Someone",
-                                                memberUserIds = members,
-                                                excludeUserId = userId
-                                            )
-                                        }
-                                    } catch (_: Exception) {
-                                        // Welp
+                                    if (data.group != null) {
+                                        notificationService.notifyExpenseCreated(
+                                            groupId = request.groupId,
+                                            groupName = data.group.name,
+                                            expenseDescription = request.description,
+                                            amount = request.amount,
+                                            createdByUsername = data.user?.username ?: "Someone",
+                                            memberUserIds = data.members,
+                                            excludeUserId = userId
+                                        )
                                     }
                                 }
 
-                                Result.Success(expenseDto)
+                                Result.Success(data.expenseDto)
                             }
                             is Result.Failure -> result
                         }

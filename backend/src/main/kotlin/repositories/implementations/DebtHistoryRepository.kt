@@ -2,7 +2,7 @@ package com.japp.repositories.implementations
 
 import com.japp.database.tables.DebtHistory
 import com.japp.models.domain.DebtHistory as DebtHistoryModel
-import com.japp.repositories.interfaces.IDebtHistoryRepository
+import com.japp.services.interfaces.IDebtHistoryRepository
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.and

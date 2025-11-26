@@ -1,5 +1,4 @@
-
-package routes
+package routes.expense
 
 import com.japp.database.DatabaseSchema
 import com.japp.models.SettlementStatus
@@ -19,7 +18,7 @@ import kotlinx.serialization.json.Json
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 
-class ExpenseSettlementFlowIntegrationTest : AnnotationSpec() {
+class ExpenseSettlementIntegrationTest : AnnotationSpec() {
 
     private val json = Json { ignoreUnknownKeys = true }
 
@@ -152,6 +151,21 @@ class ExpenseSettlementFlowIntegrationTest : AnnotationSpec() {
             token3 = user3Auth.token,
             groupId = group.id
         )
+    }
+
+    @Test
+    fun `should fail to create settlement without authentication`() = testApplication {
+        setupTestConfig()
+        application { module() }
+        val data = setupTestData()
+
+        val response = client.post("/api/settlements") {
+            contentType(ContentType.Application.Json)
+            // No Authorization header
+            setBody("""{"groupId": ${data.groupId}, "toUserId": ${data.user2Id}, "amount": 100.0}""")
+        }
+
+        response.status shouldBe HttpStatusCode.Unauthorized
     }
 
     @Test

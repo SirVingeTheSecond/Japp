@@ -21,9 +21,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SearchBar
 import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -40,23 +42,42 @@ import com.japp.AppDestinations
 import com.japp.api.NetworkResult
 import com.japp.api.RetrofitClient
 import com.japp.api.responses.group.GroupDto
-import com.japp.api.safeApiCall
+import com.japp.api.safeApiQuery
+import com.japp.composables.ErrorWithRetry
 import com.japp.composables.GroupIcon
 import com.japp.ui.state.UiState
+import com.japp.utils.LocalConnectivity
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun ShowGroupsScreen(navController: NavController? = null) {
     var groupsState by remember { mutableStateOf<UiState<List<GroupDto>>>(UiState.Loading) }
+    var isRefreshing by remember { mutableStateOf(false) }
+    var refreshKey by remember { mutableIntStateOf(0) }
 
-    LaunchedEffect(Unit) {
-        groupsState = when (val result = safeApiCall("ShowGroupsScreen.groups") {
+    val isConnected = LocalConnectivity.current
+    var wasDisconnected by remember { mutableStateOf(false) }
+
+    LaunchedEffect(isConnected) {
+        if (isConnected && wasDisconnected) {
+            refreshKey++
+        }
+        wasDisconnected = !isConnected
+    }
+
+    LaunchedEffect(refreshKey) {
+        when (val result = safeApiQuery("ShowGroupsScreen.groups") {
             RetrofitClient.groupService.getMyGroups()
         }) {
-            is NetworkResult.Success -> UiState.Success(result.data)
-            is NetworkResult.Error -> UiState.Error(result.message)
+            is NetworkResult.Success -> groupsState = UiState.Success(result.data)
+            is NetworkResult.Error -> {
+                if (groupsState !is UiState.Success) {
+                    groupsState = UiState.Error(result.message)
+                }
+            }
         }
+        isRefreshing = false
     }
 
     Box(
@@ -68,21 +89,40 @@ fun ShowGroupsScreen(navController: NavController? = null) {
                 CircularProgressIndicator()
             }
             is UiState.Error -> {
-                Text(
-                    text = (groupsState as UiState.Error).message,
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.padding(16.dp)
-                )
+                PullToRefreshBox(
+                    isRefreshing = isRefreshing,
+                    onRefresh = {
+                        isRefreshing = true
+                        refreshKey++
+                    }
+                ) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        ErrorWithRetry(
+                            message = (groupsState as UiState.Error).message,
+                            onRetry = { refreshKey++ }
+                        )
+                    }
+                }
             }
             is UiState.Success -> {
-                SimpleSearchBar(
-                    groups = (groupsState as UiState.Success<List<GroupDto>>).data,
-                    onGroupClick = { group ->
-                        GROUP_ID = group.id
-                        navController?.navigate(AppDestinations.GROUP.route)
+                PullToRefreshBox(
+                    isRefreshing = isRefreshing,
+                    onRefresh = {
+                        isRefreshing = true
+                        refreshKey++
                     }
-                )
+                ) {
+                    SimpleSearchBar(
+                        groups = (groupsState as UiState.Success<List<GroupDto>>).data,
+                        onGroupClick = { group ->
+                            GROUP_ID = group.id
+                            navController?.navigate(AppDestinations.GROUP.route)
+                        }
+                    )
+                }
             }
         }
     }
@@ -184,7 +224,7 @@ fun GroupCard(
             defaultElevation = 6.dp
         ),
         modifier = Modifier
-            .padding(15.dp)
+            .padding(10.dp)
             .fillMaxWidth()
             .height(100.dp),
         onClick = {

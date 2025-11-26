@@ -61,6 +61,9 @@ import com.japp.api.responses.expense.ExpenseSplitRequest
 import com.japp.api.responses.group.GroupDto
 import com.japp.api.responses.group.GroupMemberDto
 import com.japp.api.safeApiCall
+import com.japp.api.safeApiMutation
+import com.japp.api.safeApiQuery
+import com.japp.ui.rememberSnackbar
 import com.japp.ui.state.UiState
 import kotlinx.coroutines.launch
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
@@ -83,6 +86,7 @@ fun CreateExpenseScreen(
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
+    val snackbar = rememberSnackbar()
 
     var groupsState by remember { mutableStateOf<UiState<List<GroupDto>>>(UiState.Loading) }
     var selectedGroup by remember { mutableStateOf<GroupDto?>(null) }
@@ -126,7 +130,7 @@ fun CreateExpenseScreen(
     }
 
     LaunchedEffect(Unit) {
-        groupsState = when (val result = safeApiCall("CreateExpense.groups") {
+        groupsState = when (val result = safeApiQuery("CreateExpense.groups") {
             RetrofitClient.groupService.getMyGroups()
         }) {
             is NetworkResult.Success -> {
@@ -143,7 +147,7 @@ fun CreateExpenseScreen(
 
     LaunchedEffect(selectedGroup?.id) {
         val group = selectedGroup ?: return@LaunchedEffect
-        safeApiCall("CreateExpense.members") {
+        safeApiQuery("CreateExpense.members") {
             RetrofitClient.groupService.getGroupMembers(group.id)
         }.onSuccess {
             groupMembers = it
@@ -556,7 +560,7 @@ fun CreateExpenseScreen(
 
                             isSubmitting = true
                             coroutineScope.launch {
-                                when (val result = safeApiCall("CreateExpense.create") {
+                                when (val result = safeApiMutation("CreateExpense.create") {
                                     RetrofitClient.expenseService.createExpense(request)
                                 }) {
                                     is NetworkResult.Success -> {
@@ -624,20 +628,24 @@ fun CreateExpenseScreen(
                                             }
 
                                             uploadingAttachments = false
-                                            uploadProgress =
-                                                if (successCount == selectedImageUris.size) {
-                                                    "All attachments uploaded successfully!"
-                                                } else {
-                                                    "$successCount/${selectedImageUris.size} attachments uploaded"
-                                                }
 
-                                            kotlinx.coroutines.delay(1000)
+                                            val message = if (successCount == selectedImageUris.size) {
+                                                "Expense created with all attachments!"
+                                            } else {
+                                                "Expense created ($successCount/${selectedImageUris.size} attachments uploaded)"
+                                            }
+                                            snackbar.showSuccess(message)
+                                        } else {
+                                            snackbar.showSuccess("Expense created!")
                                         }
 
                                         navController?.navigateUp()
                                     }
 
                                     is NetworkResult.Error -> {
+                                        snackbar.showError(result.message, onRetry = {
+                                            // Re-trigger submit - the button click handler will be called
+                                        })
                                         errorMessage = result.message
                                         isSubmitting = false
                                     }

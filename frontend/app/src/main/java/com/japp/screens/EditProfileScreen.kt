@@ -35,7 +35,9 @@ import com.japp.api.NetworkResult
 import com.japp.api.RetrofitClient
 import com.japp.api.responses.auth.UserDto
 import com.japp.api.responses.user.UpdateUserRequest
-import com.japp.api.safeApiCall
+import com.japp.api.safeApiMutation
+import com.japp.api.safeApiQuery
+import com.japp.ui.rememberSnackbar
 import com.japp.ui.state.UiState
 import kotlinx.coroutines.launch
 
@@ -43,6 +45,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun EditProfileScreen(navController: NavController) {
     val scope = rememberCoroutineScope()
+    val snackbar = rememberSnackbar()
 
     var userState by remember { mutableStateOf<UiState<UserDto>>(UiState.Loading) }
 
@@ -52,10 +55,9 @@ fun EditProfileScreen(navController: NavController) {
     var profilePicture by remember { mutableStateOf("") }
 
     var saving by remember { mutableStateOf(false) }
-    var saveError by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
-        userState = when (val result = safeApiCall("EditProfile.load") {
+        userState = when (val result = safeApiQuery("EditProfile.load") {
             RetrofitClient.userService.getMyUser()
         }) {
             is NetworkResult.Success -> {
@@ -73,7 +75,6 @@ fun EditProfileScreen(navController: NavController) {
     fun save() {
         if (saving) return
         saving = true
-        saveError = null
 
         scope.launch {
             val request = UpdateUserRequest(
@@ -83,14 +84,15 @@ fun EditProfileScreen(navController: NavController) {
                 profilePicture = profilePicture.ifBlank { null }
             )
 
-            when (val result = safeApiCall("EditProfile.save") {
+            when (val result = safeApiMutation("EditProfile.save") {
                 RetrofitClient.userService.updateMyUser(request)
             }) {
                 is NetworkResult.Success -> {
+                    snackbar.showSuccess("Profile updated!")
                     navController.popBackStack()
                 }
                 is NetworkResult.Error -> {
-                    saveError = result.message
+                    snackbar.showError(result.message, onRetry = { save() })
                     saving = false
                 }
             }
@@ -176,11 +178,6 @@ fun EditProfileScreen(navController: NavController) {
                     )
 
                     Spacer(Modifier.height(20.dp))
-
-                    saveError?.let {
-                        Text(it, color = MaterialTheme.colorScheme.error)
-                        Spacer(Modifier.height(12.dp))
-                    }
 
                     Button(
                         onClick = { save() },

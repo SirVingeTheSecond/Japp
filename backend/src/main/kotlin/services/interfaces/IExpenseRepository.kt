@@ -1,4 +1,4 @@
-package com.japp.repositories.interfaces
+package com.japp.services.interfaces
 
 import com.japp.models.Currency
 import com.japp.models.ExpenseCategory

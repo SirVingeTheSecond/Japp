@@ -1,7 +1,9 @@
-package routes
+package routes.group
 
 import com.japp.database.DatabaseSchema
-import com.japp.models.dto.*
+import com.japp.models.dto.AuthResponse
+import com.japp.models.dto.GroupDto
+import com.japp.models.dto.GroupMemberDto
 import com.japp.module
 import io.kotest.core.spec.style.AnnotationSpec
 import io.kotest.matchers.collections.shouldHaveSize

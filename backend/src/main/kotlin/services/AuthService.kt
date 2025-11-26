@@ -5,7 +5,7 @@ import com.japp.models.domain.User
 import com.japp.models.dto.SignupRequest
 import com.japp.models.dto.LoginRequest
 import com.japp.models.dto.AuthResponse
-import com.japp.repositories.interfaces.IUserRepository
+import com.japp.services.interfaces.IUserRepository
 import com.japp.security.PasswordHasher
 import com.japp.validation.AuthValidator
 import com.japp.utils.toDto

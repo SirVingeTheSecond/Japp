@@ -5,7 +5,7 @@ import com.japp.database.tables.Messages
 import com.japp.models.MessageType
 import com.japp.models.domain.Message
 import com.japp.models.domain.MessageReadStatus
-import com.japp.repositories.interfaces.IMessageRepository
+import com.japp.services.interfaces.IMessageRepository
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.eq

@@ -4,6 +4,9 @@ on:
     branches: [main]
   workflow_dispatch:
 
+env:
+  firebase_secret: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+
 jobs:
   test:
     name: Build and Test
@@ -23,7 +26,12 @@ jobs:
           # Only cache dependencies, not build outputs
           cache: 'gradle'
           cache-dependency-path: 'backend/gradle/wrapper/gradle-wrapper.properties'
-      
+
+      - name: Copy FIREBASE_SECRET
+        env:
+          firebase_secret: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: echo $firebase_secret > ./src/main/resources/firebase-service-account.json
+        
       - name: Make gradlew executable
         run: chmod +x gradlew
       

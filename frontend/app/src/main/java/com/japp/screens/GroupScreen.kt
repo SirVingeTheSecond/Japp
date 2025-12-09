@@ -1,6 +1,10 @@
 package com.japp.screens
 
 import android.graphics.Bitmap
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -13,17 +17,23 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AddComment
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SecondaryTabRow
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Tab
@@ -250,7 +260,14 @@ fun GroupScreen(navController: NavController? = null) {
                             }
                         }
 
-                        NavTab(navController, me, groupMembers, groupExpenses, groupBalance, GROUP_ID)
+                        NavTab(
+                            navController,
+                            me,
+                            groupMembers,
+                            groupExpenses,
+                            groupBalance,
+                            GROUP_ID
+                        )
                     }
                 }
 
@@ -334,146 +351,139 @@ fun NavTab(
         "1" -> 0
         "2" -> 1
         "3" -> 2
-        "4" -> 3
         else -> 0
     }
 
-    Column {
-        SecondaryTabRow(
-            selectedTabIndex = selectedDestination,
-        ) {
-            Tab(
-                selected = selectedDestination == 0,
-                onClick = { navController.navigate("1") }
+    Scaffold(
+        floatingActionButton = {
+            AnimatedVisibility(
+                visible = currentRoute != "chatScreen",
+                enter = fadeIn(animationSpec = tween(300)),
+                exit = fadeOut(animationSpec = tween(300))
             ) {
-                Text("Members", Modifier.padding(10.dp))
-            }
-            Tab(
-                selected = selectedDestination == 1,
-                onClick = { navController.navigate("2") }
-            ) {
-                Text("Expenses", Modifier.padding(10.dp))
-            }
-            Tab(
-                selected = selectedDestination == 2,
-                onClick = { navController.navigate("3") }
-            ) {
-                Text("Chat", Modifier.padding(10.dp))
-            }
-            Tab(
-                selected = selectedDestination == 3,
-                onClick = { navController.navigate("4") }
-            ) {
-                Text("Options", Modifier.padding(10.dp))
-            }
-        }
-        NavHost(
-            navController = navController,
-            startDestination = "1"
-        ) {
-            composable("1") {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier
-                        .verticalScroll(
-                            state = rememberScrollState(),
-                            enabled = true,
-                        )
-                        .padding(horizontal = 8.dp)
+                FloatingActionButton(
+                    onClick = { navController.navigate("chatScreen") }
                 ) {
-                    groupMembers.value.forEach { memberDto ->
-                        val balance = groupBalance
-                            ?.balances
-                            ?.find { it.username == memberDto.username }
-                            ?.balance ?: 0.0
-                        GroupMemberDetailCard(
-                            groupBalance?.groupId ?: 0,
-                            memberDto,
-                            { refreshGroupMembersKey++ },
-                            balance = balance,
-                            me = me,
-                            groupOwner = groupOwner
-                        )
-                    }
+                    Icon(Icons.Filled.AddComment,
+                        contentDescription = "Open chat",
+                        modifier = Modifier.size(32.dp)
+                    )
                 }
             }
-
-            composable("2") {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier
-                        .verticalScroll(
-                            state = rememberScrollState(),
-                            enabled = true,
-                        )
-                        .padding(horizontal = 8.dp)
+        }
+    ) { paddingValues ->
+        Column(modifier = Modifier.padding(paddingValues)) {
+            SecondaryTabRow(
+                selectedTabIndex = selectedDestination,
+            ) {
+                Tab(
+                    selected = selectedDestination == 0,
+                    onClick = { navController.navigate("1") }
                 ) {
-                    if (groupExpenses.isEmpty()) {
-                        Spacer(Modifier.height(32.dp))
-                        Text(
-                            "No expenses yet",
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    } else {
-                        groupExpenses.forEach { expense ->
-                            ExpenseDetailCard(expense = expense)
+                    Text("Members", Modifier.padding(10.dp))
+                }
+                Tab(
+                    selected = selectedDestination == 1,
+                    onClick = { navController.navigate("2") }
+                ) {
+                    Text("Expenses", Modifier.padding(10.dp))
+                }
+                Tab(
+                    selected = selectedDestination == 2,
+                    onClick = { navController.navigate("3") }
+                ) {
+                    Text("Options", Modifier.padding(10.dp))
+                }
+            }
+            NavHost(
+                navController = navController,
+                startDestination = "1"
+            ) {
+                composable("1") {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier
+                            .verticalScroll(
+                                state = rememberScrollState(),
+                                enabled = true,
+                            )
+                            .padding(horizontal = 8.dp)
+                    ) {
+                        groupMembers.value.forEach { memberDto ->
+                            val balance = groupBalance
+                                ?.balances
+                                ?.find { it.username == memberDto.username }
+                                ?.balance ?: 0.0
+                            GroupMemberDetailCard(
+                                groupBalance?.groupId ?: 0,
+                                memberDto,
+                                { refreshGroupMembersKey++ },
+                                balance = balance,
+                                me = me,
+                                groupOwner = groupOwner
+                            )
                         }
                     }
                 }
-            }
 
-            composable("3") {
-                ChatScreen(groupId = groupId)
-            }
-
-            composable("4") {
-                var notificationsEnabled by remember { mutableStateOf(false) }
-
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.padding(16.dp)
-                ) {
-                    Text("Settings", style = MaterialTheme.typography.headlineSmall)
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
+                composable("2") {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 16.dp)
+                            .verticalScroll(
+                                state = rememberScrollState(),
+                                enabled = true,
+                            )
+                            .padding(horizontal = 8.dp)
                     ) {
+                        if (groupExpenses.isEmpty()) {
+                            Spacer(Modifier.height(32.dp))
+                            Text(
+                                "No expenses yet",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        } else {
+                            groupExpenses.forEach { expense ->
+                                ExpenseDetailCard(expense = expense)
+                            }
+                        }
+                    }
+                }
+                composable("3") {
+                    var notificationsEnabled by remember { mutableStateOf(false) }
+
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.padding(16.dp)
+                    ) {
+                        Text("Settings", style = MaterialTheme.typography.headlineSmall)
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 16.dp)
+                        ) {
+                            Text(
+                                "Enable notifications",
+                                modifier = Modifier.weight(1f)
+                            )
+
+                            Switch(
+                                checked = notificationsEnabled,
+                                onCheckedChange = { notificationsEnabled = it }
+                            )
+                        }
+                        HorizontalDivider()
+                        Text("Actions", style = MaterialTheme.typography.headlineSmall)
                         Text(
-                            "Enable notifications",
-                            modifier = Modifier.weight(1f)
+                            "Be careful",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
 
-                        Switch(
-                            checked = notificationsEnabled,
-                            onCheckedChange = { notificationsEnabled = it }
-                        )
-                    }
-                    HorizontalDivider()
-                    Text("Actions", style = MaterialTheme.typography.headlineSmall)
-                    Text(
-                        "Be careful",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-
-                    Button(
-                        onClick = { leaving = true },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color.Red,
-                            contentColor = Color.White
-                        ),
-                        shape = RoundedCornerShape(10.dp),
-                        modifier = Modifier
-                            .padding(top = 24.dp)
-                    ) {
-                        Text("LEAVE GROUP")
-                    }
-                    if (groupOwner?.userId == me?.id) {
                         Button(
-                            onClick = { deleting = true },
+                            onClick = { leaving = true },
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = Color.Red,
                                 contentColor = Color.White
@@ -482,12 +492,30 @@ fun NavTab(
                             modifier = Modifier
                                 .padding(top = 24.dp)
                         ) {
-                            Text("DELETE GROUP")
+                            Text("LEAVE GROUP")
+                        }
+                        if (groupOwner?.userId == me?.id) {
+                            Button(
+                                onClick = { deleting = true },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Color.Red,
+                                    contentColor = Color.White
+                                ),
+                                shape = RoundedCornerShape(10.dp),
+                                modifier = Modifier
+                                    .padding(top = 24.dp)
+                            ) {
+                                Text("DELETE GROUP")
+                            }
                         }
                     }
                 }
+                composable("chatScreen") {
+                    ChatScreen(groupId = groupId)
+                }
             }
         }
+
     }
 
     // Dialogs

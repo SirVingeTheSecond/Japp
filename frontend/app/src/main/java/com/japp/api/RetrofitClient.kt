@@ -48,7 +48,6 @@ object ErrorUtils {
         val retrofit = RetrofitClient.retrofit ?: return null
 
         return try {
-            // Explicitly declare <ErrorResponse>
             val converter: Converter<ResponseBody, ErrorResponse> =
                 retrofit.responseBodyConverter(
                     ErrorResponse::class.java,
@@ -56,7 +55,7 @@ object ErrorUtils {
                 )
 
             response.errorBody()?.let { converter.convert(it) }
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             return ErrorResponse(
                 response.code().toString(),
                 "Something went wrong. (${response.code()})",
@@ -70,7 +69,7 @@ object ErrorUtils {
         Toast.makeText(
             context,
             if (err != null) "${err.error}: ${err.message}" else "${response.code()}: ${response.message()}",
-            0
+            Toast.LENGTH_SHORT
         ).show()
     }
 }
@@ -120,7 +119,6 @@ interface JappService {
 
 // https://medium.com/@ratko.kostov21/jwt-authentication-in-android-using-retrofit-and-authenticator-b7b66e231295
 // https://notificare.com/blog/2023/04/21/android-retrofit-refresh-authentication/
-
 class AuthInterceptor(val context: Context) : Interceptor {
     override fun intercept(chain: Interceptor.Chain): Response {
         val credentials = CredentialsStorage.load(context)
@@ -136,7 +134,14 @@ class AuthInterceptor(val context: Context) : Interceptor {
         }.build()
 
         return try {
-            chain.proceed(newReq)
+            val response = chain.proceed(newReq)
+
+            // Signal session invalidation - MainActivity handles all cleanup
+            if (response.code == 401 || response.code == 403) {
+                SessionManager.invalidateSession()
+            }
+
+            response
         } catch (e: SocketTimeoutException) {
             // Handle timeout exception (e.g., log, retry, etc.)
             throw e // Or return an error response

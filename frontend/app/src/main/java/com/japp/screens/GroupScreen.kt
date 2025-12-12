@@ -56,6 +56,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
@@ -88,6 +89,7 @@ import com.japp.ui.rememberSnackbar
 import com.japp.ui.state.UiState
 import com.journeyapps.barcodescanner.BarcodeEncoder
 import kotlinx.coroutines.launch
+import kotlin.math.abs
 
 var GROUP_ID = -1
 
@@ -166,7 +168,7 @@ fun GroupScreen(navController: NavController? = null) {
         }
     }
 
-    // Unified PullToRefreshBox for all states
+    // for all states
     PullToRefreshBox(
         isRefreshing = isRefreshing,
         onRefresh = {
@@ -206,6 +208,8 @@ fun GroupScreen(navController: NavController? = null) {
                 ) {
                     GroupHeader(
                         group = groupData,
+                        groupBalance = groupBalance,
+                        me = me,
                         onShowQR = { qrOpen = true },
                         onSettleGroup = {
                             group?.let {
@@ -241,6 +245,8 @@ fun GroupScreen(navController: NavController? = null) {
 @Composable
 private fun GroupHeader(
     group: GroupDto,
+    groupBalance: GroupBalanceSummaryDto?,
+    me: UserDto?,
     onShowQR: () -> Unit,
     onSettleGroup: () -> Unit
 ) {
@@ -282,7 +288,14 @@ private fun GroupHeader(
             }
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(16.dp))
+
+        GroupBalanceBar(
+            groupBalance = groupBalance,
+            me = me
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
 
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -310,6 +323,53 @@ private fun GroupHeader(
         }
 
         Spacer(modifier = Modifier.height(24.dp))
+    }
+}
+
+@Composable
+private fun GroupBalanceBar(
+    groupBalance: GroupBalanceSummaryDto?,
+    me: UserDto?
+) {
+    val myBalance = groupBalance?.balances?.find { it.userId == me?.id }?.balance
+
+    val positiveColor = MaterialTheme.colorScheme.primaryContainer
+    val positiveContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+    val negativeColor = MaterialTheme.colorScheme.errorContainer
+    val negativeContentColor = MaterialTheme.colorScheme.onErrorContainer
+    val neutralColor = MaterialTheme.colorScheme.tertiaryContainer
+    val neutralContentColor = MaterialTheme.colorScheme.onTertiaryContainer
+
+    // HANDLE that floating point precision cuh
+    val (containerColor, contentColor, statusText) = when {
+        myBalance == null -> Triple(neutralColor, neutralContentColor, "Loading...")
+        myBalance > 0.01 -> Triple(
+            positiveColor,
+            positiveContentColor,
+            "You are owed ${String.format("%.2f", myBalance)}"
+        )
+        myBalance < -0.01 -> Triple(
+            negativeColor,
+            negativeContentColor,
+            "You owe ${String.format("%.2f", abs(myBalance))}"
+        )
+        else -> Triple(neutralColor, neutralContentColor, "All settled up")
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(containerColor)
+            .padding(vertical = 12.dp, horizontal = 16.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = statusText,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Medium,
+            color = contentColor
+        )
     }
 }
 
@@ -380,7 +440,7 @@ private fun QRCodeDialog(
     }
 }
 
-// Resuables below here
+// Reusables below here
 
 @Composable
 private fun EmptyStateMessage(message: String) {

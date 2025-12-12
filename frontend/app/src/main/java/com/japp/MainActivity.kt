@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.ManageAccounts
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material3.Badge
@@ -71,9 +72,11 @@ import com.japp.screens.ActivityScreen
 import com.japp.screens.CreateExpenseScreen
 import com.japp.screens.CreateGroupScreen
 import com.japp.screens.EditProfileScreen
+import com.japp.screens.GROUP_ID
 import com.japp.screens.GroupScreen
 import com.japp.screens.HomeScreen
 import com.japp.screens.JoinGroupScreen
+import com.japp.screens.OptionsScreen
 import com.japp.screens.ProfileScreen
 import com.japp.screens.ScanScreen
 import com.japp.screens.SettleGroup
@@ -210,6 +213,16 @@ fun JappApp() {
                 }
             },
             topBar = {
+                // Not the cleanest approach...
+                // Determine if we are on a screen that needs a back button
+                val isOnOptionsScreen = currentRoute?.startsWith("group/") == true
+                        && currentRoute.endsWith("/options")
+
+                val title = when {
+                    isOnOptionsScreen -> "Group Options"
+                    else -> currentDestination?.label ?: ""
+                }
+
                 CenterAlignedTopAppBar(
                     colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = MaterialTheme.colorScheme.surfaceContainer,
@@ -218,38 +231,55 @@ fun JappApp() {
                         actionIconContentColor = MaterialTheme.colorScheme.onSurface
                     ),
                     title = {
-                        Text(currentDestination?.label ?: "")
+                        Text(title)
                     },
                     navigationIcon = {
-                        IconButton(onClick = { navigate(AppDestinations.ACTIVITY.route) }) {
-                            // Lil red dot on top left icon
-                            BadgedBox(
-                                badge = {
-                                    Badge()
-                                }
-                            ) {
+                        if (isOnOptionsScreen) {
+                            // Back button for Options screen
+                            IconButton(onClick = { navController.popBackStack() }) {
                                 Icon(
-                                    imageVector = AppDestinations.ACTIVITY.icon,
-                                    contentDescription = "Activities",
+                                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                    contentDescription = "Back"
                                 )
+                            }
+                        } else {
+                            // Activity icon with badge for main screens
+                            IconButton(onClick = { navigate(AppDestinations.ACTIVITY.route) }) {
+                                BadgedBox(
+                                    badge = {
+                                        Badge()
+                                    }
+                                ) {
+                                    Icon(
+                                        imageVector = AppDestinations.ACTIVITY.icon,
+                                        contentDescription = "Activities",
+                                    )
+                                }
                             }
                         }
                     },
                     actions = {
-                        if (currentRoute == AppDestinations.GROUP.route) {
-                            IconButton(onClick = {
-                                GroupNavController.navController?.navigate("3") }) {
-                                Icon(
-                                    imageVector = Icons.Filled.Settings,
-                                    contentDescription = "Options"
-                                )
-                            }
-                        } else {
-                            IconButton(onClick = { navigate(AppDestinations.CREATEGROUP.route) }) {
-                                Icon(
-                                    imageVector = AppDestinations.CREATEGROUP.icon,
-                                    contentDescription = "Create Group"
-                                )
+                        // Only show actions when not on Options screen
+                        if (!isOnOptionsScreen) {
+                            if (currentRoute == AppDestinations.GROUP.route) {
+                                // Navigate to GROUP_OPTIONS as a separate screen
+                                IconButton(onClick = {
+                                    navController.navigate(
+                                        AppDestinations.CustomRoutes.GROUP_OPTIONS.withArgs(GROUP_ID)
+                                    )
+                                }) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Settings,
+                                        contentDescription = "Options"
+                                    )
+                                }
+                            } else {
+                                IconButton(onClick = { navigate(AppDestinations.CREATEGROUP.route) }) {
+                                    Icon(
+                                        imageVector = AppDestinations.CREATEGROUP.icon,
+                                        contentDescription = "Create Group"
+                                    )
+                                }
                             }
                         }
                     },
@@ -358,6 +388,7 @@ enum class AppDestinations(
     CREATEGROUP("Create Group", Icons.Default.GroupAdd, { navController -> CreateGroupScreen(navController) }),
     MYGROUPS("My Groups", Icons.Default.Groups, { navController -> ShowGroupsScreen(navController) }),
     GROUP("Group", Icons.Default.Group, { navController -> GroupScreen(navController) }),
+
     ACTIVITY("Activity", Icons.Default.Notifications, { navController -> ActivityScreen(navController) }),
     EDITPROFILE("EditProfile", Icons.Default.ManageAccounts, { navController -> EditProfileScreen(navController) });
 
@@ -404,6 +435,17 @@ enum class AppDestinations(
             arguments = listOf(navArgument("groupId") { type = NavType.IntType }),
             screen = { navController, backStackEntry ->
                 SettleGroup(navController, backStackEntry.arguments?.getInt("groupId"))
+            }
+        ),
+        GROUP_OPTIONS(
+            "Group Options",
+            route = "group/{groupId}/options",
+            buildRoute = { args ->
+                "group/${args[0]}/options"
+            },
+            arguments = listOf(navArgument("groupId") { type = NavType.IntType }),
+            screen = { navController, backStackEntry ->
+                OptionsScreen(navController, backStackEntry.arguments?.getInt("groupId") ?: -1)
             }
         );
 

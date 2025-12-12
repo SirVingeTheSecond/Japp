@@ -46,6 +46,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
@@ -71,6 +72,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.google.zxing.BarcodeFormat
 import com.japp.AppDestinations
+import com.japp.GroupNavController
 import com.japp.api.NetworkResult
 import com.japp.api.RetrofitClient
 import com.japp.api.responses.auth.UserDto
@@ -107,7 +109,7 @@ fun GroupScreen(navController: NavController? = null) {
     var isRefreshing by remember { mutableStateOf(false) }
     var refreshKey by remember { mutableIntStateOf(0) }
 
-    // Hook into action button
+    // Hook into global FAB (create expense)
     rememberFabButton {
         navController?.navigate(
             groupState.getOrNull()?.let {
@@ -128,7 +130,6 @@ fun GroupScreen(navController: NavController? = null) {
         try {
             groupState = UiState.Loading
 
-            // Group details
             groupState = when (val result = safeApiQuery("GroupScreen.group") {
                 RetrofitClient.groupService.getGroup(GROUP_ID)
             }) {
@@ -136,7 +137,6 @@ fun GroupScreen(navController: NavController? = null) {
                 is NetworkResult.Error -> UiState.Error(result.message)
             }
 
-            // Only fetch this if group loaded successfully
             if (groupState is UiState.Success) {
                 safeApiQuery("GroupScreen.members") {
                     RetrofitClient.groupService.getGroupMembers(GROUP_ID)
@@ -168,7 +168,6 @@ fun GroupScreen(navController: NavController? = null) {
         }
     }
 
-    // for all states
     PullToRefreshBox(
         isRefreshing = isRefreshing,
         onRefresh = {
@@ -181,9 +180,7 @@ fun GroupScreen(navController: NavController? = null) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator()
-                }
+                ) { CircularProgressIndicator() }
             }
 
             is UiState.Error -> {
@@ -261,10 +258,7 @@ private fun GroupHeader(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            GroupIcon(
-                content = group.name,
-                modifier = Modifier.size(80.dp)
-            )
+            GroupIcon(content = group.name, modifier = Modifier.size(80.dp))
             Column(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
@@ -290,10 +284,7 @@ private fun GroupHeader(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        GroupBalanceBar(
-            groupBalance = groupBalance,
-            me = me
-        )
+        GroupBalanceBar(groupBalance = groupBalance, me = me)
 
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -340,7 +331,6 @@ private fun GroupBalanceBar(
     val neutralColor = MaterialTheme.colorScheme.tertiaryContainer
     val neutralContentColor = MaterialTheme.colorScheme.onTertiaryContainer
 
-    // HANDLE that floating point precision cuh
     val (containerColor, contentColor, statusText) = when {
         myBalance == null -> Triple(neutralColor, neutralContentColor, "Loading...")
         myBalance > 0.01 -> Triple(
@@ -348,11 +338,13 @@ private fun GroupBalanceBar(
             positiveContentColor,
             "You are owed ${String.format("%.2f", myBalance)}"
         )
+
         myBalance < -0.01 -> Triple(
             negativeColor,
             negativeContentColor,
             "You owe ${String.format("%.2f", abs(myBalance))}"
         )
+
         else -> Triple(neutralColor, neutralContentColor, "All settled up")
     }
 
@@ -383,9 +375,7 @@ private fun QRCodeDialog(
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface
-            )
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
         ) {
             Column(
                 modifier = Modifier
@@ -420,9 +410,7 @@ private fun QRCodeDialog(
                     Box(
                         modifier = Modifier.size(200.dp),
                         contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator()
-                    }
+                    ) { CircularProgressIndicator() }
                 }
 
                 Text(
@@ -432,15 +420,13 @@ private fun QRCodeDialog(
                     textAlign = TextAlign.Center
                 )
 
-                TextButton(onClick = onDismiss) {
-                    Text("Done")
-                }
+                TextButton(onClick = onDismiss) { Text("Done") }
             }
         }
     }
 }
 
-// Reusables below here
+// Reusables
 
 @Composable
 private fun EmptyStateMessage(message: String) {
@@ -459,9 +445,7 @@ private fun EmptyStateMessage(message: String) {
 }
 
 @Composable
-private fun TabContentContainer(
-    content: @Composable () -> Unit
-) {
+private fun TabContentContainer(content: @Composable () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -470,7 +454,7 @@ private fun TabContentContainer(
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         content()
-        Spacer(modifier = Modifier.height(80.dp)) // Space for FAB
+        Spacer(modifier = Modifier.height(80.dp)) // space for chat FAB
     }
 }
 
@@ -493,6 +477,11 @@ fun NavTab(
     var leaving by remember { mutableStateOf(false) }
     var deleting by remember { mutableStateOf(false) }
 
+    DisposableEffect(navController) {
+        GroupNavController.navController = navController
+        onDispose { GroupNavController.navController = null }
+    }
+
     LaunchedEffect(refreshGroupMembersKey) {
         when (val result = safeApiQuery("NavTab.refreshMembers") {
             RetrofitClient.groupService.getGroupMembers(GROUP_ID)
@@ -508,7 +497,6 @@ fun NavTab(
     val selectedDestination = when (currentRoute) {
         "1" -> 0
         "2" -> 1
-        "3" -> 2
         else -> 0
     }
 
@@ -525,17 +513,9 @@ fun NavTab(
                     onClick = { navController.navigate("2") },
                     text = { Text("Expenses") }
                 )
-                Tab(
-                    selected = selectedDestination == 2,
-                    onClick = { navController.navigate("3") },
-                    text = { Text("Options") }
-                )
             }
 
-            NavHost(
-                navController = navController,
-                startDestination = "1"
-            ) {
+            NavHost(navController = navController, startDestination = "1") {
                 composable("1") {
                     MembersTabContent(
                         groupMembers = groupMembers.value,
@@ -602,6 +582,7 @@ fun NavTab(
                             snackbar.showSuccess("Left the group")
                             outerNavController?.popBackStack(AppDestinations.HOME.route, false)
                         }
+
                         is NetworkResult.Error -> {
                             snackbar.showError(result.message)
                             leaving = false
@@ -629,6 +610,7 @@ fun NavTab(
                             snackbar.showSuccess("Group deleted")
                             outerNavController?.popBackStack(AppDestinations.HOME.route, false)
                         }
+
                         is NetworkResult.Error -> {
                             snackbar.showError(result.message)
                             deleting = false
@@ -658,6 +640,7 @@ private fun MembersTabContent(
                     ?.balances
                     ?.find { it.username == memberDto.username }
                     ?.balance ?: 0.0
+
                 GroupMemberDetailCard(
                     groupId = groupBalance?.groupId ?: 0,
                     groupMember = memberDto,
@@ -697,7 +680,6 @@ private fun OptionsTabContent(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(24.dp)
     ) {
-        // Notifications Section
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(
                 text = "Notifications",
@@ -740,7 +722,6 @@ private fun OptionsTabContent(
 
         HorizontalDivider()
 
-        // DANGER ZONE JUST LIKE GITHUB YÅÅÅÅ
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(
                 text = "Danger Zone",
@@ -792,7 +773,7 @@ private fun OptionsTabContent(
             }
         }
 
-        Spacer(modifier = Modifier.height(80.dp)) // Space for FAB
+        Spacer(modifier = Modifier.height(80.dp))
     }
 }
 
@@ -809,9 +790,7 @@ private fun ConfirmationDialog(
     Dialog(onDismissRequest = onDismiss) {
         Card(
             shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface
-            )
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
         ) {
             Column(
                 modifier = Modifier
@@ -847,9 +826,7 @@ private fun ConfirmationDialog(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End)
                 ) {
-                    TextButton(onClick = onDismiss) {
-                        Text("Cancel")
-                    }
+                    TextButton(onClick = onDismiss) { Text("Cancel") }
 
                     if (isDestructive) {
                         Button(
@@ -858,13 +835,9 @@ private fun ConfirmationDialog(
                                 containerColor = MaterialTheme.colorScheme.error,
                                 contentColor = MaterialTheme.colorScheme.onError
                             )
-                        ) {
-                            Text(confirmText)
-                        }
+                        ) { Text(confirmText) }
                     } else {
-                        Button(onClick = onConfirm) {
-                            Text(confirmText)
-                        }
+                        Button(onClick = onConfirm) { Text(confirmText) }
                     }
                 }
             }

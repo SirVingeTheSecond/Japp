@@ -20,6 +20,7 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.ManageAccounts
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material3.Badge
@@ -58,6 +59,7 @@ import androidx.navigation.NavDeepLink
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import androidx.navigation.navDeepLink
@@ -122,7 +124,9 @@ object FabController {
     var state by mutableStateOf(FabState())
 }
 
-
+object GroupNavController {
+    var navController: NavController? = null
+}
 
 @Composable
 fun rememberFabButton(
@@ -149,6 +153,8 @@ fun JappApp() {
     val navController = rememberNavController()
     var currentDestination by rememberSaveable { mutableStateOf<AppDestinations?>(AppDestinations.HOME) }
     var notificationPermissionRequested by rememberSaveable { mutableStateOf(false) }
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
 
     // Connectivity state which is the single source of truth for entire app
     // Time constraints forced a pretty pragmatic solution ¯\_(ツ)_/¯
@@ -230,11 +236,21 @@ fun JappApp() {
                         }
                     },
                     actions = {
-                        IconButton(onClick = { navigate(AppDestinations.CREATEGROUP.route) }) {
-                            Icon(
-                                imageVector = AppDestinations.CREATEGROUP.icon,
-                                contentDescription = "Create Group"
-                            )
+                        if (currentRoute == AppDestinations.GROUP.route) {
+                            IconButton(onClick = {
+                                GroupNavController.navController?.navigate("3") }) {
+                                Icon(
+                                    imageVector = Icons.Filled.Settings,
+                                    contentDescription = "Options"
+                                )
+                            }
+                        } else {
+                            IconButton(onClick = { navigate(AppDestinations.CREATEGROUP.route) }) {
+                                Icon(
+                                    imageVector = AppDestinations.CREATEGROUP.icon,
+                                    contentDescription = "Create Group"
+                                )
+                            }
                         }
                     },
                 )

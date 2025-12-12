@@ -72,10 +72,6 @@ data class BalanceData(
     val owes: Double
 )
 
-// =============================================================================
-// Main Screen
-// =============================================================================
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Preview(showSystemUi = true)
 @Composable
@@ -195,13 +191,8 @@ fun HomeScreen(navController: NavController? = null) {
     }
 }
 
-// =============================================================================
-// Reusable Components
-// =============================================================================
+// Reusable Components below here
 
-/**
- * Reusable centered loading indicator.
- */
 @Composable
 private fun SectionLoadingIndicator() {
     Box(
@@ -218,9 +209,6 @@ private fun SectionLoadingIndicator() {
     }
 }
 
-/**
- * Reusable empty state text.
- */
 @Composable
 private fun EmptyStateText(message: String) {
     Text(
@@ -261,10 +249,6 @@ fun SectionHeader(
         }
     }
 }
-
-// =============================================================================
-// Balance Stats
-// =============================================================================
 
 @Composable
 fun QuickStats(balanceState: UiState<BalanceData>) {
@@ -368,10 +352,6 @@ fun BalancePill(
         }
     }
 }
-
-// =============================================================================
-// Activities Section
-// =============================================================================
 
 @Composable
 fun QuickActivities(
@@ -483,10 +463,6 @@ fun ActivityRow(activity: ActivityDto) {
         )
     }
 }
-
-// =============================================================================
-// Groups Section
-// =============================================================================
 
 @Composable
 fun QuickGroups(
@@ -623,10 +599,6 @@ fun GroupCard(
         }
     }
 }
-
-// =============================================================================
-// Utilities
-// =============================================================================
 
 @SuppressLint("SimpleDateFormat")
 @Composable

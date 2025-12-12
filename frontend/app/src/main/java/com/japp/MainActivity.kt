@@ -1,5 +1,7 @@
 package com.japp
 
+import android.app.Activity
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -38,6 +40,8 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -58,6 +62,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import androidx.navigation.navDeepLink
 import com.japp.api.CredentialsStorage
+import com.japp.api.SessionManager
 import com.japp.composables.OfflineBanner
 import com.japp.messaging.JappMessagingService
 import com.japp.screens.ActivityScreen
@@ -152,9 +157,25 @@ fun JappApp() {
     // Snackbar state for feedback messages
     val snackbarHostState = remember { SnackbarHostState() }
 
+    // Session expiration handling - all cleanup happens here
+    val sessionExpired by SessionManager.sessionExpired.collectAsState()
+
+    LaunchedEffect(sessionExpired) {
+        if (sessionExpired) {
+            // ALL THE CLEANUP HAPPENS HERE
+            ChatWebSocketClient.disconnect()
+            CredentialsStorage.clear(context)
+            SessionManager.resetSessionState()
+
+            val intent = Intent(context, StartupActivity::class.java)
+            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            context.startActivity(intent)
+            (context as? Activity)?.finish()
+        }
+    }
+
     if (!notificationPermissionRequested) {
         NotificationPermissionHandler { granted ->
-            notificationPermissionRequested = true
             if (granted) {
                 JappMessagingService.refreshToken(context)
             }
@@ -170,7 +191,7 @@ fun JappApp() {
             navController.navigate(route)
         }
     }
-    
+
     // Provide connectivity and snackbar state to all child composables
     CompositionLocalProvider(
         LocalConnectivity provides isConnected,
@@ -282,7 +303,7 @@ fun JappApp() {
                     .fillMaxSize()
                     .padding(innerPadding)
             ) {
-                // Offline banner which shows constantly when disconnected
+                // shows when disconnected
                 OfflineBanner(isOffline = !isConnected)
 
                 // Main content

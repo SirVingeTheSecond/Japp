@@ -22,7 +22,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AddComment
+import androidx.compose.material.icons.automirrored.filled.Message
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -41,6 +41,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
@@ -64,6 +65,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.google.zxing.BarcodeFormat
 import com.japp.AppDestinations
+import com.japp.GroupNavController
 import com.japp.api.NetworkResult
 import com.japp.api.RetrofitClient
 import com.japp.api.responses.auth.UserDto
@@ -71,7 +73,6 @@ import com.japp.api.responses.expense.ExpenseDto
 import com.japp.api.responses.expense.GroupBalanceSummaryDto
 import com.japp.api.responses.group.GroupDto
 import com.japp.api.responses.group.GroupMemberDto
-import com.japp.api.safeApiCall
 import com.japp.api.safeApiMutation
 import com.japp.api.safeApiQuery
 import com.japp.composables.ErrorWithRetry
@@ -335,6 +336,11 @@ fun NavTab(
     var leaving by remember { mutableStateOf(false) }
     var deleting by remember { mutableStateOf(false) }
 
+    DisposableEffect(navController) {
+        GroupNavController.navController = navController
+        onDispose { GroupNavController.navController = null }
+    }
+
     LaunchedEffect(refreshGroupMembersKey) {
         when (val result = safeApiQuery("NavTab.refreshMembers") {
             RetrofitClient.groupService.getGroupMembers(GROUP_ID)
@@ -350,21 +356,21 @@ fun NavTab(
     val selectedDestination = when (currentRoute) {
         "1" -> 0
         "2" -> 1
-        "3" -> 2
         else -> 0
     }
 
     Scaffold(
         floatingActionButton = {
             AnimatedVisibility(
-                visible = currentRoute != "chatScreen",
+                visible = currentRoute != "chatScreen" && currentRoute != "3",
                 enter = fadeIn(animationSpec = tween(300)),
                 exit = fadeOut(animationSpec = tween(300))
             ) {
                 FloatingActionButton(
                     onClick = { navController.navigate("chatScreen") }
                 ) {
-                    Icon(Icons.Filled.AddComment,
+                    Icon(
+                        Icons.AutoMirrored.Filled.Message,
                         contentDescription = "Open chat",
                         modifier = Modifier.size(32.dp)
                     )
@@ -387,12 +393,6 @@ fun NavTab(
                     onClick = { navController.navigate("2") }
                 ) {
                     Text("Expenses", Modifier.padding(10.dp))
-                }
-                Tab(
-                    selected = selectedDestination == 2,
-                    onClick = { navController.navigate("3") }
-                ) {
-                    Text("Options", Modifier.padding(10.dp))
                 }
             }
             NavHost(

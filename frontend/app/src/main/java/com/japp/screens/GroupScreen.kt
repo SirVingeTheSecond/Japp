@@ -12,28 +12,33 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.Logout
 import androidx.compose.material.icons.filled.AddComment
-import androidx.compose.material3.Icon
+import androidx.compose.material.icons.outlined.DeleteOutline
+import androidx.compose.material.icons.outlined.QrCode2
+import androidx.compose.material.icons.rounded.Handshake
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SecondaryTabRow
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Tab
@@ -51,10 +56,11 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.navigation.NavController
@@ -71,7 +77,6 @@ import com.japp.api.responses.expense.ExpenseDto
 import com.japp.api.responses.expense.GroupBalanceSummaryDto
 import com.japp.api.responses.group.GroupDto
 import com.japp.api.responses.group.GroupMemberDto
-import com.japp.api.safeApiCall
 import com.japp.api.safeApiMutation
 import com.japp.api.safeApiQuery
 import com.japp.composables.ErrorWithRetry
@@ -118,39 +123,40 @@ fun GroupScreen(navController: NavController? = null) {
     LaunchedEffect(GROUP_ID, refreshKey) {
         if (GROUP_ID == -1) return@LaunchedEffect
 
-        groupState = UiState.Loading
+        try {
+            groupState = UiState.Loading
 
-        // Group details
-        groupState = when (val result = safeApiQuery("GroupScreen.group") {
-            RetrofitClient.groupService.getGroup(GROUP_ID)
-        }) {
-            is NetworkResult.Success -> UiState.Success(result.data)
-            is NetworkResult.Error -> UiState.Error(result.message)
+            // Group details
+            groupState = when (val result = safeApiQuery("GroupScreen.group") {
+                RetrofitClient.groupService.getGroup(GROUP_ID)
+            }) {
+                is NetworkResult.Success -> UiState.Success(result.data)
+                is NetworkResult.Error -> UiState.Error(result.message)
+            }
+
+            // Only fetch this if group loaded successfully
+            if (groupState is UiState.Success) {
+                safeApiQuery("GroupScreen.members") {
+                    RetrofitClient.groupService.getGroupMembers(GROUP_ID)
+                }.onSuccess { groupMembers.value = it }
+
+                safeApiQuery("GroupScreen.balances") {
+                    RetrofitClient.expenseService.getGroupBalances(GROUP_ID)
+                }.onSuccess { groupBalance = it }
+
+                safeApiQuery("GroupScreen.expenses") {
+                    RetrofitClient.expenseService.getGroupExpenses(GROUP_ID)
+                }.onSuccess { groupExpenses = it }
+            }
+        } finally {
+            isRefreshing = false
         }
-
-        // Only fetch secondary data if group loaded successfully
-        if (groupState is UiState.Success) {
-            safeApiQuery("GroupScreen.members") {
-                RetrofitClient.groupService.getGroupMembers(GROUP_ID)
-            }.onSuccess { groupMembers.value = it }
-
-            safeApiQuery("GroupScreen.balances") {
-                RetrofitClient.expenseService.getGroupBalances(GROUP_ID)
-            }.onSuccess { groupBalance = it }
-
-            safeApiQuery("GroupScreen.expenses") {
-                RetrofitClient.expenseService.getGroupExpenses(GROUP_ID)
-            }.onSuccess { groupExpenses = it }
-        }
-
-        isRefreshing = false
     }
 
     val group = groupState.getOrNull()
 
     LaunchedEffect(group) {
         if (group != null) {
-            // Create QR code
             qrCode = BarcodeEncoder().encodeBitmap(
                 "japp://join/${group.id}-${group.inviteCode}",
                 BarcodeFormat.QR_CODE,
@@ -160,7 +166,14 @@ fun GroupScreen(navController: NavController? = null) {
         }
     }
 
-    Box {
+    // Unified PullToRefreshBox for all states
+    PullToRefreshBox(
+        isRefreshing = isRefreshing,
+        onRefresh = {
+            isRefreshing = true
+            refreshKey++
+        }
+    ) {
         when (groupState) {
             is UiState.Loading -> {
                 Box(
@@ -172,147 +185,232 @@ fun GroupScreen(navController: NavController? = null) {
             }
 
             is UiState.Error -> {
-                // Seems logical to allow refresh on error
-                PullToRefreshBox(
-                    isRefreshing = isRefreshing,
-                    onRefresh = {
-                        isRefreshing = true
-                        refreshKey++
-                    }
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        ErrorWithRetry(
-                            message = (groupState as UiState.Error).message,
-                            onRetry = { refreshKey++ }
-                        )
-                    }
+                    ErrorWithRetry(
+                        message = (groupState as UiState.Error).message,
+                        onRetry = { refreshKey++ }
+                    )
                 }
             }
 
             is UiState.Success -> {
                 val groupData = (groupState as UiState.Success<GroupDto>).data
 
-                PullToRefreshBox(
-                    isRefreshing = isRefreshing,
-                    onRefresh = {
-                        isRefreshing = true
-                        refreshKey++
-                    }
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.surface)
                 ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.fillMaxSize()
-                    ) {
-                        Row {
-                            GroupIcon(
-                                groupData.name,
-                                modifier = Modifier.padding(12.dp)
-                            )
-                            Column(
-                                modifier = Modifier.padding(15.dp)
-                            ) {
-                                Text(
-                                    groupData.name,
-                                    modifier = Modifier.fillMaxWidth(),
-                                    style = MaterialTheme.typography.titleLarge,
-                                    textAlign = TextAlign.Right,
+                    GroupHeader(
+                        group = groupData,
+                        onShowQR = { qrOpen = true },
+                        onSettleGroup = {
+                            group?.let {
+                                navController?.navigate(
+                                    AppDestinations.CustomRoutes.SETTLE_GROUP.withArgs(it.id)
                                 )
-                                HorizontalDivider(
-                                    thickness = 1.dp,
-                                    color = Color.LightGray,
-                                    modifier = Modifier.padding(vertical = 4.dp)
-                                )
-                                groupData.description?.let {
-                                    Text(
-                                        it, textAlign = TextAlign.Right
-                                    )
-                                }
                             }
                         }
+                    )
 
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 8.dp),
-                            horizontalArrangement = Arrangement.Center
-                        ) {
-                            Button(
-                                onClick = { qrOpen = true },
-                                modifier = Modifier.padding(horizontal = 8.dp)
-                            ) {
-                                Text("Show QR")
-                            }
-
-                            Button(
-                                onClick = {
-                                    group?.let {
-                                        navController?.navigate(
-                                            AppDestinations.CustomRoutes.SETTLE_GROUP.withArgs(it.id)
-                                        )
-                                    }
-                                },
-                                modifier = Modifier.padding(horizontal = 8.dp)
-                            ) {
-                                Text("Settle Group")
-                            }
-                        }
-
-                        NavTab(
-                            navController,
-                            me,
-                            groupMembers,
-                            groupExpenses,
-                            groupBalance,
-                            GROUP_ID
-                        )
-                    }
+                    NavTab(
+                        outerNavController = navController,
+                        me = me,
+                        groupMembers = groupMembers,
+                        groupExpenses = groupExpenses,
+                        groupBalance = groupBalance,
+                        groupId = GROUP_ID
+                    )
                 }
 
                 if (qrOpen) {
-                    Dialog(onDismissRequest = { qrOpen = false }) {
-                        Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(375.dp)
-                                .padding(16.dp),
-                            shape = RoundedCornerShape(16.dp),
-                        ) {
-                            Column(
-                                modifier = Modifier.fillMaxSize(),
-                                verticalArrangement = Arrangement.Center,
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                            ) {
-                                if (qrCode != null) {
-                                    Image(
-                                        bitmap = qrCode!!.asImageBitmap(),
-                                        modifier = Modifier
-                                            .aspectRatio(1f)
-                                            .fillMaxWidth(0.8f)
-                                            .background(Color.Transparent),
-                                        contentScale = ContentScale.FillBounds,
-                                        contentDescription = "QR Code for joining group"
-                                    )
-                                }
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.Center,
-                                ) {
-                                    TextButton(
-                                        onClick = { qrOpen = false },
-                                        modifier = Modifier.padding(8.dp),
-                                    ) {
-                                        Text("Dismiss")
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    QRCodeDialog(
+                        qrCode = qrCode,
+                        groupName = groupData.name,
+                        onDismiss = { qrOpen = false }
+                    )
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun GroupHeader(
+    group: GroupDto,
+    onShowQR: () -> Unit,
+    onSettleGroup: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 16.dp, top = 16.dp, end = 16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            GroupIcon(
+                content = group.name,
+                modifier = Modifier.size(80.dp)
+            )
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(
+                    text = group.name,
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+                if (!group.description.isNullOrBlank()) {
+                    Text(
+                        text = group.description,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally)
+        ) {
+            FilledTonalButton(onClick = onShowQR) {
+                Icon(
+                    imageVector = Icons.Outlined.QrCode2,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Show QR")
+            }
+
+            Button(onClick = onSettleGroup) {
+                Icon(
+                    imageVector = Icons.Rounded.Handshake,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Settle Group")
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+    }
+}
+
+@Composable
+private fun QRCodeDialog(
+    qrCode: Bitmap?,
+    groupName: String,
+    onDismiss: () -> Unit
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            )
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text(
+                    text = "Join $groupName",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.SemiBold
+                )
+
+                if (qrCode != null) {
+                    Card(
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerHighest
+                        )
+                    ) {
+                        Image(
+                            bitmap = qrCode.asImageBitmap(),
+                            contentDescription = "QR Code for joining group",
+                            modifier = Modifier
+                                .size(200.dp)
+                                .padding(16.dp),
+                            contentScale = ContentScale.Fit
+                        )
+                    }
+                } else {
+                    Box(
+                        modifier = Modifier.size(200.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator()
+                    }
+                }
+
+                Text(
+                    text = "Scan this code to join the group",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
+
+                TextButton(onClick = onDismiss) {
+                    Text("Done")
+                }
+            }
+        }
+    }
+}
+
+// Resuables below here
+
+@Composable
+private fun EmptyStateMessage(message: String) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 32.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = message,
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+private fun TabContentContainer(
+    content: @Composable () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        content()
+        Spacer(modifier = Modifier.height(80.dp)) // Space for FAB
     }
 }
 
@@ -329,7 +427,7 @@ fun NavTab(
     val navController = rememberNavController()
     val coroutineScope = rememberCoroutineScope()
     val snackbar = rememberSnackbar()
-    val groupOwner = groupMembers.value.find { dto -> dto.isOwner }
+    val groupOwner = groupMembers.value.find { it.isOwner }
 
     var refreshGroupMembersKey by remember { mutableIntStateOf(0) }
     var leaving by remember { mutableStateOf(false) }
@@ -354,272 +452,358 @@ fun NavTab(
         else -> 0
     }
 
-    Scaffold(
-        floatingActionButton = {
-            AnimatedVisibility(
-                visible = currentRoute != "chatScreen",
-                enter = fadeIn(animationSpec = tween(300)),
-                exit = fadeOut(animationSpec = tween(300))
-            ) {
-                FloatingActionButton(
-                    onClick = { navController.navigate("chatScreen") }
-                ) {
-                    Icon(Icons.Filled.AddComment,
-                        contentDescription = "Open chat",
-                        modifier = Modifier.size(32.dp)
-                    )
-                }
-            }
-        }
-    ) { paddingValues ->
-        Column(modifier = Modifier.padding(paddingValues)) {
-            SecondaryTabRow(
-                selectedTabIndex = selectedDestination,
-            ) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            SecondaryTabRow(selectedTabIndex = selectedDestination) {
                 Tab(
                     selected = selectedDestination == 0,
-                    onClick = { navController.navigate("1") }
-                ) {
-                    Text("Members", Modifier.padding(10.dp))
-                }
+                    onClick = { navController.navigate("1") },
+                    text = { Text("Members") }
+                )
                 Tab(
                     selected = selectedDestination == 1,
-                    onClick = { navController.navigate("2") }
-                ) {
-                    Text("Expenses", Modifier.padding(10.dp))
-                }
+                    onClick = { navController.navigate("2") },
+                    text = { Text("Expenses") }
+                )
                 Tab(
                     selected = selectedDestination == 2,
-                    onClick = { navController.navigate("3") }
-                ) {
-                    Text("Options", Modifier.padding(10.dp))
-                }
+                    onClick = { navController.navigate("3") },
+                    text = { Text("Options") }
+                )
             }
+
             NavHost(
                 navController = navController,
                 startDestination = "1"
             ) {
                 composable("1") {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier
-                            .verticalScroll(
-                                state = rememberScrollState(),
-                                enabled = true,
-                            )
-                            .padding(horizontal = 8.dp)
-                    ) {
-                        groupMembers.value.forEach { memberDto ->
-                            val balance = groupBalance
-                                ?.balances
-                                ?.find { it.username == memberDto.username }
-                                ?.balance ?: 0.0
-                            GroupMemberDetailCard(
-                                groupBalance?.groupId ?: 0,
-                                memberDto,
-                                { refreshGroupMembersKey++ },
-                                balance = balance,
-                                me = me,
-                                groupOwner = groupOwner
-                            )
-                        }
-                    }
+                    MembersTabContent(
+                        groupMembers = groupMembers.value,
+                        groupBalance = groupBalance,
+                        me = me,
+                        groupOwner = groupOwner,
+                        onRefresh = { refreshGroupMembersKey++ }
+                    )
                 }
 
                 composable("2") {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier
-                            .verticalScroll(
-                                state = rememberScrollState(),
-                                enabled = true,
-                            )
-                            .padding(horizontal = 8.dp)
-                    ) {
-                        if (groupExpenses.isEmpty()) {
-                            Spacer(Modifier.height(32.dp))
-                            Text(
-                                "No expenses yet",
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        } else {
-                            groupExpenses.forEach { expense ->
-                                ExpenseDetailCard(expense = expense)
-                            }
-                        }
-                    }
+                    ExpensesTabContent(groupExpenses = groupExpenses)
                 }
+
                 composable("3") {
-                    var notificationsEnabled by remember { mutableStateOf(false) }
-
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.padding(16.dp)
-                    ) {
-                        Text("Settings", style = MaterialTheme.typography.headlineSmall)
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = 16.dp)
-                        ) {
-                            Text(
-                                "Enable notifications",
-                                modifier = Modifier.weight(1f)
-                            )
-
-                            Switch(
-                                checked = notificationsEnabled,
-                                onCheckedChange = { notificationsEnabled = it }
-                            )
-                        }
-                        HorizontalDivider()
-                        Text("Actions", style = MaterialTheme.typography.headlineSmall)
-                        Text(
-                            "Be careful",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-
-                        Button(
-                            onClick = { leaving = true },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = Color.Red,
-                                contentColor = Color.White
-                            ),
-                            shape = RoundedCornerShape(10.dp),
-                            modifier = Modifier
-                                .padding(top = 24.dp)
-                        ) {
-                            Text("LEAVE GROUP")
-                        }
-                        if (groupOwner?.userId == me?.id) {
-                            Button(
-                                onClick = { deleting = true },
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = Color.Red,
-                                    contentColor = Color.White
-                                ),
-                                shape = RoundedCornerShape(10.dp),
-                                modifier = Modifier
-                                    .padding(top = 24.dp)
-                            ) {
-                                Text("DELETE GROUP")
-                            }
-                        }
-                    }
+                    OptionsTabContent(
+                        isOwner = groupOwner?.userId == me?.id,
+                        onLeaveGroup = { leaving = true },
+                        onDeleteGroup = { deleting = true }
+                    )
                 }
+
                 composable("chatScreen") {
                     ChatScreen(groupId = groupId)
                 }
             }
         }
 
+        // FAB
+        AnimatedVisibility(
+            visible = currentRoute != "chatScreen",
+            enter = fadeIn(animationSpec = tween(300)),
+            exit = fadeOut(animationSpec = tween(300)),
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(16.dp)
+        ) {
+            FloatingActionButton(
+                onClick = { navController.navigate("chatScreen") },
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.AddComment,
+                    contentDescription = "Open chat",
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+        }
     }
 
     // Dialogs
-    when {
-        leaving -> {
-            Dialog({ leaving = false }) {
-                Card {
-                    Column(
-                        Modifier.padding(10.dp)
-                    ) {
-                        Text(
-                            "Are you sure you wish to leave?",
-                            Modifier
-                                .fillMaxWidth()
-                                .padding(5.dp),
-                            textAlign = TextAlign.Center,
-                            style = MaterialTheme.typography.titleLarge
-                        )
-                        Row(
-                            Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceAround
-                        ) {
-                            OutlinedButton({ leaving = false }) {
-                                Text("No!")
-                            }
-                            Button({
-                                coroutineScope.launch {
-                                    when (val result = safeApiMutation("NavTab.leaveGroup") {
-                                        RetrofitClient.groupService.leaveGroup(groupId)
-                                    }) {
-                                        is NetworkResult.Success -> {
-                                            snackbar.showSuccess("Left the group")
-                                            outerNavController?.popBackStack(
-                                                AppDestinations.HOME.route,
-                                                false
-                                            )
-                                        }
-
-                                        is NetworkResult.Error -> {
-                                            snackbar.showError(result.message)
-                                            leaving = false
-                                        }
-                                    }
-                                }
-                            }) {
-                                Text("Yes!")
-                            }
+    if (leaving) {
+        ConfirmationDialog(
+            title = "Leave Group?",
+            message = "Are you sure you want to leave this group?",
+            confirmText = "Leave",
+            onConfirm = {
+                coroutineScope.launch {
+                    when (val result = safeApiMutation("NavTab.leaveGroup") {
+                        RetrofitClient.groupService.leaveGroup(groupId)
+                    }) {
+                        is NetworkResult.Success -> {
+                            snackbar.showSuccess("Left the group")
+                            outerNavController?.popBackStack(AppDestinations.HOME.route, false)
+                        }
+                        is NetworkResult.Error -> {
+                            snackbar.showError(result.message)
+                            leaving = false
                         }
                     }
+                }
+            },
+            onDismiss = { leaving = false }
+        )
+    }
+
+    if (deleting) {
+        ConfirmationDialog(
+            title = "Delete Group?",
+            message = "Are you sure you want to delete this group?",
+            subtitle = "This action cannot be undone.",
+            confirmText = "Delete",
+            isDestructive = true,
+            onConfirm = {
+                coroutineScope.launch {
+                    when (val result = safeApiMutation("NavTab.deleteGroup") {
+                        RetrofitClient.groupService.deleteGroup(groupId)
+                    }) {
+                        is NetworkResult.Success -> {
+                            snackbar.showSuccess("Group deleted")
+                            outerNavController?.popBackStack(AppDestinations.HOME.route, false)
+                        }
+                        is NetworkResult.Error -> {
+                            snackbar.showError(result.message)
+                            deleting = false
+                        }
+                    }
+                }
+            },
+            onDismiss = { deleting = false }
+        )
+    }
+}
+
+@Composable
+private fun MembersTabContent(
+    groupMembers: List<GroupMemberDto>,
+    groupBalance: GroupBalanceSummaryDto?,
+    me: UserDto?,
+    groupOwner: GroupMemberDto?,
+    onRefresh: () -> Unit
+) {
+    TabContentContainer {
+        if (groupMembers.isEmpty()) {
+            EmptyStateMessage("No members")
+        } else {
+            groupMembers.forEach { memberDto ->
+                val balance = groupBalance
+                    ?.balances
+                    ?.find { it.username == memberDto.username }
+                    ?.balance ?: 0.0
+                GroupMemberDetailCard(
+                    groupId = groupBalance?.groupId ?: 0,
+                    groupMember = memberDto,
+                    onRefresh = onRefresh,
+                    balance = balance,
+                    me = me,
+                    groupOwner = groupOwner
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ExpensesTabContent(groupExpenses: List<ExpenseDto>) {
+    TabContentContainer {
+        if (groupExpenses.isEmpty()) {
+            EmptyStateMessage("No expenses yet")
+        } else {
+            groupExpenses.forEach { expense ->
+                ExpenseDetailCard(expense = expense)
+            }
+        }
+    }
+}
+
+@Composable
+private fun OptionsTabContent(
+    isOwner: Boolean,
+    onLeaveGroup: () -> Unit,
+    onDeleteGroup: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(24.dp)
+    ) {
+        // Notifications Section
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(
+                text = "Notifications",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+
+            var notificationsEnabled by remember { mutableStateOf(false) }
+
+            Card(
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                )
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Enable notifications",
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                        Text(
+                            text = "Get notified about new expenses and settlements",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = notificationsEnabled,
+                        onCheckedChange = { notificationsEnabled = it }
+                    )
                 }
             }
         }
 
-        deleting -> {
-            Dialog({ deleting = false }) {
-                Card {
-                    Column(
-                        Modifier.padding(10.dp)
-                    ) {
-                        Text(
-                            "Are you sure you wish to delete this group?",
-                            Modifier
-                                .fillMaxWidth()
-                                .padding(5.dp),
-                            textAlign = TextAlign.Center,
-                            style = MaterialTheme.typography.titleLarge
-                        )
-                        Text(
-                            "There is no undoing this.",
-                            Modifier.fillMaxWidth(),
-                            textAlign = TextAlign.Center,
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(Modifier.height(10.dp))
-                        Row(
-                            Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceAround
-                        ) {
-                            OutlinedButton({ deleting = false }) {
-                                Text("No!")
-                            }
-                            Button({
-                                coroutineScope.launch {
-                                    when (val result = safeApiMutation("NavTab.deleteGroup") {
-                                        RetrofitClient.groupService.deleteGroup(groupId)
-                                    }) {
-                                        is NetworkResult.Success -> {
-                                            snackbar.showSuccess("Group deleted")
-                                            outerNavController?.popBackStack(
-                                                AppDestinations.HOME.route,
-                                                false
-                                            )
-                                        }
+        HorizontalDivider()
 
-                                        is NetworkResult.Error -> {
-                                            snackbar.showError(result.message)
-                                            deleting = false
-                                        }
-                                    }
-                                }
-                            }) {
-                                Text("Yes!")
-                            }
+        // DANGER ZONE JUST LIKE GITHUB YÅÅÅÅ
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(
+                text = "Danger Zone",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.error
+            )
+            Text(
+                text = "These actions are irreversible",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            OutlinedButton(
+                onClick = onLeaveGroup,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = MaterialTheme.colorScheme.error
+                )
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Rounded.Logout,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Leave Group")
+            }
+
+            if (isOwner) {
+                Button(
+                    onClick = onDeleteGroup,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error,
+                        contentColor = MaterialTheme.colorScheme.onError
+                    )
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.DeleteOutline,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Delete Group")
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(80.dp)) // Space for FAB
+    }
+}
+
+@Composable
+private fun ConfirmationDialog(
+    title: String,
+    message: String,
+    subtitle: String? = null,
+    confirmText: String,
+    isDestructive: Boolean = false,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            )
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    textAlign = TextAlign.Center
+                )
+
+                Text(
+                    text = message,
+                    style = MaterialTheme.typography.bodyMedium,
+                    textAlign = TextAlign.Center,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                subtitle?.let {
+                    Text(
+                        text = it,
+                        style = MaterialTheme.typography.bodySmall,
+                        textAlign = TextAlign.Center,
+                        color = MaterialTheme.colorScheme.outline
+                    )
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End)
+                ) {
+                    TextButton(onClick = onDismiss) {
+                        Text("Cancel")
+                    }
+
+                    if (isDestructive) {
+                        Button(
+                            onClick = onConfirm,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.error,
+                                contentColor = MaterialTheme.colorScheme.onError
+                            )
+                        ) {
+                            Text(confirmText)
+                        }
+                    } else {
+                        Button(onClick = onConfirm) {
+                            Text(confirmText)
                         }
                     }
                 }

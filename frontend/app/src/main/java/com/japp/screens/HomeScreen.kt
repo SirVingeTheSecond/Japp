@@ -6,18 +6,21 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -50,7 +53,6 @@ import com.japp.api.RetrofitClient
 import com.japp.api.responses.activity.ActivityDto
 import com.japp.api.responses.auth.UserDto
 import com.japp.api.responses.group.GroupDto
-import com.japp.api.safeApiCall
 import com.japp.api.safeApiQuery
 import com.japp.composables.ErrorWithRetry
 import com.japp.composables.GroupIcon
@@ -60,7 +62,6 @@ import com.japp.utils.LocalConnectivity
 import java.text.SimpleDateFormat
 import java.util.Date
 import kotlin.math.absoluteValue
-import kotlin.math.round
 import kotlin.math.roundToInt
 
 /**
@@ -70,6 +71,10 @@ data class BalanceData(
     val owed: Double,
     val owes: Double
 )
+
+// =============================================================================
+// Main Screen
+// =============================================================================
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Preview(showSystemUi = true)
@@ -90,47 +95,47 @@ fun HomeScreen(navController: NavController? = null) {
         if (isConnected && wasDisconnected) {
             refreshKey++
         }
+        // IDE does not see that the value is read on the next invocation of the LaunchedEffect
         wasDisconnected = !isConnected
     }
 
     LaunchedEffect(refreshKey) {
-        // Activity call
-        when (val result = safeApiQuery("HomeScreen.activities") {
-            RetrofitClient.activityService.getUserActivities(limit = 3)
-        }) {
-            is NetworkResult.Success -> activitiesState = UiState.Success(result.data)
-            is NetworkResult.Error -> {
-                if (activitiesState !is UiState.Success) {
-                    activitiesState = UiState.Error(result.message)
+        try {
+            when (val result = safeApiQuery("HomeScreen.activities") {
+                RetrofitClient.activityService.getUserActivities(limit = 3)
+            }) {
+                is NetworkResult.Success -> activitiesState = UiState.Success(result.data)
+                is NetworkResult.Error -> {
+                    if (activitiesState !is UiState.Success) {
+                        activitiesState = UiState.Error(result.message)
+                    }
                 }
             }
-        }
 
-        // Group call
-        when (val result = safeApiQuery("HomeScreen.groups") {
-            RetrofitClient.groupService.getMyGroups()
-        }) {
-            is NetworkResult.Success -> groupsState = UiState.Success(result.data)
-            is NetworkResult.Error -> {
-                if (groupsState !is UiState.Success) {
-                    groupsState = UiState.Error(result.message)
+            when (val result = safeApiQuery("HomeScreen.groups") {
+                RetrofitClient.groupService.getMyGroups()
+            }) {
+                is NetworkResult.Success -> groupsState = UiState.Success(result.data)
+                is NetworkResult.Error -> {
+                    if (groupsState !is UiState.Success) {
+                        groupsState = UiState.Error(result.message)
+                    }
                 }
             }
-        }
 
-        // Me call
-        when (val result = safeApiQuery("HomeScreen.me") {
-            RetrofitClient.userService.getMyUser()
-        }) {
-            is NetworkResult.Success -> meState = UiState.Success(result.data)
-            is NetworkResult.Error -> {
-                if (meState !is UiState.Success) {
-                    meState = UiState.Error(result.message)
+            when (val result = safeApiQuery("HomeScreen.me") {
+                RetrofitClient.userService.getMyUser()
+            }) {
+                is NetworkResult.Success -> meState = UiState.Success(result.data)
+                is NetworkResult.Error -> {
+                    if (meState !is UiState.Success) {
+                        meState = UiState.Error(result.message)
+                    }
                 }
             }
+        } finally {
+            isRefreshing = false
         }
-
-        isRefreshing = false
     }
 
     // Calculate balances when groups and user data are available
@@ -143,13 +148,11 @@ fun HomeScreen(navController: NavController? = null) {
         var hasError = false
 
         for (group in groups) {
-            val result = safeApiQuery("HomeScreen.balance.${group.id}") {
+            when (val result = safeApiQuery("HomeScreen.balance.${group.id}") {
                 RetrofitClient.expenseService.getGroupBalances(group.id)
-            }
-            when (result) {
+            }) {
                 is NetworkResult.Success -> {
-                    val balanceSummaryDto = result.data
-                    val myBal = balanceSummaryDto.balances.find { (userId, _, _) -> userId == me.id }
+                    val myBal = result.data.balances.find { (userId, _, _) -> userId == me.id }
                     if (myBal != null) {
                         if (myBal.balance < 0) {
                             totalOwes += myBal.balance.absoluteValue
@@ -158,13 +161,10 @@ fun HomeScreen(navController: NavController? = null) {
                         }
                     }
                 }
-                is NetworkResult.Error -> {
-                    hasError = true
-                }
+                is NetworkResult.Error -> hasError = true
             }
         }
 
-        // Only update state if we got data, or if we have no cached state
         if (!hasError || balanceState is UiState.Loading) {
             balanceState = UiState.Success(BalanceData(owed = totalOwed, owes = totalOwes))
         }
@@ -180,28 +180,91 @@ fun HomeScreen(navController: NavController? = null) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(12.dp)
-                .verticalScroll(rememberScrollState()),
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            Spacer(modifier = Modifier.height(16.dp))
             QuickStats(balanceState)
-            HorizontalDivider(
-                Modifier
-                    .padding(10.dp)
-                    .background(MaterialTheme.colorScheme.primary),
-                thickness = 2.dp
-            )
+            Spacer(modifier = Modifier.height(24.dp))
             QuickActivities(navController, activitiesState, onRetry = { refreshKey++ })
-            HorizontalDivider(
-                Modifier
-                    .padding(10.dp)
-                    .background(MaterialTheme.colorScheme.primary),
-                thickness = 2.dp
-            )
+            Spacer(modifier = Modifier.height(24.dp))
             QuickGroups(navController, groupsState, meState, onRetry = { refreshKey++ })
+            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 }
+
+// =============================================================================
+// Reusable Components
+// =============================================================================
+
+/**
+ * Reusable centered loading indicator.
+ */
+@Composable
+private fun SectionLoadingIndicator() {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 16.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        LinearProgressIndicator(
+            modifier = Modifier.width(120.dp),
+            color = MaterialTheme.colorScheme.primary,
+            trackColor = MaterialTheme.colorScheme.surfaceVariant,
+        )
+    }
+}
+
+/**
+ * Reusable empty state text.
+ */
+@Composable
+private fun EmptyStateText(message: String) {
+    Text(
+        text = message,
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(vertical = 8.dp)
+    )
+}
+
+@Composable
+fun SectionHeader(
+    title: String,
+    actionLabel: String,
+    onActionClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold
+        )
+        TextButton(onClick = onActionClick) {
+            Text(
+                text = actionLabel,
+                style = MaterialTheme.typography.labelLarge
+            )
+            Spacer(modifier = Modifier.width(4.dp))
+            Icon(
+                imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp)
+            )
+        }
+    }
+}
+
+// =============================================================================
+// Balance Stats
+// =============================================================================
 
 @Composable
 fun QuickStats(balanceState: UiState<BalanceData>) {
@@ -210,13 +273,13 @@ fun QuickStats(balanceState: UiState<BalanceData>) {
             .fillMaxWidth()
             .height(80.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceAround
+        horizontalArrangement = Arrangement.SpaceEvenly
     ) {
         when (balanceState) {
             is UiState.Loading -> {
                 LinearProgressIndicator(
-                    Modifier.align(Alignment.CenterVertically),
-                    color = MaterialTheme.colorScheme.secondary,
+                    modifier = Modifier.width(120.dp),
+                    color = MaterialTheme.colorScheme.primary,
                     trackColor = MaterialTheme.colorScheme.surfaceVariant,
                 )
             }
@@ -225,44 +288,46 @@ fun QuickStats(balanceState: UiState<BalanceData>) {
                 val balance = balanceState.data
                 val owed = balance.owed
                 val owes = balance.owes
+                val net = owed - owes
 
-                val ratio = if (owed + owes > 0) round((owes / (owed + owes)) * 100) / 100 else 0.0
-                val difference = owed - owes
+                val positiveColor = MaterialTheme.colorScheme.primaryContainer
+                val positiveContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                val negativeColor = MaterialTheme.colorScheme.errorContainer
+                val negativeContentColor = MaterialTheme.colorScheme.onErrorContainer
+                val neutralColor = MaterialTheme.colorScheme.tertiaryContainer
+                val neutralContentColor = MaterialTheme.colorScheme.onTertiaryContainer
 
-                val acceptColor = Color(0xFF20DF6C)
-                val errorColor = Color(0xFFDF2020)
-                val ratioColorInt = ColorUtils.blendARGB(
-                    acceptColor.toArgb(),
-                    errorColor.toArgb(),
-                    ratio.toFloat()
-                )
-                val ratioColor = Color(ratioColorInt)
+                val (netColor, netContentColor) = when {
+                    net > 0 -> positiveColor to positiveContentColor
+                    net < 0 -> negativeColor to negativeContentColor
+                    else -> neutralColor to neutralContentColor
+                }
 
-                Pill(
-                    ((owed * 10).roundToInt() / 10.0).toString(),
+                BalancePill(
+                    value = owed,
                     label = "Owed",
-                    color = acceptColor,
-                    textColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    containerColor = positiveColor,
+                    contentColor = positiveContentColor
                 )
-                Pill(
-                    ((difference * 10).roundToInt() / 10.0).toString(),
-                    label = "Ratio",
-                    color = ratioColor,
-                    textColor = MaterialTheme.colorScheme.onTertiaryContainer
+                BalancePill(
+                    value = net,
+                    label = "Net",
+                    containerColor = netColor,
+                    contentColor = netContentColor
                 )
-                Pill(
-                    ((-owes * 10).roundToInt() / 10.0).toString(),
+                BalancePill(
+                    value = -owes,
                     label = "Owes",
-                    color = errorColor,
-                    textColor = MaterialTheme.colorScheme.onSecondaryContainer
+                    containerColor = negativeColor,
+                    contentColor = negativeContentColor
                 )
             }
 
             is UiState.Error -> {
-                LinearProgressIndicator(
-                    Modifier.align(Alignment.CenterVertically),
-                    color = MaterialTheme.colorScheme.secondary,
-                    trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                Text(
+                    text = "Unable to load balances",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
@@ -270,26 +335,43 @@ fun QuickStats(balanceState: UiState<BalanceData>) {
 }
 
 @Composable
-fun Pill(
-    content: String = "Idk?",
-    label: String? = null,
-    color: Color? = null,
-    textColor: Color? = null
+fun BalancePill(
+    value: Double,
+    label: String,
+    containerColor: Color,
+    contentColor: Color
 ) {
+    val displayValue = (value * 10).roundToInt() / 10.0
+
     Column(
-        horizontalAlignment = Alignment.CenterHorizontally
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        label?.let { Text(it) }
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
         Box(
-            Modifier
-                .clip(RoundedCornerShape(100.dp))
-                .background(color ?: MaterialTheme.colorScheme.primaryContainer)
-                .padding(vertical = 6.dp, horizontal = 12.dp)
+            modifier = Modifier
+                .clip(RoundedCornerShape(50))
+                .background(containerColor)
+                .padding(vertical = 8.dp, horizontal = 16.dp),
+            contentAlignment = Alignment.Center
         ) {
-            Text(content, color = textColor ?: MaterialTheme.colorScheme.onPrimaryContainer)
+            Text(
+                text = displayValue.toString(),
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Medium,
+                color = contentColor
+            )
         }
     }
 }
+
+// =============================================================================
+// Activities Section
+// =============================================================================
 
 @Composable
 fun QuickActivities(
@@ -298,29 +380,17 @@ fun QuickActivities(
     onRetry: () -> Unit
 ) {
     Column(
-        horizontalAlignment = Alignment.Start
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Row(
-            Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text("Recent activities", style = MaterialTheme.typography.headlineSmall)
-            TextButton(
-                onClick = { navController?.navigate(AppDestinations.ACTIVITY.route) }
-            ) {
-                Text("Activities ->", textAlign = TextAlign.End)
-            }
-        }
+        SectionHeader(
+            title = "Recent activities",
+            actionLabel = "Activities",
+            onActionClick = { navController?.navigate(AppDestinations.ACTIVITY.route) }
+        )
 
         when (activitiesState) {
-            is UiState.Loading -> {
-                LinearProgressIndicator(
-                    Modifier.align(Alignment.CenterHorizontally),
-                    color = MaterialTheme.colorScheme.secondary,
-                    trackColor = MaterialTheme.colorScheme.surfaceVariant,
-                )
-            }
+            is UiState.Loading -> SectionLoadingIndicator()
 
             is UiState.Error -> {
                 ErrorWithRetry(
@@ -331,15 +401,12 @@ fun QuickActivities(
 
             is UiState.Success -> {
                 if (activitiesState.data.isEmpty()) {
-                    Text(
-                        text = "No recent activities",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(vertical = 8.dp)
-                    )
+                    EmptyStateText("No recent activities")
                 } else {
-                    for (activity in activitiesState.data) {
-                        Activity(activity)
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        activitiesState.data.forEach { activity ->
+                            ActivityRow(activity)
+                        }
                     }
                 }
             }
@@ -348,7 +415,7 @@ fun QuickActivities(
 }
 
 @Composable
-fun Activity(activity: ActivityDto) {
+fun ActivityRow(activity: ActivityDto) {
     var group by remember { mutableStateOf<GroupDto?>(null) }
 
     LaunchedEffect(Unit) {
@@ -358,47 +425,68 @@ fun Activity(activity: ActivityDto) {
     }
 
     Row(
-        Modifier
+        modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 10.dp),
+            .padding(vertical = 6.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Row(
-            Modifier.fillMaxWidth(0.8f),
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            modifier = Modifier.weight(1f),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
-                getActivityIcon(activity.actionType),
-                contentDescription = "Icon",
+                imageVector = getActivityIcon(activity.actionType),
+                contentDescription = null,
+                modifier = Modifier.size(20.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            Text(
-                activity.userName,
-                fontWeight = FontWeight.Bold,
-                style = MaterialTheme.typography.labelLarge
-            )
-            Text(
-                activity.description,
-                overflow = TextOverflow.Ellipsis,
-                style = MaterialTheme.typography.labelLarge,
-                maxLines = 1
-            )
-            Text(
-                group?.name ?: "",
-                overflow = TextOverflow.MiddleEllipsis,
-                style = MaterialTheme.typography.labelSmall,
-                maxLines = 1
-            )
+            Column(modifier = Modifier.weight(1f)) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = activity.userName,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 1
+                    )
+                    Text(
+                        text = activity.description,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        overflow = TextOverflow.Ellipsis,
+                        maxLines = 1,
+                        modifier = Modifier.weight(1f, fill = false)
+                    )
+                }
+                group?.let { groupData ->
+                    Text(
+                        text = groupData.name,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.outline,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
         }
+
+        Spacer(modifier = Modifier.width(8.dp))
+
         TimeText(
-            Date(activity.createdAt.toLong()),
-            Modifier.fillMaxWidth(),
+            date = Date(activity.createdAt.toLong()),
             style = MaterialTheme.typography.labelSmall,
-            textAlign = TextAlign.End
+            color = MaterialTheme.colorScheme.outline
         )
     }
 }
+
+// =============================================================================
+// Groups Section
+// =============================================================================
 
 @Composable
 fun QuickGroups(
@@ -408,29 +496,18 @@ fun QuickGroups(
     onRetry: () -> Unit
 ) {
     Column(
-        horizontalAlignment = Alignment.Start,
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Row(
-            Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text("Groups", style = MaterialTheme.typography.headlineSmall)
-            TextButton(
-                onClick = { navController?.navigate(AppDestinations.MYGROUPS.route) }
-            ) {
-                Text("My Groups ->", textAlign = TextAlign.End)
-            }
-        }
+        SectionHeader(
+            title = "Groups",
+            actionLabel = "My Groups",
+            onActionClick = { navController?.navigate(AppDestinations.MYGROUPS.route) }
+        )
 
         when {
             groupsState is UiState.Loading || meState is UiState.Loading -> {
-                LinearProgressIndicator(
-                    Modifier.align(Alignment.CenterHorizontally),
-                    color = MaterialTheme.colorScheme.secondary,
-                    trackColor = MaterialTheme.colorScheme.surfaceVariant,
-                )
+                SectionLoadingIndicator()
             }
 
             groupsState is UiState.Error -> {
@@ -452,16 +529,12 @@ fun QuickGroups(
                 val me = meState.data
 
                 if (groups.isEmpty()) {
-                    Text(
-                        text = "No groups yet",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(vertical = 8.dp)
-                    )
+                    EmptyStateText("No groups yet")
                 } else {
-                    // Fixed: Use take(3) instead of slice to prevent IndexOutOfBounds
-                    for (group in groups.take(3)) {
-                        Group(group, me, navController)
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        groups.take(3).forEach { group ->
+                            GroupCard(group, me, navController)
+                        }
                     }
                 }
             }
@@ -470,7 +543,11 @@ fun QuickGroups(
 }
 
 @Composable
-fun Group(group: GroupDto, me: UserDto, navController: NavController? = null) {
+fun GroupCard(
+    group: GroupDto,
+    me: UserDto,
+    navController: NavController? = null
+) {
     var groupBalance by remember { mutableStateOf<Double?>(null) }
 
     LaunchedEffect(Unit) {
@@ -482,50 +559,74 @@ fun Group(group: GroupDto, me: UserDto, navController: NavController? = null) {
         }
     }
 
-    var cardColor = CardDefaults.cardColors()
-    if (groupBalance != null) {
-        val colorTint = if (groupBalance!! >= 0) Color(0xFF20DF6C) else Color(0xFFDF2020)
-        cardColor = CardDefaults.cardColors(
-            Color(
+    val baseContainerColor = MaterialTheme.colorScheme.surfaceContainerLow
+    val positiveColor = MaterialTheme.colorScheme.primaryContainer
+    val negativeColor = MaterialTheme.colorScheme.errorContainer
+
+    val cardColor = if (groupBalance != null) {
+        val tintColor = if (groupBalance!! >= 0) positiveColor else negativeColor
+        CardDefaults.cardColors(
+            containerColor = Color(
                 ColorUtils.blendARGB(
-                    cardColor.containerColor.toArgb(),
-                    colorTint.toArgb(),
-                    0.1f
+                    baseContainerColor.toArgb(),
+                    tintColor.toArgb(),
+                    0.4f
                 )
             )
         )
+    } else {
+        CardDefaults.cardColors(containerColor = baseContainerColor)
     }
 
     Card(
         onClick = { GROUP_ID = group.id; navController?.navigate(AppDestinations.GROUP.route) },
-        modifier = Modifier.height(100.dp),
-        colors = cardColor
+        modifier = Modifier.fillMaxWidth(),
+        colors = cardColor,
+        shape = RoundedCornerShape(16.dp)
     ) {
         Row(
-            Modifier.padding(10.dp),
+            modifier = Modifier.padding(12.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Box(
-                contentAlignment = Alignment.Center
+            GroupIcon(
+                content = group.name,
+                modifier = Modifier.size(56.dp)
+            )
+
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
-                GroupIcon(group.name, Modifier.size(75.dp))
-            }
-            Column {
-                Text(group.name, overflow = TextOverflow.Ellipsis, maxLines = 1)
-                HorizontalDivider()
-                if (group.description != null) {
-                    Text(group.description, style = MaterialTheme.typography.labelSmall)
-                    HorizontalDivider()
+                Text(
+                    text = group.name,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Medium,
+                    overflow = TextOverflow.Ellipsis,
+                    maxLines = 1
+                )
+                if (!group.description.isNullOrBlank()) {
+                    Text(
+                        text = group.description,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        overflow = TextOverflow.Ellipsis,
+                        maxLines = 1
+                    )
                 }
                 Text(
-                    "Group members: ${group.memberCount}",
-                    style = MaterialTheme.typography.labelSmall
+                    text = "${group.memberCount} member${if (group.memberCount != 1) "s" else ""}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.outline
                 )
             }
         }
     }
 }
+
+// =============================================================================
+// Utilities
+// =============================================================================
 
 @SuppressLint("SimpleDateFormat")
 @Composable
@@ -533,29 +634,30 @@ fun TimeText(
     date: Date,
     modifier: Modifier = Modifier,
     style: TextStyle = MaterialTheme.typography.bodySmall,
+    color: Color = MaterialTheme.colorScheme.onSurface,
     textAlign: TextAlign = TextAlign.Start
 ) {
     val time = (Date().time - date.time) / 1000
-    var timeText = ""
     val minute = 60
     val hour = minute * 60
     val day = hour * 24
     val week = day * 7
     val biWeekly = week * 2
 
-    if (time < minute) {
-        timeText = "${time}s ago"
-    } else if (time < hour) {
-        timeText = "${time / minute}m ago"
-    } else if (time < day) {
-        timeText = "${time / hour}h ago"
-    } else if (time < week) {
-        timeText = "${time / day}d ago"
-    } else if (time < biWeekly) {
-        timeText = "over a week ago"
-    } else {
-        timeText = SimpleDateFormat("dd/mm/yy").format(date)
+    val timeText = when {
+        time < minute -> "${time}s ago"
+        time < hour -> "${time / minute}m ago"
+        time < day -> "${time / hour}h ago"
+        time < week -> "${time / day}d ago"
+        time < biWeekly -> "1w ago"
+        else -> SimpleDateFormat("dd/MM/yy").format(date)
     }
 
-    Text(timeText, modifier = modifier.then(Modifier), style = style, textAlign = textAlign)
+    Text(
+        text = timeText,
+        modifier = modifier,
+        style = style,
+        color = color,
+        textAlign = textAlign
+    )
 }

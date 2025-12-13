@@ -10,6 +10,8 @@ import com.japp.repositories.implementations.GroupRepository
 import com.japp.repositories.implementations.MessageRepository
 import com.japp.repositories.implementations.SettlementRepository
 import com.japp.repositories.implementations.UserRepository
+import com.japp.security.PasswordHasher
+import com.japp.services.*
 import com.japp.services.interfaces.IActivityRepository
 import com.japp.services.interfaces.IAttachmentRepository
 import com.japp.services.interfaces.IDebtHistoryRepository
@@ -18,19 +20,16 @@ import com.japp.services.interfaces.IGroupRepository
 import com.japp.services.interfaces.IMessageRepository
 import com.japp.services.interfaces.ISettlementRepository
 import com.japp.services.interfaces.IUserRepository
-import com.japp.security.PasswordHasher
-import com.japp.services.*
 import com.japp.websocket.WebSocketManager
+import com.google.auth.oauth2.GoogleCredentials
+import com.google.firebase.FirebaseApp
+import com.google.firebase.FirebaseOptions
 import io.ktor.server.application.*
 import org.koin.core.qualifier.named
 import org.koin.dsl.module
 import org.koin.ktor.plugin.Koin
 import org.koin.logger.slf4jLogger
 import kotlin.time.Duration.Companion.seconds
-import com.google.auth.oauth2.GoogleCredentials
-import com.google.firebase.FirebaseApp
-import com.google.firebase.FirebaseOptions
-import com.japp.services.NotificationService
 
 fun Application.configureFrameworks() {
     install(Koin) {
@@ -41,6 +40,7 @@ fun Application.configureFrameworks() {
 
 fun appModule(application: Application) = module {
     val jwtConfig = application.loadJwtConfig()
+    val storageConfig = application.loadStorageConfig()
 
     single { jwtConfig }
     single(named("jwtSecret")) { jwtConfig.secret }
@@ -73,9 +73,8 @@ fun appModule(application: Application) = module {
         WebSocketManager(heartbeatInterval = heartbeatInterval)
     }
 
-
     single {
-        // Init Firebase SDK
+        // Initialize Firebase SDK
         try {
             val credentialPath = application.environment.config
                 .propertyOrNull("firebase.credentialPath")
@@ -85,11 +84,11 @@ fun appModule(application: Application) = module {
             val credentialFile = java.io.File(credentialPath)
 
             val credentials = if (credentialFile.exists()) {
-                // Production: read from Docker mount
+                // Production: load from Docker mount
                 application.log.info("Loading Firebase credentials from: $credentialPath")
                 GoogleCredentials.fromStream(credentialFile.inputStream())
             } else {
-                // Development: classpath resource
+                // Development: load from classpath
                 application.log.info("Firebase credential file not found at $credentialPath, trying classpath...")
                 val serviceAccount = application.javaClass.classLoader
                     .getResourceAsStream("firebase-service-account.json")
@@ -132,7 +131,8 @@ fun appModule(application: Application) = module {
 
     single {
         UserService(
-            userRepository = get()
+            userRepository = get(),
+            profilePicturesBasePath = storageConfig.profilePicturesBasePath
         )
     }
 
@@ -199,7 +199,6 @@ fun appModule(application: Application) = module {
     }
 
     single {
-        val storageConfig = application.loadStorageConfig()
         AttachmentService(
             attachmentRepository = get(),
             expenseRepository = get(),

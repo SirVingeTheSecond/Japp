@@ -18,4 +18,5 @@ interface IUserRepository {
     fun usernameExists(username: String): Boolean
     fun updateFcmToken(id: Int, token: String?): Int
     fun getFcmTokensForUsers(userIds: List<Int>): List<String>
+    fun updateProfilePicture(id: Int, path: String?): Int
 }

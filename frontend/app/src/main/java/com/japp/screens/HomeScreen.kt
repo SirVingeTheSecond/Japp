@@ -1,6 +1,5 @@
 package com.japp.screens
 
-import android.annotation.SuppressLint
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -58,8 +57,8 @@ import com.japp.composables.ErrorWithRetry
 import com.japp.composables.GroupIcon
 import com.japp.composables.getActivityIcon
 import com.japp.ui.state.UiState
+import com.japp.utils.DateTimeHelper
 import com.japp.utils.LocalConnectivity
-import java.text.SimpleDateFormat
 import java.util.Date
 import kotlin.math.absoluteValue
 import kotlin.math.roundToInt
@@ -600,7 +599,6 @@ fun GroupCard(
     }
 }
 
-@SuppressLint("SimpleDateFormat")
 @Composable
 fun TimeText(
     date: Date,
@@ -609,24 +607,8 @@ fun TimeText(
     color: Color = MaterialTheme.colorScheme.onSurface,
     textAlign: TextAlign = TextAlign.Start
 ) {
-    val time = (Date().time - date.time) / 1000
-    val minute = 60
-    val hour = minute * 60
-    val day = hour * 24
-    val week = day * 7
-    val biWeekly = week * 2
-
-    val timeText = when {
-        time < minute -> "${time}s ago"
-        time < hour -> "${time / minute}m ago"
-        time < day -> "${time / hour}h ago"
-        time < week -> "${time / day}d ago"
-        time < biWeekly -> "1w ago"
-        else -> SimpleDateFormat("dd/MM/yy").format(date)
-    }
-
     Text(
-        text = timeText,
+        text = DateTimeHelper.formatRelative(date),
         modifier = modifier,
         style = style,
         color = color,

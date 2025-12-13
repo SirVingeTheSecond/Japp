@@ -16,6 +16,7 @@ import com.japp.api.RetrofitClient
 import com.japp.api.responses.attachment.AttachmentDto
 import com.japp.api.responses.expense.ExpenseDto
 import com.japp.utils.AttachmentDownloadHelper
+import com.japp.utils.DateTimeHelper
 import kotlinx.coroutines.launch
 
 @Composable
@@ -37,7 +38,7 @@ fun ExpenseDetailCard(
                 attachments = res.body()!!.attachments
             }
         } catch (_: Exception) {
-            // no attachments to show
+            // No attachments to show
         } finally {
             isLoadingAttachments = false
         }
@@ -54,17 +55,23 @@ fun ExpenseDetailCard(
                 .fillMaxWidth()
                 .padding(12.dp)
         ) {
-            // Expense header
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    expense.description,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        expense.description,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        DateTimeHelper.formatRelative(expense.createdAt),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
                 Text(
                     "${expense.amount} ${expense.currency.symbol}",
                     style = MaterialTheme.typography.titleMedium,
@@ -75,7 +82,6 @@ fun ExpenseDetailCard(
 
             Spacer(Modifier.height(4.dp))
 
-            // Basic info
             Text(
                 "Paid by: ${expense.paidByName}",
                 style = MaterialTheme.typography.bodyMedium,
@@ -88,7 +94,6 @@ fun ExpenseDetailCard(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
-            // Attachment indicator
             if (!isLoadingAttachments && attachments.isNotEmpty()) {
                 Spacer(Modifier.height(4.dp))
                 Row(
@@ -109,13 +114,11 @@ fun ExpenseDetailCard(
                 }
             }
 
-            // Expanded details
             if (expanded) {
                 Spacer(Modifier.height(8.dp))
                 HorizontalDivider()
                 Spacer(Modifier.height(8.dp))
 
-                // Category
                 expense.category?.let {
                     Text(
                         "Category: ${it.displayName}",
@@ -124,14 +127,12 @@ fun ExpenseDetailCard(
                     Spacer(Modifier.height(4.dp))
                 }
 
-                // Created date
                 Text(
-                    "Created: ${expense.createdAt}",
+                    "Created: ${DateTimeHelper.formatDateTime(expense.createdAt)}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
-                // Splits detail
                 if (expense.splits.isNotEmpty()) {
                     Spacer(Modifier.height(8.dp))
                     Text(
@@ -160,7 +161,6 @@ fun ExpenseDetailCard(
                     }
                 }
 
-                // Attachments thumbnails
                 if (attachments.isNotEmpty()) {
                     Spacer(Modifier.height(8.dp))
 

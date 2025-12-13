@@ -263,51 +263,59 @@ private fun ProfilePictureSelector(
     Box(
         modifier = Modifier
             .size(120.dp)
-            .clip(CircleShape)
-            .background(MaterialTheme.colorScheme.surfaceContainerHighest)
             .clickable(enabled = !isUploading) { onClick() },
         contentAlignment = Alignment.Center
     ) {
-        when {
-            isUploading -> {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(40.dp),
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
-            selectedUri != null -> {
-                AsyncImage(
-                    model = ImageRequest.Builder(context)
-                        .data(selectedUri)
-                        .crossfade(true)
-                        .build(),
-                    contentDescription = "Selected profile picture",
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
-                )
-            }
-            currentUrl != null -> {
-                val imageUrl = "${RetrofitClient.BASE_URL}user/$userId/pp"
-                AsyncImage(
-                    model = ImageRequest.Builder(context)
-                        .data(imageUrl)
-                        .crossfade(true)
-                        .build(),
-                    contentDescription = "Current profile picture",
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
-                )
-            }
-            else -> {
-                Icon(
-                    imageVector = Icons.Default.Person,
-                    contentDescription = null,
-                    modifier = Modifier.size(48.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+        // Profile circle
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+            contentAlignment = Alignment.Center
+        ) {
+            when {
+                isUploading -> {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(40.dp),
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+                selectedUri != null -> {
+                    AsyncImage(
+                        model = ImageRequest.Builder(context)
+                            .data(selectedUri)
+                            .crossfade(true)
+                            .build(),
+                        contentDescription = "Selected profile picture",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                }
+                currentUrl != null -> {
+                    val imageUrl = "${RetrofitClient.BASE_URL}user/$userId/pp"
+                    AsyncImage(
+                        model = ImageRequest.Builder(context)
+                            .data(imageUrl)
+                            .crossfade(true)
+                            .build(),
+                        contentDescription = "Current profile picture",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                }
+                else -> {
+                    Icon(
+                        imageVector = Icons.Default.Person,
+                        contentDescription = null,
+                        modifier = Modifier.size(48.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         }
 
+        // Camera icon
         if (!isUploading) {
             Box(
                 modifier = Modifier

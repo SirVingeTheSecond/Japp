@@ -65,7 +65,6 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.google.zxing.BarcodeFormat
 import com.japp.AppDestinations
-import com.japp.GroupNavController
 import com.japp.api.NetworkResult
 import com.japp.api.RetrofitClient
 import com.japp.api.responses.auth.UserDto
@@ -462,11 +461,6 @@ fun NavTab(
     val groupOwner = groupMembers.value.find { it.isOwner }
 
     var refreshGroupMembersKey by remember { mutableIntStateOf(0) }
-
-    DisposableEffect(navController) {
-        GroupNavController.navController = navController
-        onDispose { GroupNavController.navController = null }
-    }
 
     LaunchedEffect(refreshGroupMembersKey) {
         when (val result = safeApiQuery("NavTab.refreshMembers") {

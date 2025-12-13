@@ -7,9 +7,7 @@ plugins {
 
 android {
     namespace = "com.japp"
-    compileSdk {
-        version = release(36)
-    }
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.japp"
@@ -55,10 +53,10 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended:1.7.8")
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.compose.foundation)
-    implementation (libs.gson)
-    implementation (libs.retrofit)
-    implementation (libs.converter.gson)
-    implementation (libs.logging.interceptor)
+    implementation(libs.gson)
+    implementation(libs.retrofit)
+    implementation(libs.converter.gson)
+    implementation(libs.logging.interceptor)
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.zxing.android.embedded)
     implementation(libs.androidx.camera.view)
@@ -66,6 +64,19 @@ dependencies {
     implementation(libs.androidx.camera.camera2)
     implementation(libs.androidx.camera.lifecycle)
     implementation(libs.androidx.compose.runtime)
+
+    // for loading images
+    implementation("io.coil-kt:coil-compose:2.7.0")
+
+    implementation("com.google.accompanist:accompanist-permissions:0.37.0")
+
+    // Firebase
+    implementation(platform("com.google.firebase:firebase-bom:34.7.0"))
+    implementation("com.google.firebase:firebase-messaging-ktx")
+
+    implementation("androidx.activity:activity-ktx:1.12.0")
+
+    // Testing
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -73,8 +84,4 @@ dependencies {
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
-    implementation("com.google.accompanist:accompanist-permissions:0.32.0")
-    implementation(platform("com.google.firebase:firebase-bom:32.2.0"))
-    implementation("com.google.firebase:firebase-messaging-ktx")
-    implementation("androidx.activity:activity-ktx:1.8.0")
 }

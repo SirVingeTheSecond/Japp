@@ -48,22 +48,7 @@ class ActivityIntegrationTest : AnnotationSpec() {
 
     private fun ApplicationTestBuilder.setupTestConfig() {
         environment {
-            config = MapApplicationConfig(
-                "jwt.secret" to "test-secret",
-                "jwt.issuer" to "test-issuer",
-                "jwt.audience" to "test-audience",
-                "jwt.realm" to "test-realm",
-                "jwt.expirationDays" to "7",
-                "database.url" to "jdbc:h2:mem:activity_test;DB_CLOSE_DELAY=-1",
-                "database.driver" to "org.h2.Driver",
-                "database.user" to "root",
-                "database.password" to "",
-                "database.pool.maximumPoolSize" to "5",
-                "database.pool.minimumIdle" to "1",
-                "database.pool.connectionTimeout" to "30000",
-                "database.pool.idleTimeout" to "600000",
-                "database.pool.maxLifetime" to "1800000"
-            )
+            config = ApplicationConfig("application.yaml")
         }
     }
 
@@ -123,7 +108,7 @@ class ActivityIntegrationTest : AnnotationSpec() {
     @Test
     fun `should get user activities for all groups`() = testApplication {
         setupTestConfig()
-        application { module() }
+
         val data = setupTestData()
 
         // setupTestData already created activities: GROUP_CREATED, MEMBER_JOINED
@@ -157,7 +142,7 @@ class ActivityIntegrationTest : AnnotationSpec() {
     @Test
     fun `should get group activities successfully`() = testApplication {
         setupTestConfig()
-        application { module() }
+
         val data = setupTestData()
 
         // Create an expense to generate more activities
@@ -194,7 +179,7 @@ class ActivityIntegrationTest : AnnotationSpec() {
     @Test
     fun `should fail to get group activities when not a member`() = testApplication {
         setupTestConfig()
-        application { module() }
+
         val data = setupTestData()
 
         // Create a third user who is NOT in the group
@@ -224,7 +209,7 @@ class ActivityIntegrationTest : AnnotationSpec() {
     @Test
     fun `should fail with invalid group ID`() = testApplication {
         setupTestConfig()
-        application { module() }
+
         val data = setupTestData()
 
         val response = client.get("/api/activities/group/99999") {
@@ -237,7 +222,7 @@ class ActivityIntegrationTest : AnnotationSpec() {
     @Test
     fun `should fail without authentication`() = testApplication {
         setupTestConfig()
-        application { module() }
+
         val data = setupTestData()
 
         val response = client.get("/api/activities/group/${data.groupId}")
@@ -248,7 +233,7 @@ class ActivityIntegrationTest : AnnotationSpec() {
     @Test
     fun `should respect limit parameter for user activities`() = testApplication {
         setupTestConfig()
-        application { module() }
+
         val data = setupTestData()
 
         // Create multiple expenses to generate more activities
@@ -284,7 +269,7 @@ class ActivityIntegrationTest : AnnotationSpec() {
     @Test
     fun `should respect limit parameter for group activities`() = testApplication {
         setupTestConfig()
-        application { module() }
+
         val data = setupTestData()
 
         // Create multiple expenses

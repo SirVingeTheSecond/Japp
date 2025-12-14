@@ -53,23 +53,7 @@ class WebSocketIntegrationTest : AnnotationSpec() {
 
     private fun ApplicationTestBuilder.setupTestConfig() {
         environment {
-            config = MapApplicationConfig(
-                "jwt.secret" to "test-secret",
-                "jwt.issuer" to "test-issuer",
-                "jwt.audience" to "test-audience",
-                "jwt.realm" to "test-realm",
-                "jwt.expirationDays" to "7",
-                "database.url" to "jdbc:h2:mem:typing_test;DB_CLOSE_DELAY=-1",
-                "database.driver" to "org.h2.Driver",
-                "database.user" to "root",
-                "database.password" to "",
-                "database.pool.maximumPoolSize" to "5",
-                "database.pool.minimumIdle" to "1",
-                "database.pool.connectionTimeout" to "30000",
-                "database.pool.idleTimeout" to "600000",
-                "database.pool.maxLifetime" to "1800000",
-                "websocket.heartbeatIntervalInSeconds" to "0"
-            )
+            config = ApplicationConfig("application.yaml")
         }
     }
 
@@ -153,7 +137,6 @@ class WebSocketIntegrationTest : AnnotationSpec() {
     @Test
     fun `should connect to WebSocket and receive connected message`() = testApplication {
         setupTestConfig()
-        application { module() }
         val data = setupTestData()
 
         val client = createClient {
@@ -174,7 +157,7 @@ class WebSocketIntegrationTest : AnnotationSpec() {
     @Test
     fun `should send message via WebSocket and receive MESSAGE_SENT acknowledgment`() = testApplication {
         setupTestConfig()
-        application { module() }
+
         val data = setupTestData()
 
         val client = createClient {
@@ -232,7 +215,7 @@ class WebSocketIntegrationTest : AnnotationSpec() {
     @Test
     fun `should return ERROR when sending message with missing groupId`() = testApplication {
         setupTestConfig()
-        application { module() }
+
         val data = setupTestData()
 
         val client = createClient {
@@ -273,7 +256,7 @@ class WebSocketIntegrationTest : AnnotationSpec() {
     @Test
     fun `should return ERROR when sending message to group user is not member of`() = testApplication {
         setupTestConfig()
-        application { module() }
+
         val data = setupTestData()
 
         val client = createClient {
@@ -312,7 +295,7 @@ class WebSocketIntegrationTest : AnnotationSpec() {
     @Test
     fun `should fail to subscribe to group when not a member`() = testApplication {
         setupTestConfig()
-        application { module() }
+
         val data = setupTestData()
 
         val client = createClient {
@@ -344,7 +327,7 @@ class WebSocketIntegrationTest : AnnotationSpec() {
     @Test
     fun `should unsubscribe from group successfully`() = testApplication {
         setupTestConfig()
-        application { module() }
+
         val data = setupTestData()
 
         val client = createClient {
@@ -386,7 +369,7 @@ class WebSocketIntegrationTest : AnnotationSpec() {
     @Test
     fun `should receive new message via WebSocket when subscribed`() = testApplication {
         setupTestConfig()
-        application { module() }
+
         val data = setupTestData()
 
         val client = createClient {
@@ -433,7 +416,7 @@ class WebSocketIntegrationTest : AnnotationSpec() {
     @Test
     fun `should broadcast TYPING_START to subscribed group members except sender`() = testApplication {
         setupTestConfig()
-        application { module() }
+
         val data = setupTestData()
 
         client.post("/api/groups/${data.groupId}/members") {
@@ -501,7 +484,7 @@ class WebSocketIntegrationTest : AnnotationSpec() {
     @Test
     fun `should broadcast TYPING_STOP to subscribed group members except sender`() = testApplication {
         setupTestConfig()
-        application { module() }
+
         val data = setupTestData()
 
         client.post("/api/groups/${data.groupId}/members") {
@@ -569,7 +552,7 @@ class WebSocketIntegrationTest : AnnotationSpec() {
     @Test
     fun `should not receive own typing indicator`() = testApplication {
         setupTestConfig()
-        application { module() }
+
         val data = setupTestData()
 
         val wsClient = createClient {
@@ -609,7 +592,7 @@ class WebSocketIntegrationTest : AnnotationSpec() {
     @Test
     fun `should not broadcast typing indicator when not subscribed to group`() = testApplication {
         setupTestConfig()
-        application { module() }
+
         val data = setupTestData()
 
         val wsClient = createClient {
@@ -670,7 +653,7 @@ class WebSocketIntegrationTest : AnnotationSpec() {
     @Test
     fun `should ignore typing indicator without groupId`() = testApplication {
         setupTestConfig()
-        application { module() }
+
         val data = setupTestData()
 
         val wsClient = createClient {
@@ -707,7 +690,7 @@ class WebSocketIntegrationTest : AnnotationSpec() {
     @Test
     fun `should broadcast typing indicator to all subscribed members except sender`() = testApplication {
         setupTestConfig()
-        application { module() }
+
         val data = setupTestData()
 
         client.post("/api/groups/${data.groupId}/members") {

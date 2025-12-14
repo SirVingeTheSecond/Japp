@@ -45,29 +45,13 @@ class GroupPreviewIntegrationTest : AnnotationSpec() {
 
     private fun ApplicationTestBuilder.setupTestConfig() {
         environment {
-            config = MapApplicationConfig(
-                "jwt.secret" to "test-secret",
-                "jwt.issuer" to "test-issuer",
-                "jwt.audience" to "test-audience",
-                "jwt.realm" to "test-realm",
-                "jwt.expirationDays" to "7",
-                "database.url" to "jdbc:h2:mem:group_preview_test;DB_CLOSE_DELAY=-1",
-                "database.driver" to "org.h2.Driver",
-                "database.user" to "root",
-                "database.password" to "",
-                "database.pool.maximumPoolSize" to "5",
-                "database.pool.minimumIdle" to "1",
-                "database.pool.connectionTimeout" to "30000",
-                "database.pool.idleTimeout" to "600000",
-                "database.pool.maxLifetime" to "1800000"
-            )
+            config = ApplicationConfig("application.yaml")
         }
     }
 
     @Test
     fun `should preview group with valid invite code without authentication`() = testApplication {
         setupTestConfig()
-        application { module() }
 
         val userResponse = client.post("/api/auth/signup") {
             contentType(ContentType.Application.Json)
@@ -103,7 +87,7 @@ class GroupPreviewIntegrationTest : AnnotationSpec() {
     @Test
     fun `should fail with invalid invite code`() = testApplication {
         setupTestConfig()
-        application { module() }
+
 
         val response = client.get("/api/groups/preview/INVALD")
 
@@ -113,7 +97,7 @@ class GroupPreviewIntegrationTest : AnnotationSpec() {
     @Test
     fun `should fail with wrong invite code length`() = testApplication {
         setupTestConfig()
-        application { module() }
+
 
         val response = client.get("/api/groups/preview/ABC")
 
@@ -123,7 +107,7 @@ class GroupPreviewIntegrationTest : AnnotationSpec() {
     @Test
     fun `should preview group without Authorization header`() = testApplication {
         setupTestConfig()
-        application { module() }
+
 
         val userResponse = client.post("/api/auth/signup") {
             contentType(ContentType.Application.Json)

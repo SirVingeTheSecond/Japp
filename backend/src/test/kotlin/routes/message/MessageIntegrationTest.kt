@@ -48,23 +48,7 @@ class MessageIntegrationTest : AnnotationSpec() {
 
     private fun ApplicationTestBuilder.setupTestConfig() {
         environment {
-            config = MapApplicationConfig(
-                "jwt.secret" to "test-secret",
-                "jwt.issuer" to "test-issuer",
-                "jwt.audience" to "test-audience",
-                "jwt.realm" to "test-realm",
-                "jwt.expirationDays" to "7",
-                "database.url" to "jdbc:h2:mem:message_test;DB_CLOSE_DELAY=-1",
-                "database.driver" to "org.h2.Driver",
-                "database.user" to "root",
-                "database.password" to "",
-                "database.pool.maximumPoolSize" to "5",
-                "database.pool.minimumIdle" to "1",
-                "database.pool.connectionTimeout" to "30000",
-                "database.pool.idleTimeout" to "600000",
-                "database.pool.maxLifetime" to "1800000",
-                "websocket.heartbeatIntervalInSeconds" to "0" // Scuffed solution until it is included in the environment config
-            )
+            config = ApplicationConfig("application.yaml")
         }
     }
 
@@ -154,7 +138,7 @@ class MessageIntegrationTest : AnnotationSpec() {
     @Test
     fun `should create message successfully`() = testApplication {
         setupTestConfig()
-        application { module() }
+
         val data = setupTestData()
 
         val response = client.post("/api/messages") {
@@ -182,7 +166,7 @@ class MessageIntegrationTest : AnnotationSpec() {
     @Test
     fun `should fail to create message with empty content`() = testApplication {
         setupTestConfig()
-        application { module() }
+
         val data = setupTestData()
 
         val response = client.post("/api/messages") {
@@ -204,7 +188,7 @@ class MessageIntegrationTest : AnnotationSpec() {
     @Test
     fun `should fail to create message with content exceeding max length`() = testApplication {
         setupTestConfig()
-        application { module() }
+
         val data = setupTestData()
 
         val longContent = "a".repeat(2001)
@@ -228,7 +212,7 @@ class MessageIntegrationTest : AnnotationSpec() {
     @Test
     fun `should fail to create message when not a group member`() = testApplication {
         setupTestConfig()
-        application { module() }
+
         val data = setupTestData()
 
         val response = client.post("/api/messages") {
@@ -250,7 +234,7 @@ class MessageIntegrationTest : AnnotationSpec() {
     @Test
     fun `should retrieve messages for a group`() = testApplication {
         setupTestConfig()
-        application { module() }
+
         val data = setupTestData()
 
         client.post("/api/messages") {
@@ -289,7 +273,7 @@ class MessageIntegrationTest : AnnotationSpec() {
     @Test
     fun `should fail to retrieve messages when not a group member`() = testApplication {
         setupTestConfig()
-        application { module() }
+
         val data = setupTestData()
 
         val response = client.get("/api/messages/group/${data.groupId}") {
@@ -302,7 +286,7 @@ class MessageIntegrationTest : AnnotationSpec() {
     @Test
     fun `should support pagination with limit and cursor`() = testApplication {
         setupTestConfig()
-        application { module() }
+
         val data = setupTestData()
 
         repeat(5) { i ->
@@ -336,7 +320,7 @@ class MessageIntegrationTest : AnnotationSpec() {
     @Test
     fun `should mark messages as read`() = testApplication {
         setupTestConfig()
-        application { module() }
+
         val data = setupTestData()
 
         val createResponse = client.post("/api/messages") {
@@ -366,7 +350,7 @@ class MessageIntegrationTest : AnnotationSpec() {
     @Test
     fun `should fail to mark messages as read when not a group member`() = testApplication {
         setupTestConfig()
-        application { module() }
+
         val data = setupTestData()
 
         val createResponse = client.post("/api/messages") {
@@ -388,7 +372,7 @@ class MessageIntegrationTest : AnnotationSpec() {
     @Test
     fun `should delete message successfully`() = testApplication {
         setupTestConfig()
-        application { module() }
+
         val data = setupTestData()
 
         val createResponse = client.post("/api/messages") {
@@ -416,7 +400,7 @@ class MessageIntegrationTest : AnnotationSpec() {
     @Test
     fun `should fail to delete message when not the author`() = testApplication {
         setupTestConfig()
-        application { module() }
+
         val data = setupTestData()
 
         val createResponse = client.post("/api/messages") {
@@ -436,7 +420,7 @@ class MessageIntegrationTest : AnnotationSpec() {
     @Test
     fun `should fail to delete non-existent message`() = testApplication {
         setupTestConfig()
-        application { module() }
+
         val data = setupTestData()
 
         val response = client.delete("/api/messages/99999") {
@@ -449,7 +433,7 @@ class MessageIntegrationTest : AnnotationSpec() {
     @Test
     fun `should fail without authentication`() = testApplication {
         setupTestConfig()
-        application { module() }
+
         val data = setupTestData()
 
         val response = client.post("/api/messages") {
@@ -463,7 +447,7 @@ class MessageIntegrationTest : AnnotationSpec() {
     @Test
     fun `should handle multiple users reading the same message`() = testApplication {
         setupTestConfig()
-        application { module() }
+
         val data = setupTestData()
 
         val createResponse = client.post("/api/messages") {

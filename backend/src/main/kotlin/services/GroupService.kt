@@ -627,12 +627,14 @@ class GroupService(
         groupId: Int,
         userId: Int,
         enabled: Boolean
-    ): Result<Unit, AppError> {
+    ): Result<NotificationPreferenceDto, AppError> {
         return withContext(Dispatchers.IO) {
             try {
-                groupRepository.setNotificationEnabled(groupId, userId, enabled)
+                transaction {
+                    groupRepository.setNotificationEnabled(groupId, userId, enabled)
 
-                Result.Success(Unit)
+                    Result.Success(NotificationPreferenceDto(groupRepository.hasNotificationEnabled(groupId, userId)))
+                }
             } catch (e: Exception) {
                 Result.Failure(
                     AppError.Internal(e.message ?: "Failed to update notification setting!")

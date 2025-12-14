@@ -3,6 +3,7 @@ package com.japp.routes
 import com.japp.models.dto.AddMemberRequest
 import com.japp.models.dto.CreateGroupRequest
 import com.japp.models.dto.JoinGroupRequest
+import com.japp.models.dto.NotificationPreferenceDto
 import com.japp.plugins.getUserId
 import com.japp.services.GroupService
 import com.japp.utils.requirePathInt
@@ -106,6 +107,22 @@ fun Route.groupRoutes() {
             val groupId = call.requirePathInt("id")
             val userId = call.getUserId()
             val result = groupService.getGroupDebtHistory(groupId, userId)
+            call.respondResult(result)
+        }
+
+        get("/{id}/notifications") {
+            val groupId = call.requirePathInt("id")
+            val userId = call.getUserId()
+            val result = groupService.hasNotificationEnabled(groupId, userId)
+            call.respondResult(result)
+        }
+
+        put ("/{id}/notifications") {
+            val groupId = call.requirePathInt("id")
+            val userId = call.getUserId()
+            val request = call.receive<NotificationPreferenceDto>()
+
+            val result = groupService.setNotificationEnabled(groupId, userId, request.enabled)
             call.respondResult(result)
         }
     }

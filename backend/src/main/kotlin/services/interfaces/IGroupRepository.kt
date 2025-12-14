@@ -21,4 +21,6 @@ interface IGroupRepository {
     fun transferOwnership(groupId: Int, newOwnerId: Int)
     fun updateTotalExpenses(groupId: Int, amount: Double)
     fun delete(groupId: Int)
+    fun hasNotificationEnabled(groupId: Int, userId: Int): Boolean
+    fun setNotificationEnabled(groupId: Int, userId: Int, enabled: Boolean)
 }

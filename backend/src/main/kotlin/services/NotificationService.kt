@@ -4,6 +4,7 @@ import com.google.firebase.FirebaseApp
 import com.google.firebase.messaging.FirebaseMessaging
 import com.google.firebase.messaging.Message
 import com.google.firebase.messaging.Notification
+import com.japp.services.interfaces.IGroupRepository
 import com.japp.services.interfaces.IUserRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -15,9 +16,25 @@ import org.slf4j.LoggerFactory
  */
 class NotificationService(
     private val firebaseApp: FirebaseApp,
-    private val userRepository: IUserRepository
+    private val userRepository: IUserRepository,
+    private val groupRepository: IGroupRepository
 ) {
     private val logger = LoggerFactory.getLogger(NotificationService::class.java)
+
+    /**
+     * Filter a list of user id for a specific group, to exclude users which have turned off notifications
+     */
+    private fun filterNotificationPreference(groupId: Int, userIds: List<Int>): List<Int> {
+        val result = userIds.toMutableList()
+
+        result.forEach { userId ->
+            if (!groupRepository.hasNotificationEnabled(groupId, userId)) { // I know this is not the most efficient way, it should be changed. #TODO
+                result.removeAt(result.indexOf(userId))
+            }
+        }
+
+        return result.toList()
+    }
 
     /**
      * Send notification to specific FCM tokens
@@ -78,11 +95,14 @@ class NotificationService(
     ) {
         withContext(Dispatchers.IO) {
             try {
-                val targetUsers = if (excludeUserId != null) {
+                var targetUsers = if (excludeUserId != null) {
                     memberUserIds.filter { it != excludeUserId }
                 } else {
                     memberUserIds
                 }
+
+                // filter by notification preference
+                targetUsers = filterNotificationPreference(groupId, targetUsers)
 
                 val tokens = transaction {
                     userRepository.getFcmTokensForUsers(targetUsers)
@@ -120,8 +140,12 @@ class NotificationService(
     ) {
         withContext(Dispatchers.IO) {
             try {
+
+                // filter by notification preference
+                val filteredUsersIds = filterNotificationPreference(groupId, notifyUserIds)
+
                 val tokens = transaction {
-                    userRepository.getFcmTokensForUsers(notifyUserIds)
+                    userRepository.getFcmTokensForUsers(filteredUsersIds)
                 }
 
                 if (tokens.isNotEmpty()) {
@@ -161,8 +185,11 @@ class NotificationService(
                     messagePreview
                 }
 
+                // filter by notification preference
+                val recipients = filterNotificationPreference(groupId, listOf(recipientUserId))
+
                 val tokens = transaction {
-                    userRepository.getFcmTokensForUsers(listOf(recipientUserId))
+                    userRepository.getFcmTokensForUsers(recipients)
                 }
 
                 if (tokens.isNotEmpty()) {
@@ -194,8 +221,12 @@ class NotificationService(
     ) {
         withContext(Dispatchers.IO) {
             try {
+
+                // filter by notification preference
+                val recipients = filterNotificationPreference(groupId, listOf(newMemberUserId))
+
                 val tokens = transaction {
-                    userRepository.getFcmTokensForUsers(listOf(newMemberUserId))
+                    userRepository.getFcmTokensForUsers(recipients)
                 }
 
                 if (tokens.isNotEmpty()) {

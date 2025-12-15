@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.ManageAccounts
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material3.Badge
@@ -66,6 +67,7 @@ import com.japp.screens.ActivityScreen
 import com.japp.screens.CreateExpenseScreen
 import com.japp.screens.CreateGroupScreen
 import com.japp.screens.EditProfileScreen
+import com.japp.screens.GROUP_ID
 import com.japp.screens.GroupScreen
 import com.japp.screens.HomeScreen
 import com.japp.screens.JoinGroupScreen
@@ -211,11 +213,24 @@ fun JappApp() {
                             }
                         },
                         actions = {
-                            IconButton(onClick = { navigate(AppDestinations.CREATEGROUP.route) }) {
-                                Icon(
-                                    imageVector = AppDestinations.CREATEGROUP.icon,
-                                    contentDescription = "Create Group"
-                                )
+                            if (currentDestination == AppDestinations.GROUP) {
+                                IconButton(onClick = {
+                                    navController.navigate(
+                                        AppDestinations.CustomRoutes.OPTIONS.withArgs(GROUP_ID)
+                                    )
+                                }) {
+                                    Icon(
+                                        imageVector = Icons.Default.Settings,
+                                        contentDescription = "Group Options"
+                                    )
+                                }
+                            } else {
+                                IconButton(onClick = { navigate(AppDestinations.CREATEGROUP.route) }) {
+                                    Icon(
+                                        imageVector = AppDestinations.CREATEGROUP.icon,
+                                        contentDescription = "Create Group"
+                                    )
+                                }
                             }
                         },
                     )

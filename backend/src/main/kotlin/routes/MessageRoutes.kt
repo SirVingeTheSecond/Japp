@@ -115,7 +115,7 @@ fun Route.chatWebSocket() {
                 }
             }
 
-            heartbeatJob.cancel()
+            heartbeatJob?.cancel()
         } catch (e: Exception) {
             println("WebSocket error for user $userId: ${e.message}")
             e.printStackTrace()

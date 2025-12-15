@@ -51,9 +51,40 @@ class WebSocketIntegrationTest : AnnotationSpec() {
         }
     }
 
+    /**
+     * Default test config by loading from application.yaml.
+     * The test application.yaml should have websocket.heartbeatIntervalInSeconds set to 0.
+     */
     private fun ApplicationTestBuilder.setupTestConfig() {
         environment {
             config = ApplicationConfig("application.yaml")
+        }
+    }
+
+    /**
+     * Test config with heartbeat enabled for specific tests that requires it.
+     * Uses MapApplicationConfig to override the heartbeat interval since we cannot
+     * override specific values from application.yaml.
+     */
+    private fun ApplicationTestBuilder.setupTestConfigWithHeartbeat(intervalSeconds: Int = 1) {
+        environment {
+            config = MapApplicationConfig(
+                "jwt.secret" to "test-secret",
+                "jwt.issuer" to "test-issuer",
+                "jwt.audience" to "test-audience",
+                "jwt.realm" to "test-realm",
+                "jwt.expirationDays" to "7",
+                "database.url" to "jdbc:h2:mem:typing_test;DB_CLOSE_DELAY=-1",
+                "database.driver" to "org.h2.Driver",
+                "database.user" to "root",
+                "database.password" to "",
+                "database.pool.maximumPoolSize" to "5",
+                "database.pool.minimumIdle" to "1",
+                "database.pool.connectionTimeout" to "30000",
+                "database.pool.idleTimeout" to "600000",
+                "database.pool.maxLifetime" to "1800000",
+                "websocket.heartbeatIntervalInSeconds" to intervalSeconds.toString()
+            )
         }
     }
 

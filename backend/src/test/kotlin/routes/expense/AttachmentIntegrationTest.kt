@@ -52,23 +52,7 @@ class AttachmentIntegrationTest : AnnotationSpec() {
 
     private fun ApplicationTestBuilder.setupTestConfig() {
         environment {
-            config = MapApplicationConfig(
-                "jwt.secret" to "test-secret",
-                "jwt.issuer" to "test-issuer",
-                "jwt.audience" to "test-audience",
-                "jwt.realm" to "test-realm",
-                "jwt.expirationDays" to "7",
-                "database.url" to "jdbc:h2:mem:attachment_test;DB_CLOSE_DELAY=-1",
-                "database.driver" to "org.h2.Driver",
-                "database.user" to "root",
-                "database.password" to "",
-                "database.pool.maximumPoolSize" to "5",
-                "database.pool.minimumIdle" to "1",
-                "database.pool.connectionTimeout" to "30000",
-                "database.pool.idleTimeout" to "600000",
-                "database.pool.maxLifetime" to "1800000",
-                "storage.attachments.basePath" to "./test-attachments"
-            )
+            config = ApplicationConfig("application.yaml")
         }
     }
 
@@ -168,7 +152,7 @@ class AttachmentIntegrationTest : AnnotationSpec() {
     @Test
     fun `should upload attachment successfully`() = testApplication {
         setupTestConfig()
-        application { module() }
+
         val data = setupTestData()
 
         // small test image
@@ -211,7 +195,7 @@ class AttachmentIntegrationTest : AnnotationSpec() {
     @Test
     fun `should fail to upload attachment without authentication`() = testApplication {
         setupTestConfig()
-        application { module() }
+
         val data = setupTestData()
 
         val testImageBytes = byteArrayOf(0x89.toByte(), 0x50, 0x4E, 0x47)
@@ -236,7 +220,7 @@ class AttachmentIntegrationTest : AnnotationSpec() {
     @Test
     fun `should fail to upload attachment when not a group member`() = testApplication {
         setupTestConfig()
-        application { module() }
+
         val data = setupTestData()
 
         val testImageBytes = byteArrayOf(0x89.toByte(), 0x50, 0x4E, 0x47)
@@ -262,7 +246,7 @@ class AttachmentIntegrationTest : AnnotationSpec() {
     @Test
     fun `should fail to upload attachment with invalid file type`() = testApplication {
         setupTestConfig()
-        application { module() }
+
         val data = setupTestData()
 
         val testFileBytes = "This is not an image".toByteArray()
@@ -288,7 +272,7 @@ class AttachmentIntegrationTest : AnnotationSpec() {
     @Test
     fun `should fail to upload attachment exceeding size limit`() = testApplication {
         setupTestConfig()
-        application { module() }
+
         val data = setupTestData()
 
         // Create 9MB file (exceeds 8MB limit)
@@ -315,7 +299,7 @@ class AttachmentIntegrationTest : AnnotationSpec() {
     @Test
     fun `should list attachments for expense`() = testApplication {
         setupTestConfig()
-        application { module() }
+
         val data = setupTestData()
 
         val testImageBytes = byteArrayOf(0x89.toByte(), 0x50, 0x4E, 0x47)
@@ -364,7 +348,7 @@ class AttachmentIntegrationTest : AnnotationSpec() {
     @Test
     fun `should download attachment successfully`() = testApplication {
         setupTestConfig()
-        application { module() }
+
         val data = setupTestData()
 
         val testImageBytes = byteArrayOf(0x89.toByte(), 0x50, 0x4E, 0x47)
@@ -397,7 +381,7 @@ class AttachmentIntegrationTest : AnnotationSpec() {
     @Test
     fun `should fail to download attachment when not a group member`() = testApplication {
         setupTestConfig()
-        application { module() }
+
         val data = setupTestData()
 
         val testImageBytes = byteArrayOf(0x89.toByte(), 0x50, 0x4E, 0x47)
@@ -428,7 +412,7 @@ class AttachmentIntegrationTest : AnnotationSpec() {
     @Test
     fun `should delete attachment successfully`() = testApplication {
         setupTestConfig()
-        application { module() }
+
         val data = setupTestData()
 
         val testImageBytes = byteArrayOf(0x89.toByte(), 0x50, 0x4E, 0x47)
@@ -463,7 +447,7 @@ class AttachmentIntegrationTest : AnnotationSpec() {
     @Test
     fun `should fail to delete attachment when not the uploader`() = testApplication {
         setupTestConfig()
-        application { module() }
+
         val data = setupTestData()
 
         val testImageBytes = byteArrayOf(0x89.toByte(), 0x50, 0x4E, 0x47)
@@ -494,7 +478,7 @@ class AttachmentIntegrationTest : AnnotationSpec() {
     @Test
     fun `should fail to delete non-existent attachment`() = testApplication {
         setupTestConfig()
-        application { module() }
+
         val data = setupTestData()
 
         val response = client.delete("/api/attachments/99999") {

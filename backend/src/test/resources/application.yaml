@@ -30,6 +30,8 @@ websocket:
 storage:
   attachments:
     basePath: ./test-attachments
+  profilePictures:
+    basePath: ./test-profile-pictures
 
 app:
   version: 1.0.0-test

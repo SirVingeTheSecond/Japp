@@ -1,10 +1,13 @@
 package com.japp.repositories.implementations
 
 import com.japp.database.tables.ActivityLogs
+import com.japp.database.tables.Attachments
+import com.japp.database.tables.DebtHistory
 import com.japp.database.tables.ExpenseSplits
 import com.japp.database.tables.Expenses
 import com.japp.database.tables.GroupMembers
 import com.japp.database.tables.Groups
+import com.japp.database.tables.MessageReadStatus
 import com.japp.database.tables.Messages
 import com.japp.database.tables.Settlements
 import com.japp.database.tables.Users
@@ -22,9 +25,6 @@ import org.jetbrains.exposed.v1.core.minus
 import org.jetbrains.exposed.v1.core.plus
 import java.util.UUID
 
-/**
- * Handles all database operations for groups
- */
 class GroupRepository : IGroupRepository {
 
     override fun create(name: String, description: String?, createdBy: Int): Group {
@@ -174,15 +174,26 @@ class GroupRepository : IGroupRepository {
     }
 
     override fun delete(groupId: Int) {
-        ExpenseSplits.deleteWhere {
-            expenseId inSubQuery Expenses.select(Expenses.id).where { Expenses.groupId eq groupId }
-        }
+        // Order obviously matters due to foreign key constraints...
+
+        // Records of users who left with outstanding debts (TRAITORS)
+        DebtHistory.deleteWhere { DebtHistory.groupId eq groupId }
+
+        // Message read receipts reference messages
+        val messageIds = Messages.select(Messages.id).where { Messages.groupId eq groupId }
+        MessageReadStatus.deleteWhere { messageId inSubQuery messageIds }
+
+        Messages.deleteWhere { Messages.groupId eq groupId }
+
+        // Attachments reference expenses
+        val expenseIds = Expenses.select(Expenses.id).where { Expenses.groupId eq groupId }
+        Attachments.deleteWhere { expenseId inSubQuery expenseIds }
+
+        ExpenseSplits.deleteWhere { expenseId inSubQuery expenseIds }
 
         Expenses.deleteWhere { Expenses.groupId eq groupId }
 
         Settlements.deleteWhere { Settlements.groupId eq groupId }
-
-        Messages.deleteWhere { Messages.groupId eq groupId }
 
         ActivityLogs.deleteWhere { ActivityLogs.groupId eq groupId }
 

@@ -90,7 +90,7 @@ class UserRepository : IUserRepository {
         }
     }
 
-    // for sending notifications
+    // For sending notifications to multiple users
     override fun getFcmTokensForUsers(userIds: List<Int>): List<String> {
         if (userIds.isEmpty()) return emptyList()
 
@@ -98,6 +98,12 @@ class UserRepository : IUserRepository {
             .where { Users.id inList userIds }
             .mapNotNull { it[Users.fcmToken] }
             .filter { it.isNotBlank() }
+    }
+
+    override fun updateProfilePicture(id: Int, path: String?): Int {
+        return Users.update({ Users.id eq id }) {
+            it[profilePicture] = path
+        }
     }
 
     private fun rowToUser(row: ResultRow): User {

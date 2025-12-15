@@ -52,11 +52,13 @@ fun Application.loadDatabaseConfig(): DatabaseConfig {
 }
 
 data class StorageConfig(
-    val attachmentsBasePath: String
+    val attachmentsBasePath: String,
+    val profilePicturesBasePath: String
 )
 
 fun Application.loadStorageConfig(): StorageConfig {
     return StorageConfig(
-        attachmentsBasePath = environment.config.property("storage.attachments.basePath").getString()
+        attachmentsBasePath = environment.config.property("storage.attachments.basePath").getString(),
+        profilePicturesBasePath = environment.config.property("storage.profilePictures.basePath").getString()
     )
 }

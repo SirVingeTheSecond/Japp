@@ -49,22 +49,7 @@ class GroupMemberIntegrationTest : AnnotationSpec() {
 
     private fun ApplicationTestBuilder.setupTestConfig() {
         environment {
-            config = MapApplicationConfig(
-                "jwt.secret" to "test-secret",
-                "jwt.issuer" to "test-issuer",
-                "jwt.audience" to "test-audience",
-                "jwt.realm" to "test-realm",
-                "jwt.expirationDays" to "7",
-                "database.url" to "jdbc:h2:mem:joinedat_test;DB_CLOSE_DELAY=-1",
-                "database.driver" to "org.h2.Driver",
-                "database.user" to "root",
-                "database.password" to "",
-                "database.pool.maximumPoolSize" to "5",
-                "database.pool.minimumIdle" to "1",
-                "database.pool.connectionTimeout" to "30000",
-                "database.pool.idleTimeout" to "600000",
-                "database.pool.maxLifetime" to "1800000"
-            )
+            config = ApplicationConfig("application.yaml")
         }
     }
 
@@ -107,7 +92,7 @@ class GroupMemberIntegrationTest : AnnotationSpec() {
 
     @Test
     fun `group creator should have joinedAt timestamp`() = testApplication {
-        application { module() }
+
         setupTestConfig()
         val testData = setupTestData()
 
@@ -139,7 +124,7 @@ class GroupMemberIntegrationTest : AnnotationSpec() {
 
     @Test
     fun `member who joins should have joinedAt timestamp`() = testApplication {
-        application { module() }
+
         setupTestConfig()
         val testData = setupTestData()
 
@@ -180,7 +165,7 @@ class GroupMemberIntegrationTest : AnnotationSpec() {
 
     @Test
     fun `multiple members should have different joinedAt timestamps`() = testApplication {
-        application { module() }
+
         setupTestConfig()
         val testData = setupTestData()
 
@@ -225,7 +210,7 @@ class GroupMemberIntegrationTest : AnnotationSpec() {
 
     @Test
     fun `joinedAt should be consistent across multiple API calls`() = testApplication {
-        application { module() }
+
         setupTestConfig()
         val testData = setupTestData()
 
@@ -256,7 +241,7 @@ class GroupMemberIntegrationTest : AnnotationSpec() {
 
     @Test
     fun `owner should successfully remove a member`() = testApplication {
-        application { module() }
+
         setupTestConfig()
         val testData = setupTestData()
 
@@ -294,7 +279,7 @@ class GroupMemberIntegrationTest : AnnotationSpec() {
 
     @Test
     fun `non-owner should fail to remove a member`() = testApplication {
-        application { module() }
+
         setupTestConfig()
         val testData = setupTestData()
 
@@ -325,7 +310,7 @@ class GroupMemberIntegrationTest : AnnotationSpec() {
 
     @Test
     fun `owner should fail to remove themselves`() = testApplication {
-        application { module() }
+
         setupTestConfig()
         val testData = setupTestData()
 
@@ -350,7 +335,7 @@ class GroupMemberIntegrationTest : AnnotationSpec() {
 
     @Test
     fun `should fail to remove non-existent member`() = testApplication {
-        application { module() }
+
         setupTestConfig()
         val testData = setupTestData()
 

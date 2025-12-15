@@ -29,7 +29,9 @@ websocket:
 
 storage:
   attachments:
-    basePath: /var/japp/attachments
+    basePath: ${STORAGE_ATTACHMENTS_PATH:/var/japp/attachments}
+  profilePictures:
+    basePath: ${STORAGE_PROFILE_PICTURES_PATH:/var/japp/profile-pictures}
 
 app:
   version: 1.0.0

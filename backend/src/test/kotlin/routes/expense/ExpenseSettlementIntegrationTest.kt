@@ -46,22 +46,7 @@ class ExpenseSettlementIntegrationTest : AnnotationSpec() {
 
     private fun ApplicationTestBuilder.setupTestConfig() {
         environment {
-            config = MapApplicationConfig(
-                "jwt.secret" to "test-secret",
-                "jwt.issuer" to "test-issuer",
-                "jwt.audience" to "test-audience",
-                "jwt.realm" to "test-realm",
-                "jwt.expirationDays" to "7",
-                "database.url" to "jdbc:h2:mem:flow_test;DB_CLOSE_DELAY=-1",
-                "database.driver" to "org.h2.Driver",
-                "database.user" to "root",
-                "database.password" to "",
-                "database.pool.maximumPoolSize" to "5",
-                "database.pool.minimumIdle" to "1",
-                "database.pool.connectionTimeout" to "30000",
-                "database.pool.idleTimeout" to "600000",
-                "database.pool.maxLifetime" to "1800000"
-            )
+            config = ApplicationConfig("application.yaml")
         }
     }
 
@@ -156,7 +141,7 @@ class ExpenseSettlementIntegrationTest : AnnotationSpec() {
     @Test
     fun `should fail to create settlement without authentication`() = testApplication {
         setupTestConfig()
-        application { module() }
+
         val data = setupTestData()
 
         val response = client.post("/api/settlements") {
@@ -171,7 +156,7 @@ class ExpenseSettlementIntegrationTest : AnnotationSpec() {
     @Test
     fun `should complete full expense and settlement flow with correct balances`() = testApplication {
         setupTestConfig()
-        application { module() }
+
         val data = setupTestData()
 
         // Scenario: Rolf pays 300 for dinner, split equally among all three
@@ -292,7 +277,7 @@ class ExpenseSettlementIntegrationTest : AnnotationSpec() {
     @Test
     fun `should handle custom split with correct balance calculations`() = testApplication {
         setupTestConfig()
-        application { module() }
+
         val data = setupTestData()
 
         // Scenario: Rolf pays 500, but Marius owes 300 and Marcus owes 200
@@ -342,7 +327,7 @@ class ExpenseSettlementIntegrationTest : AnnotationSpec() {
     @Test
     fun `should prevent user from settling to themselves`() = testApplication {
         setupTestConfig()
-        application { module() }
+
         val data = setupTestData()
 
         val response = client.post("/api/settlements") {
@@ -363,7 +348,7 @@ class ExpenseSettlementIntegrationTest : AnnotationSpec() {
     @Test
     fun `should prevent settlement with negative amount`() = testApplication {
         setupTestConfig()
-        application { module() }
+
         val data = setupTestData()
 
         val response = client.post("/api/settlements") {
@@ -384,7 +369,7 @@ class ExpenseSettlementIntegrationTest : AnnotationSpec() {
     @Test
     fun `should prevent settlement with zero amount`() = testApplication {
         setupTestConfig()
-        application { module() }
+
         val data = setupTestData()
 
         val response = client.post("/api/settlements") {
@@ -405,7 +390,7 @@ class ExpenseSettlementIntegrationTest : AnnotationSpec() {
     @Test
     fun `should prevent unintended user from completing settlement`() = testApplication {
         setupTestConfig()
-        application { module() }
+
         val data = setupTestData()
 
         val settlementResponse = client.post("/api/settlements") {
@@ -432,7 +417,7 @@ class ExpenseSettlementIntegrationTest : AnnotationSpec() {
     @Test
     fun `should prevent completing already completed settlement`() = testApplication {
         setupTestConfig()
-        application { module() }
+
         val data = setupTestData()
 
         val settlementResponse = client.post("/api/settlements") {
@@ -463,7 +448,7 @@ class ExpenseSettlementIntegrationTest : AnnotationSpec() {
     @Test
     fun `should prevent expense creation with negative amount`() = testApplication {
         setupTestConfig()
-        application { module() }
+
         val data = setupTestData()
 
         val response = client.post("/api/expenses") {
@@ -487,7 +472,7 @@ class ExpenseSettlementIntegrationTest : AnnotationSpec() {
     @Test
     fun `should prevent custom split with amounts not summing to total`() = testApplication {
         setupTestConfig()
-        application { module() }
+
         val data = setupTestData()
 
         // Total is 300 but splits sum to 250
@@ -516,7 +501,7 @@ class ExpenseSettlementIntegrationTest : AnnotationSpec() {
     @Test
     fun `should minimize settlements optimally for complex scenario`() = testApplication {
         setupTestConfig()
-        application { module() }
+
         val data = setupTestData()
 
         // Scenario: Multiple expenses creating complex debt network
@@ -597,7 +582,7 @@ class ExpenseSettlementIntegrationTest : AnnotationSpec() {
     @Test
     fun `should prevent settlement to non-group member`() = testApplication {
         setupTestConfig()
-        application { module() }
+
         val data = setupTestData()
 
         val nonMemberResponse = client.post("/api/auth/signup") {
@@ -632,7 +617,7 @@ class ExpenseSettlementIntegrationTest : AnnotationSpec() {
     @Test
     fun `should handle percentage custom split correctly`() = testApplication {
         setupTestConfig()
-        application { module() }
+
         val data = setupTestData()
 
         // Scenario: Rolf pays 1000, Marius owes 60%, Marcus owes 40%

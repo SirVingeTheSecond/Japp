@@ -44,22 +44,7 @@ class FcmTokenIntegrationTest : AnnotationSpec() {
 
     private fun ApplicationTestBuilder.setupTestConfig() {
         environment {
-            config = MapApplicationConfig(
-                "jwt.secret" to "test-secret",
-                "jwt.issuer" to "test-issuer",
-                "jwt.audience" to "test-audience",
-                "jwt.realm" to "test-realm",
-                "jwt.expirationDays" to "7",
-                "database.url" to "jdbc:h2:mem:fcm_token_test;DB_CLOSE_DELAY=-1",
-                "database.driver" to "org.h2.Driver",
-                "database.user" to "root",
-                "database.password" to "",
-                "database.pool.maximumPoolSize" to "5",
-                "database.pool.minimumIdle" to "1",
-                "database.pool.connectionTimeout" to "30000",
-                "database.pool.idleTimeout" to "600000",
-                "database.pool.maxLifetime" to "1800000"
-            )
+            config = ApplicationConfig("application.yaml")
         }
     }
 
@@ -110,7 +95,7 @@ class FcmTokenIntegrationTest : AnnotationSpec() {
     @Test
     fun `should register FCM token successfully`() = testApplication {
         setupTestConfig()
-        application { module() }
+
         val data = setupTestData()
 
         val response = client.post("/api/user/me/fcm-token") {
@@ -125,7 +110,7 @@ class FcmTokenIntegrationTest : AnnotationSpec() {
     @Test
     fun `should update existing FCM token`() = testApplication {
         setupTestConfig()
-        application { module() }
+
         val data = setupTestData()
 
         // Register first token
@@ -148,7 +133,7 @@ class FcmTokenIntegrationTest : AnnotationSpec() {
     @Test
     fun `should register different FCM tokens for different users`() = testApplication {
         setupTestConfig()
-        application { module() }
+
         val data = setupTestData()
 
         val response1 = client.post("/api/user/me/fcm-token") {
@@ -170,7 +155,7 @@ class FcmTokenIntegrationTest : AnnotationSpec() {
     @Test
     fun `should fail to register FCM token without authentication`() = testApplication {
         setupTestConfig()
-        application { module() }
+
 
         val response = client.post("/api/user/me/fcm-token") {
             contentType(ContentType.Application.Json)
@@ -183,7 +168,7 @@ class FcmTokenIntegrationTest : AnnotationSpec() {
     @Test
     fun `should fail to register FCM token with invalid JWT`() = testApplication {
         setupTestConfig()
-        application { module() }
+
 
         val response = client.post("/api/user/me/fcm-token") {
             contentType(ContentType.Application.Json)
@@ -197,7 +182,7 @@ class FcmTokenIntegrationTest : AnnotationSpec() {
     @Test
     fun `should fail to register FCM token with empty token`() = testApplication {
         setupTestConfig()
-        application { module() }
+
         val data = setupTestData()
 
         val response = client.post("/api/user/me/fcm-token") {
@@ -214,7 +199,7 @@ class FcmTokenIntegrationTest : AnnotationSpec() {
     @Test
     fun `should fail to register FCM token with missing body`() = testApplication {
         setupTestConfig()
-        application { module() }
+
         val data = setupTestData()
 
         val response = client.post("/api/user/me/fcm-token") {
@@ -229,7 +214,7 @@ class FcmTokenIntegrationTest : AnnotationSpec() {
     @Test
     fun `should clear FCM token successfully`() = testApplication {
         setupTestConfig()
-        application { module() }
+
         val data = setupTestData()
 
         // First register a token
@@ -250,7 +235,7 @@ class FcmTokenIntegrationTest : AnnotationSpec() {
     @Test
     fun `should clear FCM token even when no token was registered`() = testApplication {
         setupTestConfig()
-        application { module() }
+
         val data = setupTestData()
 
         // Clear without having registered a token first
@@ -264,7 +249,7 @@ class FcmTokenIntegrationTest : AnnotationSpec() {
     @Test
     fun `should fail to clear FCM token without authentication`() = testApplication {
         setupTestConfig()
-        application { module() }
+
 
         val response = client.delete("/api/user/me/fcm-token")
 
@@ -274,7 +259,7 @@ class FcmTokenIntegrationTest : AnnotationSpec() {
     @Test
     fun `should fail to clear FCM token with invalid JWT`() = testApplication {
         setupTestConfig()
-        application { module() }
+
 
         val response = client.delete("/api/user/me/fcm-token") {
             header("Authorization", "Bearer invalid-jwt-token")
@@ -286,7 +271,7 @@ class FcmTokenIntegrationTest : AnnotationSpec() {
     @Test
     fun `should only clear own FCM token not affect other users`() = testApplication {
         setupTestConfig()
-        application { module() }
+
         val data = setupTestData()
 
         // User 1 registers token
@@ -323,7 +308,7 @@ class FcmTokenIntegrationTest : AnnotationSpec() {
     @Test
     fun `should allow re-registering token after clearing`() = testApplication {
         setupTestConfig()
-        application { module() }
+
         val data = setupTestData()
 
         // Register

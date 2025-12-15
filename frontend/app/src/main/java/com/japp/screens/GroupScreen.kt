@@ -22,25 +22,19 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.Logout
-import androidx.compose.material.icons.filled.AddComment
-import androidx.compose.material.icons.outlined.DeleteOutline
+import androidx.compose.material.icons.automirrored.filled.Message
 import androidx.compose.material.icons.outlined.QrCode2
 import androidx.compose.material.icons.rounded.Handshake
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.SecondaryTabRow
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -53,7 +47,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -72,7 +65,6 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.google.zxing.BarcodeFormat
 import com.japp.AppDestinations
-import com.japp.GroupNavController
 import com.japp.api.NetworkResult
 import com.japp.api.RetrofitClient
 import com.japp.api.responses.auth.UserDto
@@ -80,7 +72,6 @@ import com.japp.api.responses.expense.ExpenseDto
 import com.japp.api.responses.expense.GroupBalanceSummaryDto
 import com.japp.api.responses.group.GroupDto
 import com.japp.api.responses.group.GroupMemberDto
-import com.japp.api.safeApiMutation
 import com.japp.api.safeApiQuery
 import com.japp.composables.ErrorWithRetry
 import com.japp.composables.ExpenseDetailCard
@@ -90,7 +81,6 @@ import com.japp.rememberFabButton
 import com.japp.ui.rememberSnackbar
 import com.japp.ui.state.UiState
 import com.journeyapps.barcodescanner.BarcodeEncoder
-import kotlinx.coroutines.launch
 import kotlin.math.abs
 
 var GROUP_ID = -1
@@ -338,13 +328,11 @@ private fun GroupBalanceBar(
             positiveContentColor,
             "You are owed ${String.format("%.2f", myBalance)}"
         )
-
         myBalance < -0.01 -> Triple(
             negativeColor,
             negativeContentColor,
             "You owe ${String.format("%.2f", abs(myBalance))}"
         )
-
         else -> Triple(neutralColor, neutralContentColor, "All settled up")
     }
 
@@ -469,18 +457,10 @@ fun NavTab(
     groupId: Int
 ) {
     val navController = rememberNavController()
-    val coroutineScope = rememberCoroutineScope()
     val snackbar = rememberSnackbar()
     val groupOwner = groupMembers.value.find { it.isOwner }
 
     var refreshGroupMembersKey by remember { mutableIntStateOf(0) }
-    var leaving by remember { mutableStateOf(false) }
-    var deleting by remember { mutableStateOf(false) }
-
-    DisposableEffect(navController) {
-        GroupNavController.navController = navController
-        onDispose { GroupNavController.navController = null }
-    }
 
     LaunchedEffect(refreshGroupMembersKey) {
         when (val result = safeApiQuery("NavTab.refreshMembers") {
@@ -495,8 +475,8 @@ fun NavTab(
     val currentRoute = navBackStackEntry?.destination?.route
 
     val selectedDestination = when (currentRoute) {
-        "1" -> 0
-        "2" -> 1
+        "members" -> 0
+        "expenses" -> 1
         else -> 0
     }
 
@@ -505,18 +485,18 @@ fun NavTab(
             SecondaryTabRow(selectedTabIndex = selectedDestination) {
                 Tab(
                     selected = selectedDestination == 0,
-                    onClick = { navController.navigate("1") },
+                    onClick = { navController.navigate("members") },
                     text = { Text("Members") }
                 )
                 Tab(
                     selected = selectedDestination == 1,
-                    onClick = { navController.navigate("2") },
+                    onClick = { navController.navigate("expenses") },
                     text = { Text("Expenses") }
                 )
             }
 
-            NavHost(navController = navController, startDestination = "1") {
-                composable("1") {
+            NavHost(navController = navController, startDestination = "members") {
+                composable("members") {
                     MembersTabContent(
                         groupMembers = groupMembers.value,
                         groupBalance = groupBalance,
@@ -526,16 +506,8 @@ fun NavTab(
                     )
                 }
 
-                composable("2") {
+                composable("expenses") {
                     ExpensesTabContent(groupExpenses = groupExpenses)
-                }
-
-                composable("3") {
-                    OptionsTabContent(
-                        isOwner = groupOwner?.userId == me?.id,
-                        onLeaveGroup = { leaving = true },
-                        onDeleteGroup = { deleting = true }
-                    )
                 }
 
                 composable("chatScreen") {
@@ -544,7 +516,7 @@ fun NavTab(
             }
         }
 
-        // FAB
+        // Chat FAB
         AnimatedVisibility(
             visible = currentRoute != "chatScreen",
             enter = fadeIn(animationSpec = tween(300)),
@@ -559,67 +531,12 @@ fun NavTab(
                 contentColor = MaterialTheme.colorScheme.onPrimaryContainer
             ) {
                 Icon(
-                    imageVector = Icons.Filled.AddComment,
+                    imageVector = Icons.AutoMirrored.Filled.Message,
                     contentDescription = "Open chat",
                     modifier = Modifier.size(24.dp)
                 )
             }
         }
-    }
-
-    // Dialogs
-    if (leaving) {
-        ConfirmationDialog(
-            title = "Leave Group?",
-            message = "Are you sure you want to leave this group?",
-            confirmText = "Leave",
-            onConfirm = {
-                coroutineScope.launch {
-                    when (val result = safeApiMutation("NavTab.leaveGroup") {
-                        RetrofitClient.groupService.leaveGroup(groupId)
-                    }) {
-                        is NetworkResult.Success -> {
-                            snackbar.showSuccess("Left the group")
-                            outerNavController?.popBackStack(AppDestinations.HOME.route, false)
-                        }
-
-                        is NetworkResult.Error -> {
-                            snackbar.showError(result.message)
-                            leaving = false
-                        }
-                    }
-                }
-            },
-            onDismiss = { leaving = false }
-        )
-    }
-
-    if (deleting) {
-        ConfirmationDialog(
-            title = "Delete Group?",
-            message = "Are you sure you want to delete this group?",
-            subtitle = "This action cannot be undone.",
-            confirmText = "Delete",
-            isDestructive = true,
-            onConfirm = {
-                coroutineScope.launch {
-                    when (val result = safeApiMutation("NavTab.deleteGroup") {
-                        RetrofitClient.groupService.deleteGroup(groupId)
-                    }) {
-                        is NetworkResult.Success -> {
-                            snackbar.showSuccess("Group deleted")
-                            outerNavController?.popBackStack(AppDestinations.HOME.route, false)
-                        }
-
-                        is NetworkResult.Error -> {
-                            snackbar.showError(result.message)
-                            deleting = false
-                        }
-                    }
-                }
-            },
-            onDismiss = { deleting = false }
-        )
     }
 }
 
@@ -662,184 +579,6 @@ private fun ExpensesTabContent(groupExpenses: List<ExpenseDto>) {
         } else {
             groupExpenses.forEach { expense ->
                 ExpenseDetailCard(expense = expense)
-            }
-        }
-    }
-}
-
-@Composable
-private fun OptionsTabContent(
-    isOwner: Boolean,
-    onLeaveGroup: () -> Unit,
-    onDeleteGroup: () -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(24.dp)
-    ) {
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(
-                text = "Notifications",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold
-            )
-
-            var notificationsEnabled by remember { mutableStateOf(false) }
-
-            Card(
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-                )
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "Enable notifications",
-                            style = MaterialTheme.typography.bodyLarge
-                        )
-                        Text(
-                            text = "Get notified about new expenses and settlements",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    Switch(
-                        checked = notificationsEnabled,
-                        onCheckedChange = { notificationsEnabled = it }
-                    )
-                }
-            }
-        }
-
-        HorizontalDivider()
-
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(
-                text = "Danger Zone",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.error
-            )
-            Text(
-                text = "These actions are irreversible",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            OutlinedButton(
-                onClick = onLeaveGroup,
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = MaterialTheme.colorScheme.error
-                )
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Rounded.Logout,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Leave Group")
-            }
-
-            if (isOwner) {
-                Button(
-                    onClick = onDeleteGroup,
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.error,
-                        contentColor = MaterialTheme.colorScheme.onError
-                    )
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.DeleteOutline,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Delete Group")
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(80.dp))
-    }
-}
-
-@Composable
-private fun ConfirmationDialog(
-    title: String,
-    message: String,
-    subtitle: String? = null,
-    confirmText: String,
-    isDestructive: Boolean = false,
-    onConfirm: () -> Unit,
-    onDismiss: () -> Unit
-) {
-    Dialog(onDismissRequest = onDismiss) {
-        Card(
-            shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.SemiBold,
-                    textAlign = TextAlign.Center
-                )
-
-                Text(
-                    text = message,
-                    style = MaterialTheme.typography.bodyMedium,
-                    textAlign = TextAlign.Center,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-
-                subtitle?.let {
-                    Text(
-                        text = it,
-                        style = MaterialTheme.typography.bodySmall,
-                        textAlign = TextAlign.Center,
-                        color = MaterialTheme.colorScheme.outline
-                    )
-                }
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End)
-                ) {
-                    TextButton(onClick = onDismiss) { Text("Cancel") }
-
-                    if (isDestructive) {
-                        Button(
-                            onClick = onConfirm,
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.error,
-                                contentColor = MaterialTheme.colorScheme.onError
-                            )
-                        ) { Text(confirmText) }
-                    } else {
-                        Button(onClick = onConfirm) { Text(confirmText) }
-                    }
-                }
             }
         }
     }

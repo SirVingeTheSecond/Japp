@@ -1,5 +1,7 @@
 package com.japp.api.responses.user
 
+data class FcmTokenRequest(val token: String)
+
 data class MeResponse(
     val userId: Int,
     val message: String

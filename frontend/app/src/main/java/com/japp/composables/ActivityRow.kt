@@ -28,12 +28,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.japp.api.responses.ActivityType
 import com.japp.api.responses.activity.ActivityDto
-import java.time.Instant
-import java.time.LocalDateTime
-import java.time.ZoneId
 
 fun getActivityIcon(actionType: ActivityType): ImageVector {
-    return when (actionType) { // These icons are not final, just placeholders for now
+    return when (actionType) {
         ActivityType.MEMBER_LEFT -> Icons.Default.Circle
         ActivityType.MEMBER_REMOVED -> Icons.Default.GroupRemove
         ActivityType.GROUP_CREATED -> Icons.Default.Group
@@ -51,9 +48,8 @@ fun getActivityIcon(actionType: ActivityType): ImageVector {
 fun ActivityRow(
     activity: ActivityDto
 ) {
-    return Row (
-        modifier = Modifier
-            .padding(top = 10.dp),
+    Row(
+        modifier = Modifier.padding(top = 10.dp),
         horizontalArrangement = Arrangement.spacedBy(4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -61,8 +57,7 @@ fun ActivityRow(
             imageVector = getActivityIcon(actionType = activity.actionType),
             contentDescription = "Activity type",
             tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier
-                .size(24.dp)
+            modifier = Modifier.size(24.dp)
         )
 
         Text(
@@ -82,9 +77,9 @@ fun ActivityRow(
 
         Spacer(modifier = Modifier.weight(1f))
 
-        PrintableDatetime(
-            time = LocalDateTime.ofInstant(Instant.ofEpochMilli(activity.createdAt.toLong()), ZoneId.systemDefault())
+        FormattedTime(
+            timestamp = activity.createdAt,
+            format = TimeFormat.SHORT
         )
-
     }
 }

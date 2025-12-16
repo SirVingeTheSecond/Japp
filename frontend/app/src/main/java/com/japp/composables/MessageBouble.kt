@@ -11,10 +11,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.japp.api.responses.MessageType
 import com.japp.api.responses.message.MessageDto
-import java.time.Instant
-import java.time.LocalDateTime
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
 
 @Composable
 fun MessageBubble(
@@ -25,24 +21,7 @@ fun MessageBubble(
     val isCurrentUser = message.userId == currentUserId
     val isSystemMessage = message.messageType == MessageType.SYSTEM
 
-    // Backend sends unix timestamp in millis
-    // Don't 'bout this exception handling, chief
-    val messageTime = try {
-        val timestamp = message.createdAt.toLongOrNull()
-        if (timestamp != null) {
-            LocalDateTime.ofInstant(
-                Instant.ofEpochMilli(timestamp),
-                ZoneId.systemDefault()
-            )
-        } else {
-            LocalDateTime.parse(message.createdAt, DateTimeFormatter.ISO_DATE_TIME)
-        }
-    } catch (_: Exception) {
-        LocalDateTime.now()
-    }
-
     if (isSystemMessage) {
-        // System messages centered
         Box(
             modifier = modifier
                 .fillMaxWidth()
@@ -57,7 +36,6 @@ fun MessageBubble(
             )
         }
     } else {
-        // User messages left/right aligned
         Row(
             modifier = modifier
                 .fillMaxWidth()
@@ -104,7 +82,10 @@ fun MessageBubble(
                 }
 
                 Box(modifier = Modifier.padding(start = 12.dp, top = 2.dp)) {
-                    PrintableDatetime(time = messageTime)
+                    FormattedTime(
+                        timestamp = message.createdAt,
+                        format = TimeFormat.MESSAGE
+                    )
                 }
             }
         }

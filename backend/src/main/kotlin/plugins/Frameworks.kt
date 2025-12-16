@@ -115,7 +115,8 @@ fun appModule(application: Application) = module {
     single {
         NotificationService(
             firebaseApp = get(),
-            userRepository = get()
+            userRepository = get(),
+            groupRepository = get()
         )
     }
 

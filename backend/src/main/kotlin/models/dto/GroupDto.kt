@@ -1,5 +1,6 @@
 package com.japp.models.dto
 
+import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -65,4 +66,9 @@ data class DebtHistoryDto(
     val username: String,
     val amountOwed: Double,
     val leftAt: String
+)
+
+@Serializable
+data class NotificationPreferenceDto(
+    val enabled: Boolean
 )

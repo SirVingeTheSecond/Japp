@@ -597,4 +597,49 @@ class GroupService(
             }
         }
     }
+
+    /**
+     * Check if user has notifications enabled for a specific group
+     */
+    suspend fun hasNotificationEnabled(
+        groupId: Int,
+        userId: Int
+    ): Result<NotificationPreferenceDto, AppError> {
+        return withContext(Dispatchers.IO) {
+            try {
+                transaction {
+                    val notificationEnabled = groupRepository.hasNotificationEnabled(groupId, userId)
+
+                    Result.Success(NotificationPreferenceDto(notificationEnabled))
+                }
+            } catch (e: Exception) {
+                Result.Failure(
+                    AppError.Internal(e.message ?: "Failed to retrieve notification setting!")
+                )
+            }
+        }
+    }
+
+    /**
+     * Set notification preference for a specific member of a group
+     */
+    suspend fun setNotificationEnabled(
+        groupId: Int,
+        userId: Int,
+        enabled: Boolean
+    ): Result<NotificationPreferenceDto, AppError> {
+        return withContext(Dispatchers.IO) {
+            try {
+                transaction {
+                    groupRepository.setNotificationEnabled(groupId, userId, enabled)
+
+                    Result.Success(NotificationPreferenceDto(groupRepository.hasNotificationEnabled(groupId, userId)))
+                }
+            } catch (e: Exception) {
+                Result.Failure(
+                    AppError.Internal(e.message ?: "Failed to update notification setting!")
+                )
+            }
+        }
+    }
 }

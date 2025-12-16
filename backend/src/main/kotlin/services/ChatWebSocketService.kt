@@ -49,7 +49,7 @@ class ChatWebSocketService(
         webSocketManager.unregisterSession(session)
     }
 
-    suspend fun startHeartbeat(session: WebSocketSession, userId: Int): Job {
+    suspend fun startHeartbeat(session: WebSocketSession, userId: Int): Job? {
         return webSocketManager.startHeartbeat(session, userId)
     }
 

@@ -205,12 +205,12 @@ class GroupRepository : IGroupRepository {
     override fun hasNotificationEnabled(groupId: Int, userId: Int): Boolean {
         return GroupMembers.selectAll().where() {
             (GroupMembers.groupId eq groupId) and (GroupMembers.userId eq userId)
-        }.map {it[GroupMembers.notification_enabled]}.first()
+        }.map {it[GroupMembers.notificationEnabled]}.first()
     }
 
     override fun setNotificationEnabled(groupId: Int, userId: Int, enabled: Boolean) {
         GroupMembers.update({ (GroupMembers.groupId eq groupId) and (GroupMembers.userId eq userId) }) {
-            it[GroupMembers.notification_enabled] = enabled
+            it[GroupMembers.notificationEnabled] = enabled
         }
     }
 

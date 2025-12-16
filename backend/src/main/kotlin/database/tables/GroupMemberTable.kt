@@ -6,7 +6,7 @@ object GroupMembers : Table("group_members") {
     val groupId = integer("group_id").references(Groups.id)
     val userId = integer("user_id").references(Users.id)
     val joinedAt = varchar("joined_at", 255)
-    val notification_enabled = bool("notification_enabled").default(true)
+    val notificationEnabled = bool("notification_enabled").default(true)
 
     override val primaryKey = PrimaryKey(groupId, userId)
 }

@@ -1,5 +1,6 @@
 package com.japp
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -40,6 +41,8 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -61,6 +64,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import androidx.navigation.navDeepLink
 import com.japp.api.CredentialsStorage
+import com.japp.api.SessionManager
 import com.japp.composables.OfflineBanner
 import com.japp.messaging.JappMessagingService
 import com.japp.screens.ActivityScreen
@@ -152,6 +156,16 @@ fun JappApp() {
 
     val snackbarHostState = remember { SnackbarHostState() }
 
+    // Observe session expiration and redirect to login
+    val sessionExpired by SessionManager.sessionExpired.collectAsState()
+
+    LaunchedEffect(sessionExpired) {
+        if (sessionExpired) {
+            SessionManager.resetSessionState()
+            SessionManager.navigateToStartup(context)
+        }
+    }
+
     if (!notificationPermissionRequested) {
         NotificationPermissionHandler { granted ->
             notificationPermissionRequested = true
@@ -199,16 +213,26 @@ fun JappApp() {
                             Text(currentDestination?.label ?: "")
                         },
                         navigationIcon = {
-                            IconButton(onClick = { navigate(AppDestinations.ACTIVITY.route) }) {
+                            if (navController.previousBackStackEntry != null) {
+                                IconButton(onClick = { navController.navigateUp() }) {
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                        contentDescription = "Back"
+                                    )
+                                }
+                            } else {
                                 BadgedBox(
                                     badge = {
-                                        Badge()
-                                    }
+                                        Badge(
+                                            containerColor = MaterialTheme.colorScheme.error,
+                                            modifier = Modifier.size(8.dp)
+                                        )
+                                    },
+                                    modifier = Modifier.padding(start = 16.dp)
                                 ) {
-                                    Icon(
-                                        imageVector = AppDestinations.ACTIVITY.icon,
-                                        contentDescription = "Activities",
-                                    )
+                                    IconButton(onClick = { navigate(AppDestinations.ACTIVITY.route) }) {
+                                        Icon(Icons.Default.Notifications, "Activity")
+                                    }
                                 }
                             }
                         },

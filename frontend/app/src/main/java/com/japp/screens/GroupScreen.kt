@@ -40,7 +40,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
@@ -80,8 +79,8 @@ import com.japp.composables.GroupMemberDetailCard
 import com.japp.rememberFabButton
 import com.japp.ui.rememberSnackbar
 import com.japp.ui.state.UiState
+import com.japp.utils.FormatHelper
 import com.journeyapps.barcodescanner.BarcodeEncoder
-import kotlin.math.abs
 
 var GROUP_ID = -1
 
@@ -90,12 +89,11 @@ var GROUP_ID = -1
 fun GroupScreen(navController: NavController? = null) {
     var qrOpen by remember { mutableStateOf(false) }
     var groupState by remember { mutableStateOf<UiState<GroupDto>>(UiState.Loading) }
+    var balanceState by remember { mutableStateOf<UiState<GroupBalanceSummaryDto>>(UiState.Loading) }
     var qrCode by remember { mutableStateOf<Bitmap?>(null) }
     var me by remember { mutableStateOf<UserDto?>(null) }
     val groupMembers = remember { mutableStateOf<List<GroupMemberDto>>(emptyList()) }
     var groupExpenses by remember { mutableStateOf<List<ExpenseDto>>(emptyList()) }
-    var groupBalance by remember { mutableStateOf<GroupBalanceSummaryDto?>(null) }
-    var balanceLoadCompleted by remember { mutableStateOf(false) }
 
     var isRefreshing by remember { mutableStateOf(false) }
     var refreshKey by remember { mutableIntStateOf(0) }
@@ -120,7 +118,7 @@ fun GroupScreen(navController: NavController? = null) {
 
         try {
             groupState = UiState.Loading
-            balanceLoadCompleted = false
+            balanceState = UiState.Loading
 
             groupState = when (val result = safeApiQuery("GroupScreen.group") {
                 RetrofitClient.groupService.getGroup(GROUP_ID)
@@ -134,13 +132,12 @@ fun GroupScreen(navController: NavController? = null) {
                     RetrofitClient.groupService.getGroupMembers(GROUP_ID)
                 }.onSuccess { groupMembers.value = it }
 
-                when (val result = safeApiQuery("GroupScreen.balances") {
+                balanceState = when (val result = safeApiQuery("GroupScreen.balances") {
                     RetrofitClient.expenseService.getGroupBalances(GROUP_ID)
                 }) {
-                    is NetworkResult.Success -> groupBalance = result.data
-                    is NetworkResult.Error -> groupBalance = null
+                    is NetworkResult.Success -> UiState.Success(result.data)
+                    is NetworkResult.Error -> UiState.Error(result.message)
                 }
-                balanceLoadCompleted = true
 
                 safeApiQuery("GroupScreen.expenses") {
                     RetrofitClient.expenseService.getGroupExpenses(GROUP_ID)
@@ -201,8 +198,7 @@ fun GroupScreen(navController: NavController? = null) {
                 ) {
                     GroupHeader(
                         group = groupData,
-                        groupBalance = groupBalance,
-                        balanceLoadCompleted = balanceLoadCompleted,
+                        balanceState = balanceState,
                         me = me,
                         onShowQR = { qrOpen = true },
                         onSettleGroup = {
@@ -219,7 +215,7 @@ fun GroupScreen(navController: NavController? = null) {
                         me = me,
                         groupMembers = groupMembers,
                         groupExpenses = groupExpenses,
-                        groupBalance = groupBalance,
+                        groupBalance = balanceState.getOrNull(),
                         groupId = GROUP_ID
                     )
                 }
@@ -239,8 +235,7 @@ fun GroupScreen(navController: NavController? = null) {
 @Composable
 private fun GroupHeader(
     group: GroupDto,
-    groupBalance: GroupBalanceSummaryDto?,
-    balanceLoadCompleted: Boolean,
+    balanceState: UiState<GroupBalanceSummaryDto>,
     me: UserDto?,
     onShowQR: () -> Unit,
     onSettleGroup: () -> Unit
@@ -282,11 +277,7 @@ private fun GroupHeader(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        GroupBalanceBar(
-            groupBalance = groupBalance,
-            balanceLoadCompleted = balanceLoadCompleted,
-            me = me
-        )
+        GroupBalanceBar(balanceState = balanceState, me = me)
 
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -321,14 +312,9 @@ private fun GroupHeader(
 
 @Composable
 private fun GroupBalanceBar(
-    groupBalance: GroupBalanceSummaryDto?,
-    balanceLoadCompleted: Boolean,
+    balanceState: UiState<GroupBalanceSummaryDto>,
     me: UserDto?
 ) {
-    val myBalance = groupBalance?.balances?.find { it.userId == me?.id }?.balance
-    // TODO: Currency should come from GroupBalanceSummaryDto once backend supports it
-    val currency = "kr"
-
     val positiveColor = MaterialTheme.colorScheme.primaryContainer
     val positiveContentColor = MaterialTheme.colorScheme.onPrimaryContainer
     val negativeColor = MaterialTheme.colorScheme.errorContainer
@@ -336,28 +322,26 @@ private fun GroupBalanceBar(
     val neutralColor = MaterialTheme.colorScheme.tertiaryContainer
     val neutralContentColor = MaterialTheme.colorScheme.onTertiaryContainer
 
-    val numberFormat = remember {
-        java.text.NumberFormat.getNumberInstance().apply {
-            minimumFractionDigits = 2
-            maximumFractionDigits = 2
+    val (containerColor, contentColor, statusText) = when (balanceState) {
+        is UiState.Loading -> Triple(neutralColor, neutralContentColor, "Loading...")
+        is UiState.Error -> Triple(neutralColor, neutralContentColor, "All settled up")
+        is UiState.Success -> {
+            val myBalance = balanceState.data.balances.find { it.userId == me?.id }?.balance
+            when {
+                myBalance == null -> Triple(neutralColor, neutralContentColor, "All settled up")
+                myBalance > 0.01 -> Triple(
+                    positiveColor,
+                    positiveContentColor,
+                    "You are owed ${FormatHelper.formatBalance(myBalance)}"
+                )
+                myBalance < -0.01 -> Triple(
+                    negativeColor,
+                    negativeContentColor,
+                    "You owe ${FormatHelper.formatBalance(myBalance)}"
+                )
+                else -> Triple(neutralColor, neutralContentColor, "All settled up")
+            }
         }
-    }
-
-    val (containerColor, contentColor, statusText) = when {
-        !balanceLoadCompleted -> Triple(neutralColor, neutralContentColor, "Loading...")
-        groupBalance == null -> Triple(neutralColor, neutralContentColor, "All settled up")
-        myBalance == null -> Triple(neutralColor, neutralContentColor, "All settled up")
-        myBalance > 0.01 -> Triple(
-            positiveColor,
-            positiveContentColor,
-            "You are owed ${numberFormat.format(myBalance)} $currency"
-        )
-        myBalance < -0.01 -> Triple(
-            negativeColor,
-            negativeContentColor,
-            "You owe ${numberFormat.format(abs(myBalance))} $currency"
-        )
-        else -> Triple(neutralColor, neutralContentColor, "All settled up")
     }
 
     Box(

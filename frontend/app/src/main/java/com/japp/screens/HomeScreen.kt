@@ -58,6 +58,7 @@ import com.japp.composables.GroupIcon
 import com.japp.composables.getActivityIcon
 import com.japp.ui.state.UiState
 import com.japp.utils.DateTimeHelper
+import com.japp.utils.FormatHelper
 import com.japp.utils.LocalConnectivity
 import java.util.Date
 import kotlin.math.absoluteValue
@@ -321,16 +322,8 @@ fun BalancePill(
     value: Double,
     label: String,
     containerColor: Color,
-    contentColor: Color,
-    currency: String = "kr"
+    contentColor: Color
 ) {
-    val numberFormat = remember {
-        java.text.NumberFormat.getNumberInstance().apply {
-            minimumFractionDigits = 1
-            maximumFractionDigits = 1
-        }
-    }
-
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(4.dp)
@@ -348,7 +341,7 @@ fun BalancePill(
             contentAlignment = Alignment.Center
         ) {
             Text(
-                text = "${numberFormat.format(value)} $currency",
+                text = FormatHelper.formatCurrency(value, fractionDigits = 1),
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.Medium,
                 color = contentColor

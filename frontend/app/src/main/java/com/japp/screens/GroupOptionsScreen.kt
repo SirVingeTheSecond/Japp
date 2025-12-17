@@ -133,13 +133,15 @@ fun GroupOptionsScreen(
                         RetrofitClient.groupService.leaveGroup(groupId)
                     }) {
                         is NetworkResult.Success -> {
+                            isProcessing = false
+                            showLeaveDialog = false
                             snackbar.showSuccess("Left the group")
                             navController.popBackStack(AppDestinations.HOME.route, false)
                         }
                         is NetworkResult.Error -> {
-                            snackbar.showError(result.message)
                             isProcessing = false
                             showLeaveDialog = false
+                            snackbar.showError(result.message)
                         }
                     }
                 }
@@ -164,13 +166,15 @@ fun GroupOptionsScreen(
                         RetrofitClient.groupService.deleteGroup(groupId)
                     }) {
                         is NetworkResult.Success -> {
+                            isProcessing = false
+                            showDeleteDialog = false
                             snackbar.showSuccess("Group deleted")
                             navController.popBackStack(AppDestinations.HOME.route, false)
                         }
                         is NetworkResult.Error -> {
-                            snackbar.showError(result.message)
                             isProcessing = false
                             showDeleteDialog = false
+                            snackbar.showError(result.message)
                         }
                     }
                 }

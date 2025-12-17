@@ -39,8 +39,8 @@ import com.japp.api.safeApiMutation
 import com.japp.api.safeApiQuery
 import com.japp.ui.rememberSnackbar
 import com.japp.utils.DateTimeHelper
+import com.japp.utils.FormatHelper
 import kotlinx.coroutines.launch
-import java.text.NumberFormat
 
 @Composable
 fun GroupMemberDetailCard(
@@ -55,15 +55,6 @@ fun GroupMemberDetailCard(
     val coroutineScope = rememberCoroutineScope()
     val snackbar = rememberSnackbar()
     val isOwner = groupMember.userId == groupOwner?.userId
-
-    // TODO: Currency should come from group data once backend supports it
-    val currency = "kr"
-    val numberFormat = remember {
-        NumberFormat.getNumberInstance().apply {
-            minimumFractionDigits = 2
-            maximumFractionDigits = 2
-        }
-    }
 
     var expanded by remember { mutableStateOf(false) }
     var user by remember { mutableStateOf<UserDto?>(null) }
@@ -110,7 +101,7 @@ fun GroupMemberDetailCard(
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    "${numberFormat.format(balance ?: 0.0)} $currency",
+                    FormatHelper.formatCurrency(balance ?: 0.0),
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.Bold

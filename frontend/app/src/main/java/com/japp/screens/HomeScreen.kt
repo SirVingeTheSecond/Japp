@@ -61,7 +61,6 @@ import com.japp.utils.DateTimeHelper
 import com.japp.utils.LocalConnectivity
 import java.util.Date
 import kotlin.math.absoluteValue
-import kotlin.math.roundToInt
 
 /**
  * Data class for QuickStats.
@@ -322,9 +321,15 @@ fun BalancePill(
     value: Double,
     label: String,
     containerColor: Color,
-    contentColor: Color
+    contentColor: Color,
+    currency: String = "kr"
 ) {
-    val displayValue = (value * 10).roundToInt() / 10.0
+    val numberFormat = remember {
+        java.text.NumberFormat.getNumberInstance().apply {
+            minimumFractionDigits = 1
+            maximumFractionDigits = 1
+        }
+    }
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -343,7 +348,7 @@ fun BalancePill(
             contentAlignment = Alignment.Center
         ) {
             Text(
-                text = displayValue.toString(),
+                text = "${numberFormat.format(value)} $currency",
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.Medium,
                 color = contentColor

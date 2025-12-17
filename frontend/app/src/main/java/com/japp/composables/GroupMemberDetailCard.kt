@@ -38,8 +38,9 @@ import com.japp.api.responses.group.GroupMemberDto
 import com.japp.api.safeApiMutation
 import com.japp.api.safeApiQuery
 import com.japp.ui.rememberSnackbar
+import com.japp.utils.DateTimeHelper
 import kotlinx.coroutines.launch
-import kotlin.math.roundToInt
+import java.text.NumberFormat
 
 @Composable
 fun GroupMemberDetailCard(
@@ -54,6 +55,15 @@ fun GroupMemberDetailCard(
     val coroutineScope = rememberCoroutineScope()
     val snackbar = rememberSnackbar()
     val isOwner = groupMember.userId == groupOwner?.userId
+
+    // TODO: Currency should come from group data once backend supports it
+    val currency = "kr"
+    val numberFormat = remember {
+        NumberFormat.getNumberInstance().apply {
+            minimumFractionDigits = 2
+            maximumFractionDigits = 2
+        }
+    }
 
     var expanded by remember { mutableStateOf(false) }
     var user by remember { mutableStateOf<UserDto?>(null) }
@@ -100,7 +110,7 @@ fun GroupMemberDetailCard(
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    (((balance ?: 0.0) * 100.0).roundToInt() / 100.0).toString(),
+                    "${numberFormat.format(balance ?: 0.0)} $currency",
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.Bold
@@ -128,7 +138,7 @@ fun GroupMemberDetailCard(
                 ) {
                     Column {
                         Text(
-                            "Joined at: ${groupMember.joinedAt.takeIf { it.isNotEmpty() } ?: "Unknown"}",
+                            "Joined ${DateTimeHelper.formatDate(groupMember.joinedAt)}",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )

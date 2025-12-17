@@ -95,6 +95,7 @@ fun GroupScreen(navController: NavController? = null) {
     val groupMembers = remember { mutableStateOf<List<GroupMemberDto>>(emptyList()) }
     var groupExpenses by remember { mutableStateOf<List<ExpenseDto>>(emptyList()) }
     var groupBalance by remember { mutableStateOf<GroupBalanceSummaryDto?>(null) }
+    var balanceLoadCompleted by remember { mutableStateOf(false) }
 
     var isRefreshing by remember { mutableStateOf(false) }
     var refreshKey by remember { mutableIntStateOf(0) }
@@ -119,6 +120,7 @@ fun GroupScreen(navController: NavController? = null) {
 
         try {
             groupState = UiState.Loading
+            balanceLoadCompleted = false
 
             groupState = when (val result = safeApiQuery("GroupScreen.group") {
                 RetrofitClient.groupService.getGroup(GROUP_ID)
@@ -132,9 +134,13 @@ fun GroupScreen(navController: NavController? = null) {
                     RetrofitClient.groupService.getGroupMembers(GROUP_ID)
                 }.onSuccess { groupMembers.value = it }
 
-                safeApiQuery("GroupScreen.balances") {
+                when (val result = safeApiQuery("GroupScreen.balances") {
                     RetrofitClient.expenseService.getGroupBalances(GROUP_ID)
-                }.onSuccess { groupBalance = it }
+                }) {
+                    is NetworkResult.Success -> groupBalance = result.data
+                    is NetworkResult.Error -> groupBalance = null
+                }
+                balanceLoadCompleted = true
 
                 safeApiQuery("GroupScreen.expenses") {
                     RetrofitClient.expenseService.getGroupExpenses(GROUP_ID)
@@ -196,6 +202,7 @@ fun GroupScreen(navController: NavController? = null) {
                     GroupHeader(
                         group = groupData,
                         groupBalance = groupBalance,
+                        balanceLoadCompleted = balanceLoadCompleted,
                         me = me,
                         onShowQR = { qrOpen = true },
                         onSettleGroup = {
@@ -233,6 +240,7 @@ fun GroupScreen(navController: NavController? = null) {
 private fun GroupHeader(
     group: GroupDto,
     groupBalance: GroupBalanceSummaryDto?,
+    balanceLoadCompleted: Boolean,
     me: UserDto?,
     onShowQR: () -> Unit,
     onSettleGroup: () -> Unit
@@ -274,7 +282,11 @@ private fun GroupHeader(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        GroupBalanceBar(groupBalance = groupBalance, me = me)
+        GroupBalanceBar(
+            groupBalance = groupBalance,
+            balanceLoadCompleted = balanceLoadCompleted,
+            me = me
+        )
 
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -310,9 +322,12 @@ private fun GroupHeader(
 @Composable
 private fun GroupBalanceBar(
     groupBalance: GroupBalanceSummaryDto?,
+    balanceLoadCompleted: Boolean,
     me: UserDto?
 ) {
     val myBalance = groupBalance?.balances?.find { it.userId == me?.id }?.balance
+    // TODO: Currency should come from GroupBalanceSummaryDto once backend supports it
+    val currency = "kr"
 
     val positiveColor = MaterialTheme.colorScheme.primaryContainer
     val positiveContentColor = MaterialTheme.colorScheme.onPrimaryContainer
@@ -321,17 +336,26 @@ private fun GroupBalanceBar(
     val neutralColor = MaterialTheme.colorScheme.tertiaryContainer
     val neutralContentColor = MaterialTheme.colorScheme.onTertiaryContainer
 
+    val numberFormat = remember {
+        java.text.NumberFormat.getNumberInstance().apply {
+            minimumFractionDigits = 2
+            maximumFractionDigits = 2
+        }
+    }
+
     val (containerColor, contentColor, statusText) = when {
-        myBalance == null -> Triple(neutralColor, neutralContentColor, "Loading...")
+        !balanceLoadCompleted -> Triple(neutralColor, neutralContentColor, "Loading...")
+        groupBalance == null -> Triple(neutralColor, neutralContentColor, "All settled up")
+        myBalance == null -> Triple(neutralColor, neutralContentColor, "All settled up")
         myBalance > 0.01 -> Triple(
             positiveColor,
             positiveContentColor,
-            "You are owed ${String.format("%.2f", myBalance)}"
+            "You are owed ${numberFormat.format(myBalance)} $currency"
         )
         myBalance < -0.01 -> Triple(
             negativeColor,
             negativeContentColor,
-            "You owe ${String.format("%.2f", abs(myBalance))}"
+            "You owe ${numberFormat.format(abs(myBalance))} $currency"
         )
         else -> Triple(neutralColor, neutralContentColor, "All settled up")
     }

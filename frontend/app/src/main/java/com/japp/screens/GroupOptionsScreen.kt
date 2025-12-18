@@ -14,19 +14,25 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.Logout
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -49,15 +55,16 @@ import com.japp.api.safeApiQuery
 import com.japp.ui.rememberSnackbar
 import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun OptionsScreen(
-    navController: NavController?,
+fun GroupOptionsScreen(
+    navController: NavController,
     groupId: Int
 ) {
     val coroutineScope = rememberCoroutineScope()
     val snackbar = rememberSnackbar()
 
-    // Local notification toggle state (not persisted)
+    // notification toggle state (not persisted)
     var notificationsEnabled by remember { mutableStateOf(true) }
 
     // Owner check state
@@ -70,10 +77,10 @@ fun OptionsScreen(
 
     // Check if current user is owner
     LaunchedEffect(groupId) {
-        val meResult = safeApiQuery("OptionsScreen.me") {
+        val meResult = safeApiQuery("GroupOptionsScreen.me") {
             RetrofitClient.userService.getMyUser()
         }
-        val membersResult = safeApiQuery("OptionsScreen.members") {
+        val membersResult = safeApiQuery("GroupOptionsScreen.members") {
             RetrofitClient.groupService.getGroupMembers(groupId)
         }
 
@@ -84,16 +91,35 @@ fun OptionsScreen(
         }
     }
 
-    // Here goes the actual content we see
-    OptionsScreenContent(
-        isOwner = isOwner,
-        onLeaveGroup = { showLeaveDialog = true },
-        onDeleteGroup = { showDeleteDialog = true },
-        notificationsEnabled = notificationsEnabled,
-        onNotificationsEnabledChange = { notificationsEnabled = it }
-    )
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Group Settings") },
+                navigationIcon = {
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onSurface
+                )
+            )
+        },
+        containerColor = MaterialTheme.colorScheme.surface
+    ) { padding ->
+        GroupOptionsScreenContent(
+            modifier = Modifier.padding(padding),
+            isOwner = isOwner,
+            onLeaveGroup = { showLeaveDialog = true },
+            onDeleteGroup = { showDeleteDialog = true },
+            notificationsEnabled = notificationsEnabled,
+            onNotificationsEnabledChange = { notificationsEnabled = it }
+        )
+    }
 
-    // Leave Group Dialog
+    // Leave group
     if (showLeaveDialog) {
         ConfirmationDialog(
             title = "Leave Group?",
@@ -103,17 +129,19 @@ fun OptionsScreen(
             onConfirm = {
                 isProcessing = true
                 coroutineScope.launch {
-                    when (val result = safeApiMutation("OptionsScreen.leaveGroup") {
+                    when (val result = safeApiMutation("GroupOptionsScreen.leaveGroup") {
                         RetrofitClient.groupService.leaveGroup(groupId)
                     }) {
                         is NetworkResult.Success -> {
-                            snackbar.showSuccess("Left the group")
-                            navController?.popBackStack(AppDestinations.HOME.route, false)
-                        }
-                        is NetworkResult.Error -> {
-                            snackbar.showError(result.message)
                             isProcessing = false
                             showLeaveDialog = false
+                            snackbar.showSuccess("Left the group")
+                            navController.popBackStack(AppDestinations.HOME.route, false)
+                        }
+                        is NetworkResult.Error -> {
+                            isProcessing = false
+                            showLeaveDialog = false
+                            snackbar.showError(result.message)
                         }
                     }
                 }
@@ -122,7 +150,7 @@ fun OptionsScreen(
         )
     }
 
-    // Delete Group Dialog
+    // Delete group
     if (showDeleteDialog) {
         ConfirmationDialog(
             title = "Delete Group?",
@@ -134,17 +162,19 @@ fun OptionsScreen(
             onConfirm = {
                 isProcessing = true
                 coroutineScope.launch {
-                    when (val result = safeApiMutation("OptionsScreen.deleteGroup") {
+                    when (val result = safeApiMutation("GroupOptionsScreen.deleteGroup") {
                         RetrofitClient.groupService.deleteGroup(groupId)
                     }) {
                         is NetworkResult.Success -> {
-                            snackbar.showSuccess("Group deleted")
-                            navController?.popBackStack(AppDestinations.HOME.route, false)
-                        }
-                        is NetworkResult.Error -> {
-                            snackbar.showError(result.message)
                             isProcessing = false
                             showDeleteDialog = false
+                            snackbar.showSuccess("Group deleted")
+                            navController.popBackStack(AppDestinations.HOME.route, false)
+                        }
+                        is NetworkResult.Error -> {
+                            isProcessing = false
+                            showDeleteDialog = false
+                            snackbar.showError(result.message)
                         }
                     }
                 }
@@ -155,7 +185,8 @@ fun OptionsScreen(
 }
 
 @Composable
-fun OptionsScreenContent(
+private fun GroupOptionsScreenContent(
+    modifier: Modifier = Modifier,
     isOwner: Boolean,
     onLeaveGroup: () -> Unit,
     onDeleteGroup: () -> Unit,
@@ -163,7 +194,7 @@ fun OptionsScreenContent(
     onNotificationsEnabledChange: (Boolean) -> Unit
 ) {
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
             .padding(16.dp),

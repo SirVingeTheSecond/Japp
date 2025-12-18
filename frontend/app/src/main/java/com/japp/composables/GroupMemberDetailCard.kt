@@ -38,8 +38,9 @@ import com.japp.api.responses.group.GroupMemberDto
 import com.japp.api.safeApiMutation
 import com.japp.api.safeApiQuery
 import com.japp.ui.rememberSnackbar
+import com.japp.utils.DateTimeHelper
+import com.japp.utils.FormatHelper
 import kotlinx.coroutines.launch
-import kotlin.math.roundToInt
 
 @Composable
 fun GroupMemberDetailCard(
@@ -100,7 +101,7 @@ fun GroupMemberDetailCard(
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    (((balance ?: 0.0) * 100.0).roundToInt() / 100.0).toString(),
+                    FormatHelper.formatCurrency(balance ?: 0.0),
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.Bold
@@ -128,7 +129,7 @@ fun GroupMemberDetailCard(
                 ) {
                     Column {
                         Text(
-                            "Joined at: ${groupMember.joinedAt.takeIf { it.isNotEmpty() } ?: "Unknown"}",
+                            "Joined ${DateTimeHelper.formatDate(groupMember.joinedAt)}",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )

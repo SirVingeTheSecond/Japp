@@ -61,6 +61,7 @@ import com.japp.api.Credentials
 import com.japp.api.CredentialsStorage
 import com.japp.api.ErrorUtils
 import com.japp.api.RetrofitClient
+import com.japp.api.SessionManager
 import com.japp.api.responses.auth.AuthResponse
 import com.japp.api.responses.auth.LoginRequest
 import com.japp.api.responses.auth.SignupRequest
@@ -77,6 +78,7 @@ class StartupActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         RetrofitClient.init(applicationContext)
+        SessionManager.init(applicationContext)
 
         enableEdgeToEdge()
         val token = CredentialsStorage.load(this)
@@ -173,7 +175,7 @@ fun LoginScreen(context: Context?, navController: NavController) {
             verticalArrangement = Arrangement.spacedBy(20.dp, Alignment.CenterVertically),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text("Login!", style = MaterialTheme.typography.displaySmall)
+            Text("Login", style = MaterialTheme.typography.displaySmall)
             Box(Modifier.clip(RoundedCornerShape(8.dp)).background(MaterialTheme.colorScheme.surfaceContainer).padding(10.dp)) {
                 Column (
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -200,87 +202,105 @@ fun LoginScreen(context: Context?, navController: NavController) {
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
                         )
                     }
-                    error?.let { Text(it) }
-                    Button(onClick = { coroutineScope.launch {login()} }) {
-                        Text("Login!")
+                    if (error != null) {
+                        Text(error!!, color = Color.Red)
                     }
-                    Column (
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text("Don't have an account?")
-                        Text(
-                            buildAnnotatedString {
-                                withLink(
-                                    LinkAnnotation.Clickable(
-                                        "",
-                                        TextLinkStyles(style = SpanStyle(color = Color.Blue)),
-                                        linkInteractionListener = {
-                                            navController.navigate(Screens.SIGNUP.route)
-                                        }
-                                    )
-                                ) {
-                                    append("Sign up!")
-                                }
+                    Button(onClick = { coroutineScope.launch { login() } }) {
+                        Text("Login")
+                    }
+                    Text(
+                        buildAnnotatedString {
+                            append("Don't have an account? ")
+                            withLink(LinkAnnotation.Clickable(
+                                tag = "Sign Up",
+                                styles = TextLinkStyles(
+                                    style = SpanStyle(color = MaterialTheme.colorScheme.primary)
+                                ),
+                            ) {
+                                navController.navigate(Screens.SIGNUP.route)
+                            }) {
+                                append("Sign Up")
                             }
-                        )
-                    }
+                        }
+                    )
                 }
             }
         }
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SignupScreen(context: Context?, navController: NavController) {
     val coroutineScope = rememberCoroutineScope()
-
-    var email = remember { mutableStateOf("") }
-    var username = remember { mutableStateOf("") }
-    var firstname = remember { mutableStateOf("") }
-    var lastname = remember { mutableStateOf("") }
-    var phone = remember { mutableIntStateOf(0) }
-    var password = remember { mutableStateOf("") }
-    var repeatPassword = remember { mutableStateOf("") }
-
-    var isValid = remember { mutableStateOf(false) }
+    val innerNavController = rememberNavController()
+    val navBackStackEntry by innerNavController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
 
     var error by remember { mutableStateOf<String?>(null) }
 
+    val username = remember { mutableStateOf("") }
+    val firstname = remember { mutableStateOf("") }
+    val lastname = remember { mutableStateOf("") }
+    val email = remember { mutableStateOf("") }
+    val phone = remember { mutableStateOf(0) }
+    val password = remember { mutableStateOf("") }
+    val repeatPassword = remember { mutableStateOf("") }
+
+    val isUsernameValid = remember { mutableStateOf(false) }
+    val isFirstNameValid = remember { mutableStateOf(false) }
+    val isLastNameValid = remember { mutableStateOf(false) }
+    val isEmailValid = remember { mutableStateOf(false) }
+    val isPhoneValid = remember { mutableStateOf(true) }
+    val isPasswordValid = remember { mutableStateOf(false) }
+    val isRepeatPasswordValid = remember { mutableStateOf(false) }
+    val isAllValid = remember { mutableStateOf(false) }
+
+    fun checkValid() {
+        isAllValid.value = isUsernameValid.value
+                && isFirstNameValid.value
+                && isLastNameValid.value
+                && isEmailValid.value
+                && isPhoneValid.value
+                && isPasswordValid.value
+                && isRepeatPasswordValid.value
+    }
+
     suspend fun signup() {
-        if (isValid.value) {
-            val res = RetrofitClient.authService.signup(
-                SignupRequest(
-                    email.value,
-                    username.value,
-                    firstname.value,
-                    lastname.value,
-                    password.value,
-                    phone.intValue.toString()
+        val res = RetrofitClient.authService.signup(
+            SignupRequest(
+                username = username.value,
+                email = email.value,
+                password = password.value,
+                firstname = firstname.value,
+                lastname = lastname.value,
+                phone = phone.value.toString()
+            )
+        )
+        val body = res.body()
+
+        if (body != null && res.isSuccessful) {
+            val token = body.token
+            val expiresAt = Date(System.currentTimeMillis() + (600 * 1000))
+            CredentialsStorage.save(
+                context!!,
+                Credentials(
+                    accessToken = token,
+                    expiresAt = expiresAt,
+                    userId = body.user.id
                 )
             )
-            // we are getting response from our body
-            // and passing it to our modal class.
-            val body = res.body()
-            if (body != null && res.isSuccessful) {
-                val token = body.token
-                val expiresAt =
-                    Date(System.currentTimeMillis() + (600 * 1000))
-                CredentialsStorage.save(
-                    context!!,
-                    Credentials(
-                        accessToken = token,
-                        expiresAt = expiresAt,
-                        userId = body.user.id
-                    )
-                )
 
-                JappMessagingService.refreshToken(context)
+            JappMessagingService.refreshToken(context)
 
-                val intent = Intent(context, MainActivity::class.java)
-                context.startActivity(intent)
+            val intent = Intent(context, MainActivity::class.java)
+            context.startActivity(intent)
+        } else {
+            val errorResponse = ErrorUtils.parseError(res)
+            error = if (errorResponse != null) {
+                "Signup failed: ${errorResponse.message}"
             } else {
-                val errorResponse = ErrorUtils.parseError(res)
-                error = "Signup failed: ${errorResponse!!.message}"
+                "Signup failed: ${res.code()} - ${res.message()}"
             }
         }
     }
@@ -291,285 +311,184 @@ fun SignupScreen(context: Context?, navController: NavController) {
             verticalArrangement = Arrangement.spacedBy(20.dp, Alignment.CenterVertically),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text("Signup!", style = MaterialTheme.typography.displaySmall)
-            Box(
-                Modifier.clip(RoundedCornerShape(8.dp))
-                    .background(MaterialTheme.colorScheme.surfaceContainer)
-                    .padding(10.dp)
+            Text("Sign Up", style = MaterialTheme.typography.displaySmall)
+            SecondaryTabRow(
+                selectedTabIndex = if (currentRoute == "1") 0 else 1,
+                modifier = Modifier.widthIn(max = 220.dp)
             ) {
-                Column (
-                    Modifier.widthIn(0.dp, 280.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                Tab(
+                    selected = currentRoute == "1",
+                    onClick = { innerNavController.navigate("1") },
+                    text = { Text("Personal info") }
+                )
+                Tab(
+                    selected = currentRoute == "2",
+                    onClick = { innerNavController.navigate("2") },
+                    text = { Text("Credentials") }
+                )
+            }
+            Box(Modifier.clip(RoundedCornerShape(8.dp)).background(MaterialTheme.colorScheme.surfaceContainer).padding(10.dp)) {
+                NavHost(
+                    navController = innerNavController,
+                    startDestination = "1"
                 ) {
-                    SignupTabs(
-                        email,
-                        username,
-                        firstname,
-                        lastname,
-                        phone,
-                        password,
-                        repeatPassword,
-                        isValid,
-                        { coroutineScope.launch{signup()} },
-                    )
-                    error?.let { Text(it) }
-                    Column (
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text("Already have an account?")
-                        Text(
-                            buildAnnotatedString {
-                                withLink(
-                                    LinkAnnotation.Clickable(
-                                        "",
-                                        TextLinkStyles(style = SpanStyle(color = Color.Blue)),
-                                        linkInteractionListener = {
-                                            navController.navigate(Screens.LOGIN.route)
+                    composable("1") {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            OutlinedTextField(
+                                firstname.value,
+                                onValueChange = {
+                                    firstname.value = it
+                                    isFirstNameValid.value = (it.isNotEmpty())
+                                    checkValid()
+                                },
+                                singleLine = true,
+                                label = { Text("First name") },
+                                isError = !isFirstNameValid.value,
+                                supportingText = {
+                                    if (!isFirstNameValid.value) {
+                                        Text("First name must not be empty")
+                                    }
+                                },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text)
+                            )
+                            OutlinedTextField(
+                                lastname.value,
+                                onValueChange = {
+                                    lastname.value = it
+                                    isLastNameValid.value = (it.isNotEmpty())
+                                    checkValid()
+                                },
+                                singleLine = true,
+                                label = { Text("Last name") },
+                                isError = !isLastNameValid.value,
+                                supportingText = {
+                                    if (!isLastNameValid.value) {
+                                        Text("Last name must not be empty")
+                                    }
+                                },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text)
+                            )
+                            OutlinedTextField(
+                                email.value,
+                                onValueChange = {
+                                    email.value = it
+                                    isEmailValid.value = Patterns.EMAIL_ADDRESS.matcher(it).matches()
+                                    checkValid()
+                                },
+                                singleLine = true,
+                                label = { Text("Email") },
+                                isError = !isEmailValid.value,
+                                supportingText = {
+                                    if (!isEmailValid.value) {
+                                        Text("Email is invalid.")
+                                    }
+                                },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email)
+                            )
+                            OutlinedTextField(
+                                if(phone.value == 0) "" else phone.value.toString(),
+                                onValueChange = {
+                                    var input = it.trim()
+                                    if (input == "") {
+                                        phone.value = 0
+                                    }
+                                    else if (input.matches(Regex("^\\d+\$"))) {
+                                        if (input.length > 8) {
+                                            input = it.substring(0, 8)
                                         }
-                                    )
-                                ) {
-                                    append("Login!")
-                                }
+                                        phone.value = input.toInt()
+                                        isPhoneValid.value = phone.value.toString().length == 8
+                                    } else {
+                                        isPhoneValid.value = false
+                                    }
+                                    checkValid()
+                                },
+                                singleLine = true,
+                                label = { Text("Phone") },
+                                isError = !isPhoneValid.value,
+                                visualTransformation = PhoneNumberTransformation(),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                                supportingText = {
+                                    if (!isPhoneValid.value) {
+                                        Text("Phone is not a valid number.")
+                                    }
+                                },
+                            )
+                            Button(onClick = { innerNavController.navigate("2") }) {
+                                Text("Next")
                             }
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun SignupTabs(
-    email: MutableState<String>,
-    username: MutableState<String>,
-    firstname: MutableState<String>,
-    lastname: MutableState<String>,
-    phone: MutableState<Int>,
-    password: MutableState<String>,
-    repeatPassword: MutableState<String>,
-    isValid: MutableState<Boolean>,
-    onSignup: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val navController = rememberNavController()
-
-    var isEmailValid = remember { mutableStateOf(true) }
-    var isUsernameValid = remember { mutableStateOf(true) }
-    var isFirstNameValid = remember { mutableStateOf(true) }
-    var isLastNameValid = remember { mutableStateOf(true) }
-    var isPhoneValid = remember { mutableStateOf(true) }
-    var isPasswordValid = remember { mutableStateOf(true) }
-    var isRepeatPasswordValid = remember { mutableStateOf(true) }
-
-    fun checkValid() {
-        if (
-            isEmailValid.value &&
-            isUsernameValid.value &&
-            isFirstNameValid.value &&
-            isLastNameValid.value &&
-            isPhoneValid.value &&
-            isPasswordValid.value &&
-            isRepeatPasswordValid.value
-        ) {
-            isValid.value = true
-        }
-    }
-
-    val navBackStackEntry by navController.currentBackStackEntryAsState()
-    val currentRoute = navBackStackEntry?.destination?.route
-
-    val selectedDestination = when (currentRoute) {
-        "1" -> 0
-        "2" -> 1
-        else -> 0
-    }
-
-    Column(
-        modifier = modifier
-    ) {
-        SecondaryTabRow(
-            selectedTabIndex = selectedDestination,
-        ) {
-            Tab(
-                selected = selectedDestination == 0,
-                onClick = {
-                    navController.navigate("1")
-                },
-                Modifier.padding(10.dp)
-            ) {
-                Text("1")
-            }
-            Tab(
-                selected = selectedDestination == 1,
-                onClick = {
-                    navController.navigate("2")
-                }
-            ) {
-                Text("2")
-            }
-        }
-        NavHost(
-            navController = navController,
-            startDestination = "1"
-        ) {
-            composable ("1") {
-                Column (
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    OutlinedTextField(
-                        firstname.value,
-                        onValueChange = {
-                            firstname.value = it
-                            isFirstNameValid.value = (it.isNotEmpty())
-                            checkValid()
-                        },
-                        singleLine = true,
-                        label = { Text("First name") },
-                        isError = !isFirstNameValid.value,
-                        supportingText = {
-                            if (!isFirstNameValid.value) {
-                                Text("First name not be empty")
-                            }
-                        },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text)
-                    )
-                    OutlinedTextField(
-                        lastname.value,
-                        onValueChange = {
-                            lastname.value = it
-                            isLastNameValid.value = (it.isNotEmpty())
-                            checkValid()
-                        },
-                        singleLine = true,
-                        label = { Text("Last name") },
-                        isError = !isLastNameValid.value,
-                        supportingText = {
-                            if (!isLastNameValid.value) {
-                                Text("Last name must not be empty")
-                            }
-                        },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text)
-                    )
-                    OutlinedTextField(
-                        email.value,
-                        onValueChange = {
-                            email.value = it
-                            isEmailValid.value = Patterns.EMAIL_ADDRESS.matcher(it).matches()
-                            checkValid()
-                        },
-                        singleLine = true,
-                        label = { Text("Email") },
-                        isError = !isEmailValid.value,
-                        supportingText = {
-                            if (!isEmailValid.value) {
-                                Text("Email is invalid.")
-                            }
-                        },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email)
-                    )
-                    OutlinedTextField(
-                        if(phone.value == 0) "" else phone.value.toString(),
-                        onValueChange = {
-                            var input = it.trim()
-                            if (input == "") {
-                                phone.value = 0
-                            }
-                            else if (input.matches(Regex("^\\d+\$"))) {
-                                if (input.length > 8) {
-                                    input = it.substring(0, 8)
-                                }
-                                phone.value = input.toInt()
-                                isPhoneValid.value = phone.value.toString().length == 8
-                            } else {
-                                isPhoneValid.value = false
-                            }
-                            checkValid()
-                        },
-                        singleLine = true,
-                        label = { Text("Phone") },
-                        isError = !isPhoneValid.value,
-                        visualTransformation = PhoneNumberTransformation(),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                        supportingText = {
-                            if (!isPhoneValid.value) {
-                                Text("Phone is not a valid number.")
-                            }
-                        },
-                    )
-                    Button(onClick = { navController.navigate("2") }) {
-                        Text("Next!")
-                    }
-                }
-            }
-            composable ("2") {
-                Column (
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    OutlinedTextField(
-                        username.value,
-                        onValueChange = {
-                            username.value = it
-                            isUsernameValid.value = (it.length >= 3)
-                            checkValid()
-                        },
-                        singleLine = true,
-                        label = { Text("Username") },
-                        isError = !isUsernameValid.value,
-                        supportingText = {
-                            if (!isUsernameValid.value) {
-                                Text("Username must be at least 3 characters")
-                            }
-                        },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Unspecified)
-                    )
-                    OutlinedTextField(
-                        password.value,
-                        onValueChange = {
-                            password.value = it
-                            isPasswordValid.value = it.matches("^((?=\\S*?[a-z])(?=\\S*?[0-9]).{8,})\$".toRegex())
-                            checkValid()
-                        },
-                        singleLine = true,
-                        label = { Text("Password") },
-                        isError = !isPasswordValid.value,
-                        visualTransformation = PasswordVisualTransformation(),
-                        supportingText = {
-                            if (!isPasswordValid.value) {
-                                Text("Password must contain at least 1 letter, 1 number and be 8 long.")
-                            }
-                        },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
-                    )
-                    OutlinedTextField(
-                        repeatPassword.value,
-                        onValueChange = {
-                            repeatPassword.value = it
-                            isRepeatPasswordValid.value = (it == password.value)
-                            checkValid()
-                        },
-                        singleLine = true,
-                        label = { Text("Repeat Password") },
-                        isError = !isRepeatPasswordValid.value,
-                        visualTransformation = PasswordVisualTransformation(),
-                        supportingText = {
-                            if (!isRepeatPasswordValid.value) {
-                                Text("Repeated password does not match password.")
-                            }
-                        },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
-                    )
-                    Row (
-                        Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceEvenly
-                    ) {
-                        Button(onClick = { navController.navigate("1") }) {
-                            Text("Go back!")
                         }
-                        Button(onClick = onSignup) {
-                            Text("Sign up!")
+                    }
+                    composable ("2") {
+                        Column (
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            OutlinedTextField(
+                                username.value,
+                                onValueChange = {
+                                    username.value = it
+                                    isUsernameValid.value = (it.length >= 3)
+                                    checkValid()
+                                },
+                                singleLine = true,
+                                label = { Text("Username") },
+                                isError = !isUsernameValid.value,
+                                supportingText = {
+                                    if (!isUsernameValid.value) {
+                                        Text("Username must be at least 3 characters")
+                                    }
+                                },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Unspecified)
+                            )
+                            OutlinedTextField(
+                                password.value,
+                                onValueChange = {
+                                    password.value = it
+                                    isPasswordValid.value = it.matches("^((?=\\S*?[a-z])(?=\\S*?[0-9]).{8,})\$".toRegex()) // what the fuck
+                                    checkValid()
+                                },
+                                singleLine = true,
+                                label = { Text("Password") },
+                                isError = !isPasswordValid.value,
+                                visualTransformation = PasswordVisualTransformation(),
+                                supportingText = {
+                                    if (!isPasswordValid.value) {
+                                        Text("Password must contain at least 1 letter, 1 number and be 8 long.")
+                                    }
+                                },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
+                            )
+                            OutlinedTextField(
+                                repeatPassword.value,
+                                onValueChange = {
+                                    repeatPassword.value = it
+                                    isRepeatPasswordValid.value = (it == password.value)
+                                    checkValid()
+                                },
+                                singleLine = true,
+                                label = { Text("Repeat Password") },
+                                isError = !isRepeatPasswordValid.value,
+                                visualTransformation = PasswordVisualTransformation(),
+                                supportingText = {
+                                    if (!isRepeatPasswordValid.value) {
+                                        Text("Repeated password does not match password.")
+                                    }
+                                },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
+                            )
+                            Row (
+                                Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceEvenly
+                            ) {
+                                Button(onClick = { innerNavController.navigate("1") }) {
+                                    Text("Go Back")
+                                }
+                                Button(onClick = { coroutineScope.launch { signup() } }) {
+                                    Text("Sign Up")
+                                }
+                            }
                         }
                     }
                 }

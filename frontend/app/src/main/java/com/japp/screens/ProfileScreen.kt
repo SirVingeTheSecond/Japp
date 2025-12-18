@@ -1,6 +1,5 @@
 package com.japp.screens
 
-import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -45,14 +44,12 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.japp.AppDestinations
-import com.japp.StartupActivity
-import com.japp.api.CredentialsStorage
 import com.japp.api.NetworkResult
 import com.japp.api.RetrofitClient
+import com.japp.api.SessionManager
 import com.japp.api.responses.auth.UserDto
 import com.japp.api.safeApiQuery
 import com.japp.composables.ErrorWithRetry
-import com.japp.messaging.JappMessagingService
 import com.japp.ui.state.UiState
 import com.japp.utils.LocalConnectivity
 
@@ -87,15 +84,6 @@ fun ProfileScreen(navController: NavController) {
             }
         }
         isRefreshing = false
-    }
-
-    fun logout() {
-        JappMessagingService.clearToken(context)
-        CredentialsStorage.clear(context)
-
-        val intent = Intent(context, StartupActivity::class.java)
-        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-        context.startActivity(intent)
     }
 
     Scaffold(containerColor = MaterialTheme.colorScheme.surface) { padding ->
@@ -178,7 +166,7 @@ fun ProfileScreen(navController: NavController) {
                         Spacer(modifier = Modifier.height(12.dp))
 
                         FilledTonalButton(
-                            onClick = { logout() },
+                            onClick = { SessionManager.logout(context) },
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Icon(

@@ -75,7 +75,7 @@ import com.japp.screens.GROUP_ID
 import com.japp.screens.GroupScreen
 import com.japp.screens.HomeScreen
 import com.japp.screens.JoinGroupScreen
-import com.japp.screens.OptionsScreen
+import com.japp.screens.GroupOptionsScreen
 import com.japp.screens.ProfileScreen
 import com.japp.screens.ScanScreen
 import com.japp.screens.SettleGroup
@@ -238,14 +238,16 @@ fun JappApp() {
                         },
                         actions = {
                             if (currentDestination == AppDestinations.GROUP) {
-                                IconButton(onClick = {
-                                    navController.navigate(
-                                        AppDestinations.CustomRoutes.OPTIONS.withArgs(GROUP_ID)
-                                    )
-                                }) {
+                                IconButton(
+                                    onClick = {
+                                        navController.navigate(
+                                            AppDestinations.CustomRoutes.OPTIONS.withArgs(GROUP_ID)
+                                        )
+                                    }
+                                ) {
                                     Icon(
                                         imageVector = Icons.Default.Settings,
-                                        contentDescription = "Group Options"
+                                        contentDescription = "Group Settings"
                                     )
                                 }
                             } else {
@@ -419,7 +421,7 @@ enum class AppDestinations(
             },
             arguments = listOf(navArgument("groupId") { type = NavType.IntType }),
             screen = { navController, backStackEntry ->
-                OptionsScreen(navController, backStackEntry.arguments?.getInt("groupId") ?: 0)
+                GroupOptionsScreen(navController, backStackEntry.arguments?.getInt("groupId") ?: 0)
             }
         );
 

@@ -24,16 +24,14 @@ class NotificationService(
     /**
      * Filter a list of user id for a specific group, to exclude users which have turned off notifications
      */
-    private fun filterNotificationPreference(groupId: Int, userIds: List<Int>): List<Int> {
-        val result = userIds.toMutableList()
-
-        result.forEach { userId ->
-            if (!groupRepository.hasNotificationEnabled(groupId, userId)) { // I know this is not the most efficient way, it should be changed. #TODO
-                result.removeAt(result.indexOf(userId))
+    private suspend fun filterNotificationPreference(groupId: Int, userIds: List<Int>): List<Int> {
+        return withContext(Dispatchers.IO) {
+            transaction {
+                userIds.filter { userId ->
+                    groupRepository.hasNotificationEnabled(groupId, userId)
+                }
             }
         }
-
-        return result.toList()
     }
 
     /**

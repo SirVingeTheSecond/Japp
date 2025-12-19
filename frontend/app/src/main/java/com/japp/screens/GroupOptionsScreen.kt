@@ -50,9 +50,12 @@ import androidx.navigation.NavController
 import com.japp.AppDestinations
 import com.japp.api.NetworkResult
 import com.japp.api.RetrofitClient
+import com.japp.api.responses.group.NotificationPreferenceDto
 import com.japp.api.safeApiMutation
 import com.japp.api.safeApiQuery
 import com.japp.ui.rememberSnackbar
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -91,6 +94,37 @@ fun GroupOptionsScreen(
         }
     }
 
+    // Get users notification preference
+    LaunchedEffect(groupId) {
+        val notificationResult = safeApiQuery("OptionScreen.notification.preference") {
+            RetrofitClient.groupService.hasNotificationEnabled(groupId)
+        }
+
+        if (notificationResult is NetworkResult.Success) {
+            val notification = notificationResult.data
+
+            notificationsEnabled = notification.enabled
+        }
+    }
+
+    fun notificationPreferenceChange(checked: Boolean) {
+        coroutineScope.launch {
+            when (val res = safeApiMutation("notification.preference.change") {
+                RetrofitClient.groupService.setNotificationEnabled(groupId,
+                    NotificationPreferenceDto(checked))
+            }) {
+                is NetworkResult.Success -> {
+                    notificationsEnabled = res.data.enabled
+                    snackbar.showSuccess("Notification preference updated!")
+                }
+
+                is NetworkResult.Error -> {
+                    snackbar.showError(res.message)
+                }
+            }
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -115,7 +149,7 @@ fun GroupOptionsScreen(
             onLeaveGroup = { showLeaveDialog = true },
             onDeleteGroup = { showDeleteDialog = true },
             notificationsEnabled = notificationsEnabled,
-            onNotificationsEnabledChange = { notificationsEnabled = it }
+            notificationPreferenceChange = {checked -> notificationPreferenceChange(checked)}
         )
     }
 
@@ -191,7 +225,7 @@ private fun GroupOptionsScreenContent(
     onLeaveGroup: () -> Unit,
     onDeleteGroup: () -> Unit,
     notificationsEnabled: Boolean,
-    onNotificationsEnabledChange: (Boolean) -> Unit
+    notificationPreferenceChange: (checked: Boolean) -> Unit
 ) {
     Column(
         modifier = modifier
@@ -233,7 +267,7 @@ private fun GroupOptionsScreenContent(
                     }
                     Switch(
                         checked = notificationsEnabled,
-                        onCheckedChange = onNotificationsEnabledChange
+                        onCheckedChange = notificationPreferenceChange
                     )
                 }
             }

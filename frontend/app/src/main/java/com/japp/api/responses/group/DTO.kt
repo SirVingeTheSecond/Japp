@@ -43,3 +43,7 @@ data class DebtHistoryDto(
     val amountOwed: Double,
     val leftAt: String
 )
+
+data class NotificationPreferenceDto(
+    val enabled: Boolean
+)

@@ -6,6 +6,7 @@ import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.POST
+import retrofit2.http.PUT
 import retrofit2.http.Path
 
 interface GroupService {
@@ -60,4 +61,10 @@ interface GroupService {
 
     @DELETE("$BASE_ROUTE/{id}/members/{memberId}")
     suspend fun kickGroupMember(@Path("id") groupId: Int, @Path("memberId") memberId: Int): Response<Unit>
+
+    @GET("$BASE_ROUTE/{id}/notifications")
+    suspend fun hasNotificationEnabled(@Path("id") groupId: Int): Response<NotificationPreferenceDto>
+
+    @PUT("$BASE_ROUTE/{id}/notifications")
+    suspend fun setNotificationEnabled(@Path("id") groupId: Int, @Body request: NotificationPreferenceDto): Response<NotificationPreferenceDto>
 }

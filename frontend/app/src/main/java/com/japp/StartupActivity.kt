@@ -8,6 +8,11 @@ import android.util.Patterns;
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,7 +22,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
@@ -29,7 +33,9 @@ import androidx.compose.material3.SecondaryTabRow
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -61,11 +67,15 @@ import com.japp.api.CredentialsStorage
 import com.japp.api.ErrorUtils
 import com.japp.api.RetrofitClient
 import com.japp.api.SessionManager
+import com.japp.api.responses.auth.AuthResponse
 import com.japp.api.responses.auth.LoginRequest
 import com.japp.api.responses.auth.SignupRequest
 import com.japp.messaging.JappMessagingService
 import com.japp.ui.theme.JappTheme
 import kotlinx.coroutines.launch
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
 import java.util.Date
 
 class StartupActivity : ComponentActivity() {
@@ -330,10 +340,20 @@ fun SignupScreen(context: Context?, navController: NavController) {
                     text = { Text("Credentials") }
                 )
             }
-            Box(Modifier.clip(RoundedCornerShape(8.dp)).background(MaterialTheme.colorScheme.surfaceContainer).padding(10.dp).wrapContentHeight()) {
+            Box(
+                Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(MaterialTheme.colorScheme.surfaceContainer)
+                    .animateContentSize()
+                    .padding(10.dp)
+            ) {
                 NavHost(
                     navController = innerNavController,
-                    startDestination = "1"
+                    startDestination = "1",
+                    enterTransition = { fadeIn() + slideInHorizontally { it } },
+                    exitTransition = { fadeOut() + slideOutHorizontally { -it } },
+                    popEnterTransition = { fadeIn() + slideInHorizontally { -it } },
+                    popExitTransition = { fadeOut() + slideOutHorizontally { it } }
                 ) {
                     composable("1") {
                         Column(

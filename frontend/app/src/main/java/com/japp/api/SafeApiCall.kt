@@ -144,6 +144,6 @@ private fun <T> handleResponse(tag: String, response: Response<T>): NetworkResul
         Log.w(tag, "HTTP ${response.code()}: $errorMessage")
         // 5xx errors are server-side and are worth retrying
         val isRetryable = response.code() in 500..599
-        NetworkResult.Error(errorMessage.toString(), isRetryable = isRetryable)
+        NetworkResult.Error(errorMessage?.message ?: "Unknown error", isRetryable = isRetryable)
     }
 }

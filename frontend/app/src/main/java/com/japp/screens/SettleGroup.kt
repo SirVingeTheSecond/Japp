@@ -353,11 +353,19 @@ fun SettleGroup(
 
                             Spacer(Modifier.height(16.dp))
 
-                            val mySuggestions = suggestions.filter { it.fromUserId == userId }
+                            val mySuggestions = suggestions.filter { suggestion ->
+                                suggestion.fromUserId == userId &&
+                                        pendingSettlements.none { pending ->
+                                            pending.fromUserId == suggestion.fromUserId &&
+                                                    pending.toUserId == suggestion.toUserId
+                                        }
+                            }
 
                             if (mySuggestions.isNotEmpty()) {
                                 Button(
                                     onClick = {
+                                        if (isCreatingSettlements) return@Button
+
                                         createError = null
                                         isCreatingSettlements = true
 

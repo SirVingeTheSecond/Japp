@@ -8,6 +8,11 @@ import android.util.Patterns;
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -208,23 +213,23 @@ fun LoginScreen(context: Context?, navController: NavController) {
                     Button(onClick = { coroutineScope.launch { login() } }) {
                         Text("Login")
                     }
-                    Text(
-                        buildAnnotatedString {
-                            append("Don't have an account? ")
-                            withLink(LinkAnnotation.Clickable(
-                                tag = "Sign Up",
-                                styles = TextLinkStyles(
-                                    style = SpanStyle(color = MaterialTheme.colorScheme.primary)
-                                ),
-                            ) {
-                                navController.navigate(Screens.SIGNUP.route)
-                            }) {
-                                append("Sign Up")
-                            }
-                        }
-                    )
                 }
             }
+            Text(
+                buildAnnotatedString {
+                    append("Don't have an account? ")
+                    withLink(LinkAnnotation.Clickable(
+                        tag = "Sign Up",
+                        styles = TextLinkStyles(
+                            style = SpanStyle(color = MaterialTheme.colorScheme.primary)
+                        ),
+                    ) {
+                        navController.navigate(Screens.SIGNUP.route)
+                    }) {
+                        append("Sign Up")
+                    }
+                }
+            )
         }
     }
 }
@@ -255,6 +260,14 @@ fun SignupScreen(context: Context?, navController: NavController) {
     val isPasswordValid = remember { mutableStateOf(false) }
     val isRepeatPasswordValid = remember { mutableStateOf(false) }
     val isAllValid = remember { mutableStateOf(false) }
+
+    val isUsernameTouched = remember { mutableStateOf(false) }
+    val isFirstNameTouched = remember { mutableStateOf(false) }
+    val isLastNameTouched = remember { mutableStateOf(false) }
+    val isEmailTouched = remember { mutableStateOf(false) }
+    val isPhoneTouched = remember { mutableStateOf(false) }
+    val isPasswordTouched = remember { mutableStateOf(false) }
+    val isRepeatPasswordTouched = remember { mutableStateOf(false) }
 
     fun checkValid() {
         isAllValid.value = isUsernameValid.value
@@ -327,10 +340,20 @@ fun SignupScreen(context: Context?, navController: NavController) {
                     text = { Text("Credentials") }
                 )
             }
-            Box(Modifier.clip(RoundedCornerShape(8.dp)).background(MaterialTheme.colorScheme.surfaceContainer).padding(10.dp)) {
+            Box(
+                Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(MaterialTheme.colorScheme.surfaceContainer)
+                    .animateContentSize()
+                    .padding(10.dp)
+            ) {
                 NavHost(
                     navController = innerNavController,
-                    startDestination = "1"
+                    startDestination = "1",
+                    enterTransition = { fadeIn() + slideInHorizontally { it } },
+                    exitTransition = { fadeOut() + slideOutHorizontally { -it } },
+                    popEnterTransition = { fadeIn() + slideInHorizontally { -it } },
+                    popExitTransition = { fadeOut() + slideOutHorizontally { it } }
                 ) {
                     composable("1") {
                         Column(
@@ -340,14 +363,15 @@ fun SignupScreen(context: Context?, navController: NavController) {
                                 firstname.value,
                                 onValueChange = {
                                     firstname.value = it
+                                    isFirstNameTouched.value = true
                                     isFirstNameValid.value = (it.isNotEmpty())
                                     checkValid()
                                 },
                                 singleLine = true,
                                 label = { Text("First name") },
-                                isError = !isFirstNameValid.value,
+                                isError = isFirstNameTouched.value && !isFirstNameValid.value,
                                 supportingText = {
-                                    if (!isFirstNameValid.value) {
+                                    if (isFirstNameTouched.value && !isFirstNameValid.value) {
                                         Text("First name must not be empty")
                                     }
                                 },
@@ -357,14 +381,15 @@ fun SignupScreen(context: Context?, navController: NavController) {
                                 lastname.value,
                                 onValueChange = {
                                     lastname.value = it
+                                    isLastNameTouched.value = true
                                     isLastNameValid.value = (it.isNotEmpty())
                                     checkValid()
                                 },
                                 singleLine = true,
                                 label = { Text("Last name") },
-                                isError = !isLastNameValid.value,
+                                isError = isLastNameTouched.value && !isLastNameValid.value,
                                 supportingText = {
-                                    if (!isLastNameValid.value) {
+                                    if (isLastNameTouched.value && !isLastNameValid.value) {
                                         Text("Last name must not be empty")
                                     }
                                 },
@@ -374,14 +399,15 @@ fun SignupScreen(context: Context?, navController: NavController) {
                                 email.value,
                                 onValueChange = {
                                     email.value = it
+                                    isEmailTouched.value = true
                                     isEmailValid.value = Patterns.EMAIL_ADDRESS.matcher(it).matches()
                                     checkValid()
                                 },
                                 singleLine = true,
                                 label = { Text("Email") },
-                                isError = !isEmailValid.value,
+                                isError = isEmailTouched.value && !isEmailValid.value,
                                 supportingText = {
-                                    if (!isEmailValid.value) {
+                                    if (isEmailTouched.value && !isEmailValid.value) {
                                         Text("Email is invalid.")
                                     }
                                 },
@@ -390,9 +416,11 @@ fun SignupScreen(context: Context?, navController: NavController) {
                             OutlinedTextField(
                                 if(phone.value == 0) "" else phone.value.toString(),
                                 onValueChange = {
+                                    isPhoneTouched.value = true
                                     var input = it.trim()
                                     if (input == "") {
                                         phone.value = 0
+                                        isPhoneValid.value = true
                                     }
                                     else if (input.matches(Regex("^\\d+\$"))) {
                                         if (input.length > 8) {
@@ -407,11 +435,11 @@ fun SignupScreen(context: Context?, navController: NavController) {
                                 },
                                 singleLine = true,
                                 label = { Text("Phone") },
-                                isError = !isPhoneValid.value,
+                                isError = isPhoneTouched.value && !isPhoneValid.value,
                                 visualTransformation = PhoneNumberTransformation(),
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                                 supportingText = {
-                                    if (!isPhoneValid.value) {
+                                    if (isPhoneTouched.value && !isPhoneValid.value) {
                                         Text("Phone is not a valid number.")
                                     }
                                 },
@@ -429,14 +457,15 @@ fun SignupScreen(context: Context?, navController: NavController) {
                                 username.value,
                                 onValueChange = {
                                     username.value = it
+                                    isUsernameTouched.value = true
                                     isUsernameValid.value = (it.length >= 3)
                                     checkValid()
                                 },
                                 singleLine = true,
                                 label = { Text("Username") },
-                                isError = !isUsernameValid.value,
+                                isError = isUsernameTouched.value && !isUsernameValid.value,
                                 supportingText = {
-                                    if (!isUsernameValid.value) {
+                                    if (isUsernameTouched.value && !isUsernameValid.value) {
                                         Text("Username must be at least 3 characters")
                                     }
                                 },
@@ -446,15 +475,16 @@ fun SignupScreen(context: Context?, navController: NavController) {
                                 password.value,
                                 onValueChange = {
                                     password.value = it
+                                    isPasswordTouched.value = true
                                     isPasswordValid.value = it.matches("^((?=\\S*?[a-z])(?=\\S*?[0-9]).{8,})\$".toRegex()) // what the fuck
                                     checkValid()
                                 },
                                 singleLine = true,
                                 label = { Text("Password") },
-                                isError = !isPasswordValid.value,
+                                isError = isPasswordTouched.value && !isPasswordValid.value,
                                 visualTransformation = PasswordVisualTransformation(),
                                 supportingText = {
-                                    if (!isPasswordValid.value) {
+                                    if (isPasswordTouched.value && !isPasswordValid.value) {
                                         Text("Password must contain at least 1 letter, 1 number and be 8 long.")
                                     }
                                 },
@@ -464,23 +494,23 @@ fun SignupScreen(context: Context?, navController: NavController) {
                                 repeatPassword.value,
                                 onValueChange = {
                                     repeatPassword.value = it
+                                    isRepeatPasswordTouched.value = true
                                     isRepeatPasswordValid.value = (it == password.value)
                                     checkValid()
                                 },
                                 singleLine = true,
                                 label = { Text("Repeat Password") },
-                                isError = !isRepeatPasswordValid.value,
+                                isError = isRepeatPasswordTouched.value && !isRepeatPasswordValid.value,
                                 visualTransformation = PasswordVisualTransformation(),
                                 supportingText = {
-                                    if (!isRepeatPasswordValid.value) {
+                                    if (isRepeatPasswordTouched.value && !isRepeatPasswordValid.value) {
                                         Text("Repeated password does not match password.")
                                     }
                                 },
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
                             )
                             Row (
-                                Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceEvenly
+                                horizontalArrangement = Arrangement.spacedBy(16.dp)
                             ) {
                                 Button(onClick = { innerNavController.navigate("1") }) {
                                     Text("Go Back")
@@ -493,6 +523,21 @@ fun SignupScreen(context: Context?, navController: NavController) {
                     }
                 }
             }
+            Text(
+                buildAnnotatedString {
+                    append("Already have an account? ")
+                    withLink(LinkAnnotation.Clickable(
+                        tag = "Login",
+                        styles = TextLinkStyles(
+                            style = SpanStyle(color = MaterialTheme.colorScheme.primary)
+                        ),
+                    ) {
+                        navController.navigate(Screens.LOGIN.route)
+                    }) {
+                        append("Login")
+                    }
+                }
+            )
         }
     }
 }

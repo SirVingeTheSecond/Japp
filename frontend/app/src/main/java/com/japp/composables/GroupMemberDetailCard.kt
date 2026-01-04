@@ -38,6 +38,7 @@ import com.japp.api.responses.group.GroupMemberDto
 import com.japp.api.safeApiMutation
 import com.japp.api.safeApiQuery
 import com.japp.ui.rememberSnackbar
+import com.japp.ui.theme.LocalExtendedColors
 import com.japp.utils.DateTimeHelper
 import com.japp.utils.FormatHelper
 import kotlinx.coroutines.launch
@@ -55,17 +56,20 @@ fun GroupMemberDetailCard(
     val coroutineScope = rememberCoroutineScope()
     val snackbar = rememberSnackbar()
     val isOwner = groupMember.userId == groupOwner?.userId
+    val extendedColors = LocalExtendedColors.current
+    val surfaceColor = MaterialTheme.colorScheme.surface
 
     var expanded by remember { mutableStateOf(false) }
     var user by remember { mutableStateOf<UserDto?>(null) }
     var kickGroupMember by remember { mutableStateOf<GroupMemberDto?>(null) }
 
-    var cardColor = CardDefaults.cardColors()
-    if (balance != null && balance != 0.0) {
-        val colorTint = if (balance >= 0) Color(0xFF20DF6C) else Color(0xFFDF2020)
-        cardColor = CardDefaults.cardColors(
-            Color(ColorUtils.blendARGB(cardColor.containerColor.toArgb(), colorTint.toArgb(), 0.1f))
+    val cardColor = if (balance != null && balance != 0.0) {
+        val colorTint = if (balance >= 0) extendedColors.credit else extendedColors.debt
+        CardDefaults.cardColors(
+            Color(ColorUtils.blendARGB(surfaceColor.toArgb(), colorTint.toArgb(), 0.1f))
         )
+    } else {
+        CardDefaults.cardColors()
     }
 
     LaunchedEffect(Unit) {
@@ -103,7 +107,7 @@ fun GroupMemberDetailCard(
                 Text(
                     FormatHelper.formatCurrency(balance ?: 0.0),
                     style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.primary,
+                    color = if (balance != null && balance < 0) extendedColors.debt else extendedColors.credit,
                     fontWeight = FontWeight.Bold
                 )
             }

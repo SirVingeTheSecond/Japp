@@ -57,6 +57,7 @@ import com.japp.composables.ErrorWithRetry
 import com.japp.composables.GroupIcon
 import com.japp.composables.getActivityIcon
 import com.japp.ui.state.UiState
+import com.japp.ui.theme.LocalExtendedColors
 import com.japp.utils.DateTimeHelper
 import com.japp.utils.FormatHelper
 import com.japp.utils.LocalConnectivity
@@ -268,15 +269,17 @@ fun QuickStats(balanceState: UiState<BalanceData>) {
             }
 
             is UiState.Success -> {
+                val extendedColors = LocalExtendedColors.current
+                val surfaceColor = MaterialTheme.colorScheme.surface
                 val balance = balanceState.data
                 val owed = balance.owed
                 val owes = balance.owes
                 val net = owed - owes
 
-                val positiveColor = MaterialTheme.colorScheme.primaryContainer
-                val positiveContentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                val negativeColor = MaterialTheme.colorScheme.errorContainer
-                val negativeContentColor = MaterialTheme.colorScheme.onErrorContainer
+                val positiveColor = Color(ColorUtils.blendARGB(surfaceColor.toArgb(), extendedColors.credit.toArgb(), 0.1f))
+                val positiveContentColor = extendedColors.credit
+                val negativeColor = Color(ColorUtils.blendARGB(surfaceColor.toArgb(), extendedColors.debt.toArgb(), 0.1f))
+                val negativeContentColor = extendedColors.debt
                 val neutralColor = MaterialTheme.colorScheme.tertiaryContainer
                 val neutralContentColor = MaterialTheme.colorScheme.onTertiaryContainer
 
@@ -532,23 +535,22 @@ fun GroupCard(
         }
     }
 
-    val baseContainerColor = MaterialTheme.colorScheme.surfaceContainerLow
-    val positiveColor = MaterialTheme.colorScheme.primaryContainer
-    val negativeColor = MaterialTheme.colorScheme.errorContainer
+    val extendedColors = LocalExtendedColors.current
+    val surfaceColor = MaterialTheme.colorScheme.surface
 
     val cardColor = if (groupBalance != null) {
-        val tintColor = if (groupBalance!! >= 0) positiveColor else negativeColor
+        val tintColor = if (groupBalance!! >= 0) extendedColors.credit else extendedColors.debt
         CardDefaults.cardColors(
             containerColor = Color(
                 ColorUtils.blendARGB(
-                    baseContainerColor.toArgb(),
+                    surfaceColor.toArgb(),
                     tintColor.toArgb(),
-                    0.4f
+                    0.1f
                 )
             )
         )
     } else {
-        CardDefaults.cardColors(containerColor = baseContainerColor)
+        CardDefaults.cardColors()
     }
 
     Card(

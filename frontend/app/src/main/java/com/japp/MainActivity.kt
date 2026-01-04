@@ -1,6 +1,5 @@
 package com.japp
 
-import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -267,7 +266,11 @@ fun JappApp() {
                     NavigationBar {
                         NavigationBarItem(
                             selected = AppDestinations.HOME.route == currentDestination?.route,
-                            onClick = { navigate(AppDestinations.HOME.route) },
+                            onClick = {
+                                navController.navigate(AppDestinations.HOME.route) {
+                                    popUpTo(AppDestinations.HOME.route) { inclusive = true }
+                                }
+                            },
                             icon = {
                                 Icon(
                                     imageVector = if (AppDestinations.HOME.route == currentDestination?.route)

@@ -13,7 +13,6 @@ import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.GroupAdd
 import androidx.compose.material.icons.filled.GroupRemove
-import androidx.compose.material.icons.filled.Hardware
 import androidx.compose.material.icons.filled.Receipt
 import androidx.compose.material.icons.filled.Update
 import androidx.compose.material3.Icon
@@ -39,7 +38,7 @@ fun getActivityIcon(actionType: ActivityType): ImageVector {
         ActivityType.EXPENSE_DELETED -> Icons.Default.Delete
         ActivityType.EXPENSE_UPDATED -> Icons.Default.Update
         ActivityType.RECEIPT_UPLOADED -> Icons.Default.Receipt
-        ActivityType.SETTLEMENT_CREATED -> Icons.Default.Hardware
+        ActivityType.SETTLEMENT_CREATED -> Icons.Default.Add
         ActivityType.SETTLEMENT_COMPLETED -> Icons.Default.Done
     }
 }

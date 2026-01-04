@@ -50,13 +50,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import androidx.core.graphics.ColorUtils
 import androidx.navigation.NavController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -79,6 +82,7 @@ import com.japp.composables.GroupMemberDetailCard
 import com.japp.rememberFabButton
 import com.japp.ui.rememberSnackbar
 import com.japp.ui.state.UiState
+import com.japp.ui.theme.LocalExtendedColors
 import com.japp.utils.FormatHelper
 import com.journeyapps.barcodescanner.BarcodeEncoder
 
@@ -315,10 +319,13 @@ private fun GroupBalanceBar(
     balanceState: UiState<GroupBalanceSummaryDto>,
     me: UserDto?
 ) {
-    val positiveColor = MaterialTheme.colorScheme.primaryContainer
-    val positiveContentColor = MaterialTheme.colorScheme.onPrimaryContainer
-    val negativeColor = MaterialTheme.colorScheme.errorContainer
-    val negativeContentColor = MaterialTheme.colorScheme.onErrorContainer
+    val extendedColors = LocalExtendedColors.current
+    val surfaceColor = MaterialTheme.colorScheme.surface
+
+    val positiveColor = Color(ColorUtils.blendARGB(surfaceColor.toArgb(), extendedColors.credit.toArgb(), 0.1f))
+    val positiveContentColor = extendedColors.credit
+    val negativeColor = Color(ColorUtils.blendARGB(surfaceColor.toArgb(), extendedColors.debt.toArgb(), 0.1f))
+    val negativeContentColor = extendedColors.debt
     val neutralColor = MaterialTheme.colorScheme.tertiaryContainer
     val neutralContentColor = MaterialTheme.colorScheme.onTertiaryContainer
 

@@ -217,9 +217,7 @@ val surfaceContainerDarkHighContrast = Color(0xFF2B3133)
 val surfaceContainerHighDarkHighContrast = Color(0xFF363C3E)
 val surfaceContainerHighestDarkHighContrast = Color(0xFF424849)
 
-
-
-
-
-
-
+val debtLight = Color(0xFFDF2020)
+val creditLight = Color(0xFF20DF6C)
+val debtDark = Color(0xFFFF6B6B)
+val creditDark = Color(0xFF6BFF9E)

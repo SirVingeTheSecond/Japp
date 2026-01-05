@@ -21,7 +21,7 @@ class GroupService(
     private val userRepository: IUserRepository,
     private val activityService: ActivityService,
     private val messageService: MessageService,
-    private val expenseRepository: IExpenseRepository,
+    private val expenseService: ExpenseService,
     private val debtHistoryRepository: IDebtHistoryRepository,
     private val notificationService: NotificationService
 ) {
@@ -260,7 +260,7 @@ class GroupService(
                     val user = userRepository.findById(userIdToRemove)
                     removedUsername = user?.username ?: "Unknown"
 
-                    val balances = expenseRepository.calculateGroupBalances(groupId)
+                    val balances = expenseService.calculateNetBalances(groupId)
                     val userBalance = balances[userIdToRemove] ?: 0.0
 
                     if (userBalance < 0.0) {
@@ -483,7 +483,7 @@ class GroupService(
                         }
                     }
 
-                    val balances = expenseRepository.calculateGroupBalances(groupId)
+                    val balances = expenseService.calculateNetBalances(groupId)
                     val userBalance = balances[userId] ?: 0.0
 
                     if (userBalance < 0.0) {
@@ -541,7 +541,7 @@ class GroupService(
                     groupRepository.findById(groupId)
                         ?: return@transaction Result.Failure(AppError.NotFound("Group", groupId))
 
-                    val balances = expenseRepository.calculateGroupBalances(groupId)
+                    val balances = expenseService.calculateNetBalances(groupId)
                     val hasOutstandingDebts = balances.values.any { it != 0.0 }
 
                     if (hasOutstandingDebts) {

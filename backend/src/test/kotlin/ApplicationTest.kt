@@ -145,12 +145,22 @@ class ApplicationTest : AnnotationSpec() {
         val activityRepository = mockk<ActivityRepository>()
         val messageRepository = mockk<MessageRepository>()
         val webSocketManager = mockk<WebSocketManager>()
+        val settlementRepository = mockk<SettlementRepository>()
         val expenseRepository = mockk<ExpenseRepository>()
         val debtHistoryRepository = mockk<DebtHistoryRepository>()
 
         val activityService = ActivityService(activityRepository, userRepository, groupRepository)
         val messageService = MessageService(messageRepository, groupRepository, userRepository,
             webSocketManager, notificationService = mockk(relaxed = true))
+        val expenseService = ExpenseService(
+            expenseRepository,
+            groupRepository,
+            userRepository,
+            settlementRepository,
+            activityService,
+            messageService,
+            notificationService = mockk(relaxed = true)
+        )
 
         // creating mock user for test
         transaction {
@@ -177,7 +187,7 @@ class ApplicationTest : AnnotationSpec() {
             userRepository,
             activityService,
             messageService,
-            expenseRepository,
+            expenseService,
             debtHistoryRepository,
             notificationService = mockk(relaxed = true)
         )
@@ -197,12 +207,22 @@ class ApplicationTest : AnnotationSpec() {
         val activityRepository = mockk<ActivityRepository>()
         val messageRepository = mockk<MessageRepository>()
         val webSocketManager = mockk<WebSocketManager>()
+        val settlementRepository = mockk<SettlementRepository>()
         val expenseRepository = mockk<ExpenseRepository>()
         val debtHistoryRepository = mockk<DebtHistoryRepository>()
 
         val activityService = ActivityService(activityRepository, userRepository, groupRepository)
         val messageService = MessageService(messageRepository, groupRepository, userRepository, webSocketManager,
             notificationService = mockk(relaxed = true))
+        val expenseService = ExpenseService(
+            expenseRepository,
+            groupRepository,
+            userRepository,
+            settlementRepository,
+            activityService,
+            messageService,
+            notificationService = mockk(relaxed = true)
+        )
 
         // creating mock user
         transaction {
@@ -229,7 +249,7 @@ class ApplicationTest : AnnotationSpec() {
             userRepository,
             activityService,
             messageService,
-            expenseRepository,
+            expenseService,
             debtHistoryRepository,
             notificationService = mockk(relaxed = true)
         )
@@ -291,7 +311,7 @@ class ApplicationTest : AnnotationSpec() {
             userRepository,
             activityService,
             messageService,
-            expenseRepository,
+            expenseService,
             debtHistoryRepository,
             notificationService = mockk(relaxed = true)
         )
@@ -351,7 +371,7 @@ class ApplicationTest : AnnotationSpec() {
             userRepository,
             activityService,
             messageService,
-            expenseRepository,
+            expenseService,
             debtHistoryRepository,
             notificationService = mockk(relaxed = true)
         )
@@ -414,7 +434,7 @@ class ApplicationTest : AnnotationSpec() {
             userRepository,
             activityService,
             messageService,
-            expenseRepository,
+            expenseService,
             debtHistoryRepository,
             notificationService = mockk(relaxed = true)
         )
@@ -445,10 +465,19 @@ class ApplicationTest : AnnotationSpec() {
         val activityService = ActivityService(activityRepository, userRepository, groupRepository)
         val messageService = MessageService(messageRepository, groupRepository, userRepository,
             webSocketManager, notificationService = mockk(relaxed = true))
+        val expenseService = ExpenseService(
+            expenseRepository,
+            groupRepository,
+            userRepository,
+            settlementRepository,
+            activityService,
+            messageService,
+            notificationService = mockk(relaxed = true)
+        )
         val settlementService =
             SettlementService(
                 settlementRepository, groupRepository, userRepository,
-                expenseRepository, activityService, messageService, notificationService = mockk(relaxed = true)
+                expenseService, activityService, messageService, notificationService = mockk(relaxed = true)
             )
 
         //create user
@@ -490,7 +519,7 @@ class ApplicationTest : AnnotationSpec() {
             userRepository,
             activityService,
             messageService,
-            expenseRepository,
+            expenseService,
             debtHistoryRepository,
             notificationService = mockk(relaxed = true)
         )
@@ -522,10 +551,19 @@ class ApplicationTest : AnnotationSpec() {
         val activityService = ActivityService(activityRepository, userRepository, groupRepository)
         val messageService = MessageService(messageRepository, groupRepository, userRepository,
             webSocketManager, notificationService = mockk(relaxed = true))
+        val expenseService = ExpenseService(
+            expenseRepository,
+            groupRepository,
+            userRepository,
+            settlementRepository,
+            activityService,
+            messageService,
+            notificationService = mockk(relaxed = true)
+        )
         val settlementService =
             SettlementService(
                 settlementRepository, groupRepository, userRepository,
-                expenseRepository, activityService, messageService, notificationService = mockk(relaxed = true)
+                expenseService, activityService, messageService, notificationService = mockk(relaxed = true)
             )
 
         //create user
@@ -553,7 +591,7 @@ class ApplicationTest : AnnotationSpec() {
             userRepository,
             activityService,
             messageService,
-            expenseRepository,
+            expenseService,
             debtHistoryRepository,
             notificationService = mockk(relaxed = true)
         )
@@ -600,7 +638,7 @@ class ApplicationTest : AnnotationSpec() {
         val settlementService =
             SettlementService(
                 settlementRepository, groupRepository, userRepository,
-                expenseRepository, activityService, messageService, notificationService = mockk(relaxed = true)
+                expenseService, activityService, messageService, notificationService = mockk(relaxed = true)
             )
 
         // create User
@@ -642,7 +680,7 @@ class ApplicationTest : AnnotationSpec() {
             userRepository,
             activityService,
             messageService,
-            expenseRepository,
+            expenseService,
             debtHistoryRepository,
             notificationService = mockk(relaxed = true)
         )

@@ -169,7 +169,7 @@ fun appModule(application: Application) = module {
             userRepository = get(),
             activityService = get(),
             messageService = get(),
-            expenseRepository = get(),
+            expenseService = get(),
             debtHistoryRepository = get(),
             notificationService = get()
         )
@@ -192,7 +192,7 @@ fun appModule(application: Application) = module {
             settlementRepository = get(),
             groupRepository = get(),
             userRepository = get(),
-            expenseRepository = get(),
+            expenseService = get(),
             activityService = get(),
             messageService = get(),
             notificationService = get()

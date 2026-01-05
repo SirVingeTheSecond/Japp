@@ -197,20 +197,7 @@ class ExpenseService(
                     val group = groupRepository.findById(groupId)
                         ?: return@transaction Result.Failure(AppError.Internal("Group not found"))
 
-                    // Get base balances from expenses
-                    val balances = expenseRepository.calculateGroupBalances(groupId).toMutableMap()
-
-                    // Get all completed settlements and apply them to balances
-                    val completedSettlements = settlementRepository.findByGroupId(groupId)
-                        .filter { it.status == SettlementStatus.COMPLETED }
-
-                    // When the settlement is completed
-                    completedSettlements.forEach { settlement ->
-                        balances[settlement.fromUserId] =
-                            balances.getOrDefault(settlement.fromUserId, 0.0) + settlement.amount
-                        balances[settlement.toUserId] =
-                            balances.getOrDefault(settlement.toUserId, 0.0) - settlement.amount
-                    }
+                    val balances = calculateNetBalances(groupId)
 
                     val balanceDtos = balances.map { (userId, balance) ->
                         val user = userRepository.findById(userId)
@@ -289,6 +276,26 @@ class ExpenseService(
                 )
             }
         }
+    }
+
+    /**
+     * Calculate net balances for a group including completed settlements.
+     * Must be called within a transaction.
+     */
+    fun calculateNetBalances(groupId: Int): Map<Int, Double> {
+        val balances = expenseRepository.calculateGroupBalances(groupId).toMutableMap()
+
+        val completedSettlements = settlementRepository.findByGroupId(groupId)
+            .filter { it.status == SettlementStatus.COMPLETED }
+
+        completedSettlements.forEach { settlement ->
+            balances[settlement.fromUserId] =
+                balances.getOrDefault(settlement.fromUserId, 0.0) + settlement.amount
+            balances[settlement.toUserId] =
+                balances.getOrDefault(settlement.toUserId, 0.0) - settlement.amount
+        }
+
+        return balances
     }
 
     private fun toExpenseDto(expense: Expense, paidById: Int): ExpenseDto {

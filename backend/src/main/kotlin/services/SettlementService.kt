@@ -21,7 +21,7 @@ class SettlementService(
     private val settlementRepository: ISettlementRepository,
     private val groupRepository: IGroupRepository,
     private val userRepository: IUserRepository,
-    private val expenseRepository: IExpenseRepository,
+    private val expenseService: ExpenseService,
     private val activityService: ActivityService,
     private val messageService: MessageService,
     private val notificationService: NotificationService
@@ -127,7 +127,7 @@ class SettlementService(
                         AppError.Internal("Group not found")
                     )
 
-                    val balances = expenseRepository.calculateGroupBalances(groupId)
+                    val balances = expenseService.calculateNetBalances(groupId)
                     val suggestions = minimizeCashFlow(balances)
 
                     val suggestionDtos = suggestions.map { (from, to, amount) ->
